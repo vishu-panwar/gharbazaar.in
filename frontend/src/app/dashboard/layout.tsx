@@ -333,7 +333,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* Main Content */}
-      <div className="lg:pl-64 xl:pl-72">
+      <div className="lg:pl-72">
         {/* Top Header */}
         <header className="sticky top-0 z-30 bg-white/80 dark:bg-gray-950/80 backdrop-blur-lg border-b border-gray-200 dark:border-gray-800">
           <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-4">
