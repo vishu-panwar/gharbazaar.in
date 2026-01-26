@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { MessageSquare, Clock, CheckCircle, X, Send, Paperclip, Star } from 'lucide-react';
 import { useSocket } from '@/contexts/SocketContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { CONFIG } from '@/config';
 
 interface Ticket {
     id: string;
@@ -74,7 +75,7 @@ export default function EmployeeTicketsPage() {
     const fetchTickets = async () => {
         try {
             const queryParam = filter === 'all' ? '?all=true' : filter === 'open' ? '?status=open' : '';
-            const response = await fetch(`/api/v1/tickets/employee/all${queryParam}`, {
+            const response = await fetch(`${CONFIG.API.FULL_URL}/tickets/employee/all${queryParam}`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
                 }
@@ -93,7 +94,7 @@ export default function EmployeeTicketsPage() {
 
     const fetchMessages = async (ticketId: string) => {
         try {
-            const response = await fetch(`/api/v1/tickets/${ticketId}`, {
+            const response = await fetch(`${CONFIG.API.FULL_URL}/tickets/${ticketId}`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
                 }
@@ -120,7 +121,7 @@ export default function EmployeeTicketsPage() {
 
     const handleAssignTicket = async (ticketId: string) => {
         try {
-            const response = await fetch(`/api/v1/tickets/${ticketId}/assign`, {
+            const response = await fetch(`${CONFIG.API.FULL_URL}/tickets/${ticketId}/assign`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
@@ -147,7 +148,7 @@ export default function EmployeeTicketsPage() {
         if (!inputMessage.trim() || !selectedTicket) return;
 
         try {
-            const response = await fetch(`/api/v1/tickets/${selectedTicket.id}/messages`, {
+            const response = await fetch(`${CONFIG.API.FULL_URL}/tickets/${selectedTicket.id}/messages`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
@@ -170,7 +171,7 @@ export default function EmployeeTicketsPage() {
         if (!selectedTicket || !confirm('Are you sure you want to close this ticket?')) return;
 
         try {
-            const response = await fetch(`/api/v1/tickets/${selectedTicket.id}/close`, {
+            const response = await fetch(`${CONFIG.API.FULL_URL}/tickets/${selectedTicket.id}/close`, {
                 method: 'PUT',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
