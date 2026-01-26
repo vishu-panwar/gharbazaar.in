@@ -124,6 +124,25 @@ export const createTicket = async (req: Request, res: Response) => {
             memoryTicketMessages.set(ticketId, [ticketMessage]);
         }
 
+        // Emit Socket.IO event to notify employees about new ticket
+        const io = (req.app as any).get('io');
+        if (io) {
+            const ticketData = {
+                id: isMongoDBAvailable() ? ticket._id.toString() : ticket._id,
+                userId,
+                userRole,
+                categoryTitle,
+                subCategoryTitle,
+                problem,
+                status: 'open',
+                createdAt: isMongoDBAvailable() ? ticket.createdAt : ticket.createdAt,
+            };
+
+            // Notify all connected employees about the new ticket
+            io.to('employees').emit('ticket:new', ticketData);
+            console.log(`📢 New ticket broadcast to employees: ${ticketData.id}`);
+        }
+
         res.status(201).json({ success: true, data: { ticket } });
     } catch (error) {
         res.status(500).json({ success: false, error: 'Failed to create ticket' });

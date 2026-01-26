@@ -53,7 +53,7 @@ export default function EmployeeTicketsPage() {
         socket.emit('join_employee_room');
 
         // Listen for new ticket notifications
-        socket.on('ticket:created', (data: any) => {
+        socket.on('ticket:new', (data: any) => {
             console.log('New ticket created:', data);
             fetchTickets();
         });
@@ -66,7 +66,7 @@ export default function EmployeeTicketsPage() {
         });
 
         return () => {
-            socket.off('ticket:created');
+            socket.off('ticket:new');
             socket.off('ticket:customer-message');
         };
     }, [socket, connected, selectedTicket]);

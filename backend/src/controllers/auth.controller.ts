@@ -20,10 +20,7 @@ export const login = async (req: Request, res: Response) => {
                 role: email.includes('admin') ? 'admin' : email.includes('employee') ? 'employee' : 'buyer'
             };
         } else {
-            if (password !== 'password123') {
-                return res.status(401).json({ success: false, error: 'Invalid credentials' });
-            }
-
+            // Mock authentication - accept any password for testing
             userData = {
                 uid: email === 'buyer@demo.com' ? 'demo-buyer-id' : 'demo-user-id',
                 email,
