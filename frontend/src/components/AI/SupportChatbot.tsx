@@ -185,6 +185,23 @@ export default function SupportChatbot({ userRole = 'buyer' }: SupportChatbotPro
         if (!inputMessage.trim() || !ticketData) return;
 
         const problem = inputMessage.trim();
+
+        // Check if user is in demo mode without real authentication
+        const authToken = localStorage.getItem('auth_token');
+        const demoMode = localStorage.getItem('demo_mode') === 'true';
+
+        if (demoMode && !authToken) {
+            addUserMessage(problem);
+            setInputMessage('');
+            addBotMessage('I can see you\'re in demo mode! To create support tickets and access full customer support features, please sign up for a free account. Demo mode lets you explore the interface, but real support requires authentication for your security.');
+
+            // Reset after showing message
+            setTimeout(() => {
+                setChatMode('categories');
+            }, 3000);
+            return;
+        }
+
         addUserMessage(problem);
         setInputMessage('');
 
