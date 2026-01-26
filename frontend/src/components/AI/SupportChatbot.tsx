@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageCircle, X, Minimize2, Send, User, Bot, ArrowLeft, FileUp, Paperclip, Image as ImageIcon, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { AuthUtils } from '@/lib/firebase';
 import { useSocket } from '@/contexts/SocketContext';
 import { useToast } from '@/components/Toast/ToastProvider';
 import { backendApi } from '@/lib/backendApi';
@@ -306,7 +307,12 @@ export default function SupportChatbot({ userRole = 'buyer' }: SupportChatbotPro
     };
 
     // Don't show chatbot if user not logged in
-    if (!user) return null;
+    // Use AuthUtils for consistent auth check with dashboard layout
+    if (!AuthUtils.isLoggedIn()) return null;
+
+    // Get user data from AuthContext or fallback to cached user
+    const currentUser = user || AuthUtils.getCachedUser();
+    if (!currentUser) return null;
 
     // Don't show outside dashboard
     if (typeof window !== 'undefined' && !window.location.pathname.includes('/dashboard')) {
