@@ -1,7 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+<<<<<<< HEAD
 import {
+=======
+import { 
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
   BarChart3,
   TrendingUp,
   TrendingDown,
@@ -30,6 +34,7 @@ import {
   AlertCircle
 } from 'lucide-react'
 
+<<<<<<< HEAD
 interface PropertyPerformance {
   id: number;
   name: string;
@@ -44,6 +49,8 @@ interface PropertyPerformance {
   leadQuality: string;
 }
 
+=======
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
 export default function AnalyticsPage() {
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | '1y'>('30d')
   const [selectedProperty, setSelectedProperty] = useState<'all' | string>('all')
@@ -51,6 +58,7 @@ export default function AnalyticsPage() {
 
   // Enhanced analytics data with sale/rent differentiation
   const overallStats = [
+<<<<<<< HEAD
     {
       label: 'Total Views',
       value: '0',
@@ -94,10 +102,56 @@ export default function AnalyticsPage() {
       chartData: [0, 0, 0, 0, 0, 0, 0],
       saleData: { value: '0%', change: '0%' },
       rentData: { value: '0%', change: '0%' }
+=======
+    { 
+      label: 'Total Views', 
+      value: '12.5K', 
+      change: '+18.2%', 
+      trend: 'up', 
+      icon: Eye, 
+      color: 'blue',
+      chartData: [45, 52, 48, 65, 72, 68, 85],
+      saleData: { value: '8.2K', change: '+15.3%' },
+      rentData: { value: '4.3K', change: '+24.1%' }
+    },
+    { 
+      label: 'Total Inquiries', 
+      value: '342', 
+      change: '+12.5%', 
+      trend: 'up', 
+      icon: MessageCircle, 
+      color: 'purple',
+      chartData: [12, 15, 18, 22, 19, 25, 28],
+      saleData: { value: '198', change: '+8.7%' },
+      rentData: { value: '144', change: '+18.9%' }
+    },
+    { 
+      label: 'Favorites', 
+      value: '1.2K', 
+      change: '+8.3%', 
+      trend: 'up', 
+      icon: Heart, 
+      color: 'red',
+      chartData: [30, 35, 32, 40, 45, 48, 52],
+      saleData: { value: '756', change: '+6.2%' },
+      rentData: { value: '444', change: '+12.1%' }
+    },
+    { 
+      label: 'Conversion Rate', 
+      value: '4.8%', 
+      change: '-2.1%', 
+      trend: 'down', 
+      icon: Target, 
+      color: 'green',
+      chartData: [5.2, 5.0, 4.9, 5.1, 4.7, 4.8, 4.8],
+      saleData: { value: '3.9%', change: '-3.2%' },
+      rentData: { value: '6.2%', change: '+1.8%' }
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
     }
   ]
 
   // Enhanced property performance with sale/rent data
+<<<<<<< HEAD
   const propertyPerformance: PropertyPerformance[] = []
 
   // Rental-specific metrics
@@ -106,10 +160,112 @@ export default function AnalyticsPage() {
     { label: 'Tenant Retention', value: '0%', icon: Users, color: 'green' },
     { label: 'Avg. Security Deposit', value: '₹0', icon: Shield, color: 'blue' },
     { label: 'Rental Yield', value: '0%', icon: TrendingUp, color: 'orange' }
+=======
+  const propertyPerformance = [
+    {
+      id: 1,
+      name: 'Luxury Penthouse',
+      location: 'Worli, Mumbai',
+      type: 'sale',
+      price: '₹8.5 Cr',
+      views: 1234,
+      inquiries: 23,
+      favorites: 45,
+      conversionRate: 5.2,
+      avgTimeOnPage: '3:45',
+      bounceRate: 32,
+      leadQuality: 'High',
+      status: 'Active'
+    },
+    {
+      id: 2,
+      name: 'Premium 3BHK Apartment',
+      location: 'Bandra West, Mumbai',
+      type: 'rent',
+      price: '₹85,000/month',
+      views: 743,
+      inquiries: 18,
+      favorites: 32,
+      conversionRate: 6.8,
+      avgTimeOnPage: '4:12',
+      bounceRate: 25,
+      leadQuality: 'High',
+      status: 'Active'
+    },
+    {
+      id: 3,
+      name: 'Modern Villa',
+      location: 'Whitefield, Bangalore',
+      type: 'sale',
+      price: '₹3.8 Cr',
+      views: 892,
+      inquiries: 15,
+      favorites: 28,
+      conversionRate: 4.8,
+      avgTimeOnPage: '3:30',
+      bounceRate: 35,
+      leadQuality: 'Medium',
+      status: 'Active'
+    },
+    {
+      id: 4,
+      name: 'Furnished 2BHK Flat',
+      location: 'Koramangala, Bangalore',
+      type: 'rent',
+      price: '₹45,000/month',
+      views: 432,
+      inquiries: 12,
+      favorites: 18,
+      conversionRate: 7.2,
+      avgTimeOnPage: '3:15',
+      bounceRate: 28,
+      leadQuality: 'Medium',
+      status: 'Active'
+    },
+    {
+      id: 5,
+      name: 'Luxury Villa on Rent',
+      location: 'DLF Phase 2, Gurgaon',
+      type: 'rent',
+      price: '₹1,20,000/month',
+      views: 891,
+      inquiries: 21,
+      favorites: 35,
+      conversionRate: 8.1,
+      avgTimeOnPage: '4:45',
+      bounceRate: 22,
+      leadQuality: 'High',
+      status: 'Active'
+    },
+    {
+      id: 6,
+      name: 'Garden Estate',
+      location: 'Gurgaon, Delhi NCR',
+      type: 'sale',
+      price: '₹1.8 Cr',
+      views: 456,
+      inquiries: 9,
+      favorites: 15,
+      conversionRate: 3.9,
+      avgTimeOnPage: '2:30',
+      bounceRate: 45,
+      leadQuality: 'Low',
+      status: 'Active'
+    }
+  ]
+
+  // Rental-specific metrics
+  const rentalMetrics = [
+    { label: 'Avg. Lease Duration', value: '11.2 months', icon: Calendar, color: 'purple' },
+    { label: 'Tenant Retention', value: '78%', icon: Users, color: 'green' },
+    { label: 'Avg. Security Deposit', value: '₹1.8L', icon: Shield, color: 'blue' },
+    { label: 'Rental Yield', value: '6.2%', icon: TrendingUp, color: 'orange' }
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
   ]
 
   // Sale-specific metrics
   const saleMetrics = [
+<<<<<<< HEAD
     { label: 'Avg. Days on Market', value: '0 days', icon: Calendar, color: 'blue' },
     { label: 'Price Appreciation', value: '0%', icon: TrendingUp, color: 'green' },
     { label: 'Negotiation Rate', value: '0%', icon: DollarSign, color: 'purple' },
@@ -125,6 +281,40 @@ export default function AnalyticsPage() {
   // Filter properties based on type
   const filteredProperties = propertyType === 'all'
     ? propertyPerformance
+=======
+    { label: 'Avg. Days on Market', value: '45 days', icon: Calendar, color: 'blue' },
+    { label: 'Price Appreciation', value: '+12.5%', icon: TrendingUp, color: 'green' },
+    { label: 'Negotiation Rate', value: '68%', icon: DollarSign, color: 'purple' },
+    { label: 'Closing Success', value: '82%', icon: CheckCircle, color: 'emerald' }
+  ]
+
+  const visitorDemographics = [
+    { location: 'Mumbai', percentage: 35, count: 4375, saleCount: 2625, rentCount: 1750 },
+    { location: 'Bangalore', percentage: 28, count: 3500, saleCount: 1750, rentCount: 1750 },
+    { location: 'Delhi NCR', percentage: 22, count: 2750, saleCount: 1650, rentCount: 1100 },
+    { location: 'Pune', percentage: 10, count: 1250, saleCount: 750, rentCount: 500 },
+    { location: 'Others', percentage: 5, count: 625, saleCount: 375, rentCount: 250 }
+  ]
+
+  const trafficSources = [
+    { source: 'Direct', percentage: 42, count: 5250, color: 'blue' },
+    { source: 'Search', percentage: 31, count: 3875, color: 'green' },
+    { source: 'Social Media', percentage: 18, count: 2250, color: 'purple' },
+    { source: 'Referral', percentage: 9, count: 1125, color: 'orange' }
+  ]
+
+  const peakHours = [
+    { hour: '9 AM', views: 45, saleViews: 28, rentViews: 17 },
+    { hour: '12 PM', views: 78, saleViews: 45, rentViews: 33 },
+    { hour: '3 PM', views: 92, saleViews: 52, rentViews: 40 },
+    { hour: '6 PM', views: 125, saleViews: 68, rentViews: 57 },
+    { hour: '9 PM', views: 98, saleViews: 55, rentViews: 43 }
+  ]
+
+  // Filter properties based on type
+  const filteredProperties = propertyType === 'all' 
+    ? propertyPerformance 
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
     : propertyPerformance.filter(prop => prop.type === propertyType)
 
   const getLeadQualityColor = (quality: string) => {
@@ -137,8 +327,13 @@ export default function AnalyticsPage() {
   }
 
   const getPropertyTypeColor = (type: string) => {
+<<<<<<< HEAD
     return type === 'rent'
       ? 'text-purple-600 bg-purple-100 dark:bg-purple-900/30'
+=======
+    return type === 'rent' 
+      ? 'text-purple-600 bg-purple-100 dark:bg-purple-900/30' 
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
       : 'text-blue-600 bg-blue-100 dark:bg-blue-900/30'
   }
 
@@ -155,7 +350,11 @@ export default function AnalyticsPage() {
             Track your property performance and insights across sales & rentals
           </p>
         </div>
+<<<<<<< HEAD
 
+=======
+        
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
         <div className="flex items-center space-x-3">
           <select
             value={propertyType}
@@ -166,7 +365,11 @@ export default function AnalyticsPage() {
             <option value="sale">Sale Properties</option>
             <option value="rent">Rental Properties</option>
           </select>
+<<<<<<< HEAD
 
+=======
+          
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
           <select
             value={timeRange}
             onChange={(e) => setTimeRange(e.target.value as any)}
@@ -177,7 +380,11 @@ export default function AnalyticsPage() {
             <option value="90d">Last 90 Days</option>
             <option value="1y">Last Year</option>
           </select>
+<<<<<<< HEAD
 
+=======
+          
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
           <button className="flex items-center space-x-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-all">
             <Filter size={18} />
             <span>Filter</span>
@@ -193,16 +400,29 @@ export default function AnalyticsPage() {
               <div className={`w-12 h-12 bg-${stat.color}-100 dark:bg-${stat.color}-900/30 rounded-xl flex items-center justify-center`}>
                 <stat.icon className={`text-${stat.color}-600`} size={24} />
               </div>
+<<<<<<< HEAD
               <div className={`flex items-center space-x-1 ${stat.trend === 'up' ? 'text-green-600' : 'text-red-600'
                 }`}>
+=======
+              <div className={`flex items-center space-x-1 ${
+                stat.trend === 'up' ? 'text-green-600' : 'text-red-600'
+              }`}>
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
                 {stat.trend === 'up' ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
                 <span className="text-sm font-semibold">{stat.change}</span>
               </div>
             </div>
+<<<<<<< HEAD
 
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{stat.label}</p>
             <p className="text-3xl font-bold text-gray-900 dark:text-white mb-4">{stat.value}</p>
 
+=======
+            
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{stat.label}</p>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white mb-4">{stat.value}</p>
+            
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
             {/* Sale/Rent Breakdown */}
             <div className="grid grid-cols-2 gap-2 mb-4">
               <div className="text-center p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
@@ -216,7 +436,11 @@ export default function AnalyticsPage() {
                 <p className="text-xs text-purple-600 dark:text-purple-400">{stat.rentData.change}</p>
               </div>
             </div>
+<<<<<<< HEAD
 
+=======
+            
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
             {/* Mini Chart */}
             <div className="flex items-end space-x-1 h-8">
               {stat.chartData.map((value, i) => (
@@ -279,10 +503,18 @@ export default function AnalyticsPage() {
             <Home className="mr-2 text-green-500" size={24} />
             Property Performance
             {propertyType !== 'all' && (
+<<<<<<< HEAD
               <span className={`ml-3 px-3 py-1 rounded-full text-sm font-semibold ${propertyType === 'rent'
                 ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400'
                 : 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
                 }`}>
+=======
+              <span className={`ml-3 px-3 py-1 rounded-full text-sm font-semibold ${
+                propertyType === 'rent' 
+                  ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400' 
+                  : 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+              }`}>
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
                 {propertyType === 'rent' ? 'Rental Properties' : 'Sale Properties'}
               </span>
             )}
@@ -340,9 +572,16 @@ export default function AnalyticsPage() {
                     <span className="font-semibold text-gray-900 dark:text-white">{property.inquiries}</span>
                   </td>
                   <td className="text-center py-4 px-4">
+<<<<<<< HEAD
                     <span className={`font-semibold ${property.conversionRate >= 6 ? 'text-green-600' :
                       property.conversionRate >= 4 ? 'text-yellow-600' : 'text-red-600'
                       }`}>
+=======
+                    <span className={`font-semibold ${
+                      property.conversionRate >= 6 ? 'text-green-600' : 
+                      property.conversionRate >= 4 ? 'text-yellow-600' : 'text-red-600'
+                    }`}>
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
                       {property.conversionRate}%
                     </span>
                   </td>
@@ -370,7 +609,11 @@ export default function AnalyticsPage() {
             <MapPin className="mr-2 text-blue-500" size={24} />
             Visitor Demographics
           </h2>
+<<<<<<< HEAD
 
+=======
+          
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
           <div className="space-y-4">
             {visitorDemographics.map((demo, index) => (
               <div key={index}>
@@ -379,7 +622,11 @@ export default function AnalyticsPage() {
                   <span className="text-sm font-semibold text-gray-900 dark:text-white">{demo.percentage}%</span>
                 </div>
                 <div className="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+<<<<<<< HEAD
                   <div
+=======
+                  <div 
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
                     className="h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full transition-all"
                     style={{ width: `${demo.percentage}%` }}
                   />
@@ -402,7 +649,11 @@ export default function AnalyticsPage() {
             <Activity className="mr-2 text-green-500" size={24} />
             Traffic Sources
           </h2>
+<<<<<<< HEAD
 
+=======
+          
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
           <div className="space-y-4">
             {trafficSources.map((source, index) => (
               <div key={index} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
@@ -429,13 +680,21 @@ export default function AnalyticsPage() {
             Blue: Sale Properties | Purple: Rental Properties
           </span>
         </h2>
+<<<<<<< HEAD
 
+=======
+        
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
         <div className="flex items-end justify-between space-x-4 h-64">
           {peakHours.map((hour, index) => (
             <div key={index} className="flex-1 flex flex-col items-center">
               <div className="w-full flex flex-col items-center justify-end flex-1 space-y-1">
                 {/* Sale Views Bar */}
+<<<<<<< HEAD
                 <div
+=======
+                <div 
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
                   className="w-full bg-gradient-to-t from-blue-500 to-blue-300 rounded-t-lg transition-all hover:from-blue-600 hover:to-blue-400 cursor-pointer relative group"
                   style={{ height: `${(hour.saleViews / Math.max(...peakHours.map(h => h.views))) * 100}%` }}
                 >
@@ -444,7 +703,11 @@ export default function AnalyticsPage() {
                   </div>
                 </div>
                 {/* Rent Views Bar */}
+<<<<<<< HEAD
                 <div
+=======
+                <div 
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
                   className="w-full bg-gradient-to-t from-purple-500 to-purple-300 transition-all hover:from-purple-600 hover:to-purple-400 cursor-pointer relative group"
                   style={{ height: `${(hour.rentViews / Math.max(...peakHours.map(h => h.views))) * 100}%` }}
                 >
@@ -466,7 +729,11 @@ export default function AnalyticsPage() {
           <Crown className="mr-2" size={24} />
           AI-Powered Insights & Recommendations
         </h2>
+<<<<<<< HEAD
 
+=======
+        
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
             <TrendingUp size={24} className="mb-2" />

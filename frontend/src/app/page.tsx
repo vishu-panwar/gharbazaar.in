@@ -46,10 +46,17 @@ export default function HomePage() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setStats({
+<<<<<<< HEAD
         properties: 0,
         customers: 0,
         cities: 0,
         savings: 0
+=======
+        properties: 50000,
+        customers: 25000,
+        cities: 50,
+        savings: 500
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
       })
     }, 1000)
     return () => clearTimeout(timer)
@@ -61,8 +68,13 @@ export default function HomePage() {
       <section className="relative h-screen overflow-hidden">
         {/* Background - User's Uploaded Villa Image */}
         <InteractiveBackground
+<<<<<<< HEAD
           imageUrl="/images/hero-home.jpg"
           brightness={0.5}
+=======
+          imageUrl="/images/hero-villa.jpg"
+          brightness={0.45}
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
           glowColor="rgba(20,184,166,0.08)"
         />
 

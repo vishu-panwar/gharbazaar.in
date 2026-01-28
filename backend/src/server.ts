@@ -37,6 +37,7 @@ const startServer = async () => {
 
         const limiter = rateLimit({
             windowMs: config.rateLimit.windowMs,
+<<<<<<< HEAD
             max: 1000, // Increased for development
             message: {
                 success: false,
@@ -44,6 +45,10 @@ const startServer = async () => {
             },
             standardHeaders: true,
             legacyHeaders: false,
+=======
+            max: config.rateLimit.max,
+            message: 'Too many requests, please try again later.',
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
         });
         app.use('/api/', limiter);
 

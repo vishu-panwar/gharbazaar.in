@@ -75,7 +75,11 @@ export const fileUploadLimiter = rateLimit({
 // General API rate limiter: 100 requests per 15 minutes per user
 export const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
+<<<<<<< HEAD
     max: 1000, // 1000 requests per window
+=======
+    max: 100, // 100 requests per window
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
     message: {
         success: false,
         error: 'Too many requests. Please try again later.',

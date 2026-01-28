@@ -2,7 +2,11 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+<<<<<<< HEAD
 import {
+=======
+import { 
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
   Mail,
   TrendingUp,
   Clock,
@@ -36,6 +40,7 @@ import {
   Reply
 } from 'lucide-react'
 
+<<<<<<< HEAD
 interface OfferLetter {
   id: number;
   status: 'pending' | 'accepted' | 'rejected' | 'all';
@@ -61,16 +66,239 @@ interface OfferLetter {
   acceptedDate?: string;
 }
 
+=======
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
 export default function OfferLettersPage() {
   const [activeTab, setActiveTab] = useState<'pending' | 'accepted' | 'rejected' | 'all'>('pending')
   const [selectedOffer, setSelectedOffer] = useState<number | null>(null)
 
+<<<<<<< HEAD
   // No offer letters for now
   const offerLetters: OfferLetter[] = []
 
 
   const filteredOffers = activeTab === 'all'
     ? offerLetters
+=======
+  // Sample offer letters data (from buyers to sellers)
+  const offerLetters = [
+    {
+      id: 1,
+      propertyTitle: 'Luxury Penthouse',
+      propertyId: 'LP001',
+      location: 'Worli, Mumbai',
+      listedPrice: '₹8.5 Cr',
+      offeredPrice: '₹8.2 Cr',
+      offerValue: 82000000,
+      status: 'pending',
+      buyerName: 'Arjun Mehta',
+      buyerRating: 4.7,
+      buyerPhone: '+91 98765 43210',
+      buyerEmail: 'arjun.mehta@email.com',
+      offerDate: '2024-12-25',
+      responseDeadline: '2024-12-30',
+      offerType: 'Purchase',
+      financingType: 'Home Loan',
+      downPayment: '₹2.5 Cr',
+      loanAmount: '₹5.7 Cr',
+      possessionDate: '2025-03-15',
+      inspectionDate: '2024-12-28',
+      conditions: [
+        'Property inspection within 7 days',
+        'Clear title verification required',
+        'Home loan approval confirmation',
+        'Negotiable on minor repairs'
+      ],
+      buyerDocuments: [
+        'Income Certificate',
+        'Bank Statements (6 months)',
+        'Identity Proof',
+        'Address Proof',
+        'Loan Pre-approval Letter'
+      ],
+      message: 'I am very interested in your property and would like to make this offer. I have been pre-approved for the loan and can proceed quickly with the purchase. Looking forward to your response.',
+      image: '/images/property1.jpg',
+      urgency: 'high',
+      buyerProfile: {
+        profession: 'Software Engineer',
+        company: 'Tech Corp',
+        experience: '8 years',
+        previousPurchases: 2
+      }
+    },
+    {
+      id: 2,
+      propertyTitle: 'Modern Villa',
+      propertyId: 'MV002',
+      location: 'Whitefield, Bangalore',
+      listedPrice: '₹3.8 Cr',
+      offeredPrice: '₹3.6 Cr',
+      offerValue: 36000000,
+      status: 'accepted',
+      buyerName: 'Priya Sharma',
+      buyerRating: 4.9,
+      buyerPhone: '+91 87654 32109',
+      buyerEmail: 'priya.sharma@email.com',
+      offerDate: '2024-12-20',
+      responseDeadline: '2024-12-25',
+      acceptedDate: '2024-12-22',
+      offerType: 'Purchase',
+      financingType: 'Cash',
+      downPayment: '₹3.6 Cr',
+      loanAmount: '₹0',
+      possessionDate: '2025-02-01',
+      inspectionDate: '2024-12-24',
+      conditions: [
+        'Immediate possession after payment',
+        'All fixtures included',
+        'Society clearance provided'
+      ],
+      buyerDocuments: [
+        'Bank Balance Certificate',
+        'Income Tax Returns',
+        'Identity Proof'
+      ],
+      message: 'I am ready to purchase this property with cash payment. All documents are ready and I can complete the transaction within 15 days.',
+      image: '/images/property2.jpg',
+      urgency: 'medium',
+      buyerProfile: {
+        profession: 'Business Owner',
+        company: 'Sharma Enterprises',
+        experience: '12 years',
+        previousPurchases: 4
+      }
+    },
+    {
+      id: 3,
+      propertyTitle: 'Sea View Apartment',
+      propertyId: 'SVA003',
+      location: 'Marine Drive, Mumbai',
+      listedPrice: '₹6.2 Cr',
+      offeredPrice: '₹5.8 Cr',
+      offerValue: 58000000,
+      status: 'rejected',
+      buyerName: 'Amit Patel',
+      buyerRating: 4.6,
+      buyerPhone: '+91 76543 21098',
+      buyerEmail: 'amit.patel@email.com',
+      offerDate: '2024-12-18',
+      responseDeadline: '2024-12-23',
+      rejectedDate: '2024-12-21',
+      offerType: 'Purchase',
+      financingType: 'Home Loan',
+      downPayment: '₹1.8 Cr',
+      loanAmount: '₹4.0 Cr',
+      possessionDate: '2025-04-01',
+      inspectionDate: '2024-12-25',
+      conditions: [
+        'Price negotiable based on inspection',
+        'Seller to handle society NOC',
+        'Flexible possession date'
+      ],
+      buyerDocuments: [
+        'Salary Slips (3 months)',
+        'Bank Statements',
+        'Loan Pre-approval'
+      ],
+      message: 'This is my best offer considering the current market conditions. I am flexible with the timeline and ready to proceed immediately.',
+      image: '/images/property3.jpg',
+      urgency: 'low',
+      rejectionReason: 'Offer price too low for current market value',
+      buyerProfile: {
+        profession: 'Doctor',
+        company: 'City Hospital',
+        experience: '15 years',
+        previousPurchases: 1
+      }
+    },
+    {
+      id: 4,
+      propertyTitle: 'Garden Estate',
+      propertyId: 'GE004',
+      location: 'Gurgaon, Delhi NCR',
+      listedPrice: '₹5.2 Cr',
+      offeredPrice: '₹4.9 Cr',
+      offerValue: 49000000,
+      status: 'pending',
+      buyerName: 'Sunita Gupta',
+      buyerRating: 4.8,
+      buyerPhone: '+91 65432 10987',
+      buyerEmail: 'sunita.gupta@email.com',
+      offerDate: '2024-12-24',
+      responseDeadline: '2024-12-29',
+      offerType: 'Purchase',
+      financingType: 'Home Loan',
+      downPayment: '₹1.5 Cr',
+      loanAmount: '₹3.4 Cr',
+      possessionDate: '2025-05-15',
+      inspectionDate: '2024-12-30',
+      conditions: [
+        'Subject to loan approval',
+        'Property inspection mandatory',
+        'All legal documents verified'
+      ],
+      buyerDocuments: [
+        'Employment Letter',
+        'Bank Statements (6 months)',
+        'Income Tax Returns (2 years)'
+      ],
+      message: 'I have been looking for a property like this for months. This offer represents my maximum budget and I am committed to proceeding if accepted.',
+      image: '/images/property4.jpg',
+      urgency: 'high',
+      buyerProfile: {
+        profession: 'Marketing Manager',
+        company: 'Global Corp',
+        experience: '10 years',
+        previousPurchases: 0
+      }
+    },
+    {
+      id: 5,
+      propertyTitle: 'City Center Office',
+      propertyId: 'CCO005',
+      location: 'Connaught Place, Delhi',
+      listedPrice: '₹12.5 Cr',
+      offeredPrice: '₹11.8 Cr',
+      offerValue: 118000000,
+      status: 'pending',
+      buyerName: 'Rajesh Kumar',
+      buyerRating: 4.9,
+      buyerPhone: '+91 54321 09876',
+      buyerEmail: 'rajesh.kumar@email.com',
+      offerDate: '2024-12-26',
+      responseDeadline: '2025-01-02',
+      offerType: 'Investment',
+      financingType: 'Cash + Loan',
+      downPayment: '₹6.0 Cr',
+      loanAmount: '₹5.8 Cr',
+      possessionDate: '2025-06-01',
+      inspectionDate: '2024-12-31',
+      conditions: [
+        'Commercial loan approval required',
+        'Rental yield guarantee for 2 years',
+        'Property management included'
+      ],
+      buyerDocuments: [
+        'Business Registration',
+        'Financial Statements',
+        'Bank Statements',
+        'Investment Portfolio'
+      ],
+      message: 'This property fits perfectly into our investment portfolio. We are serious buyers with proven track record and ready to close quickly.',
+      image: '/images/property5.jpg',
+      urgency: 'medium',
+      buyerProfile: {
+        profession: 'Real Estate Investor',
+        company: 'Kumar Properties',
+        experience: '20 years',
+        previousPurchases: 15
+      }
+    }
+  ]
+
+  const filteredOffers = activeTab === 'all' 
+    ? offerLetters 
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
     : offerLetters.filter(offer => offer.status === activeTab)
 
   const stats = {
@@ -246,10 +474,18 @@ export default function OfferLettersPage() {
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key as any)}
+<<<<<<< HEAD
               className={`flex-1 min-w-[120px] px-4 py-3 rounded-lg font-medium transition-all ${activeTab === tab.key
                 ? `${tab.color} text-white shadow-lg`
                 : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
                 }`}
+=======
+              className={`flex-1 min-w-[120px] px-4 py-3 rounded-lg font-medium transition-all ${
+                activeTab === tab.key
+                  ? `${tab.color} text-white shadow-lg`
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+              }`}
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
             >
               {tab.label} ({tab.count})
             </button>
@@ -405,24 +641,39 @@ export default function OfferLettersPage() {
                         <Eye size={18} />
                         <span>View Property</span>
                       </Link>
+<<<<<<< HEAD
 
                       {offer.status === 'pending' && (
                         <>
                           <button
+=======
+                      
+                      {offer.status === 'pending' && (
+                        <>
+                          <button 
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
                             onClick={() => handleAcceptOffer(offer.id)}
                             className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-all"
                           >
                             <ThumbsUp size={18} />
                             <span>Accept Offer</span>
                           </button>
+<<<<<<< HEAD
                           <button
+=======
+                          <button 
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
                             onClick={() => handleCounterOffer(offer.id)}
                             className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-all"
                           >
                             <Reply size={18} />
                             <span>Counter Offer</span>
                           </button>
+<<<<<<< HEAD
                           <button
+=======
+                          <button 
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
                             onClick={() => handleRejectOffer(offer.id)}
                             className="flex items-center space-x-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-all"
                           >
@@ -529,7 +780,11 @@ export default function OfferLettersPage() {
                         Offer Conditions
                       </h4>
                       <div className="space-y-2">
+<<<<<<< HEAD
                         {offer.conditions.map((condition: string, index: number) => (
+=======
+                        {offer.conditions.map((condition, index) => (
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
                           <div key={index} className="flex items-start space-x-2 p-3 bg-white dark:bg-gray-800 rounded-lg">
                             <CheckCircle className="text-green-500 mt-0.5" size={16} />
                             <span className="text-gray-700 dark:text-gray-300 text-sm">{condition}</span>
@@ -558,10 +813,17 @@ export default function OfferLettersPage() {
                         Offer Accepted
                       </h5>
                       <p className="text-green-700 dark:text-green-300 text-sm">
+<<<<<<< HEAD
                         Accepted on {new Date(offer.acceptedDate).toLocaleDateString('en-IN', {
                           day: 'numeric',
                           month: 'long',
                           year: 'numeric'
+=======
+                        Accepted on {new Date(offer.acceptedDate).toLocaleDateString('en-IN', { 
+                          day: 'numeric', 
+                          month: 'long', 
+                          year: 'numeric' 
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
                         })}
                       </p>
                     </div>

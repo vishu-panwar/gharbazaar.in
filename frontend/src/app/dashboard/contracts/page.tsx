@@ -76,11 +76,202 @@ export default function ContractsPage() {
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'pending' | 'completed' | 'cancelled'>('all')
   const [userRole, setUserRole] = useState<'seller' | 'renter'>('seller')
 
+<<<<<<< HEAD
   // No sale agreements for now
   const sellerContracts: SellerContract[] = []
 
   // No lease agreements for now
   const renterContracts: RenterContract[] = []
+=======
+  // Sample contracts data for sellers (sale agreements)
+  const sellerContracts = [
+    {
+      id: 1,
+      contractNumber: 'SA-2024-001',
+      contractType: 'Sale Agreement',
+      property: 'Luxury Penthouse',
+      propertyLocation: 'Worli, Mumbai',
+      propertyType: 'Penthouse',
+      area: '3500 sq ft',
+      buyer: 'Rahul Sharma',
+      buyerEmail: 'rahul.sharma@email.com',
+      buyerPhone: '+91 98765 43210',
+      amount: '₹8.5 Cr',
+      amountValue: 85000000,
+      commission: '₹42.5L',
+      commissionValue: 4250000,
+      status: 'active',
+      startDate: '2024-11-15',
+      completionDate: '2025-02-15',
+      registryDate: '2025-01-30',
+      progress: 75,
+      documents: ['Sale Agreement', 'KYC Documents', 'Token Payment Receipt', 'NOC'],
+      nextMilestone: 'Final Payment & Registry',
+      milestoneDate: '2024-12-15',
+      paymentSchedule: [
+        { stage: 'Token Amount', amount: 850000, status: 'completed', date: '2024-11-15' },
+        { stage: 'Agreement Amount', amount: 8500000, status: 'completed', date: '2024-11-20' },
+        { stage: 'Construction Linked', amount: 42500000, status: 'pending', date: '2024-12-15' },
+        { stage: 'Final Payment', amount: 33150000, status: 'pending', date: '2025-01-30' }
+      ]
+    },
+    {
+      id: 2,
+      contractNumber: 'SA-2024-002',
+      contractType: 'Sale Agreement',
+      property: 'Modern Villa',
+      propertyLocation: 'Whitefield, Bangalore',
+      propertyType: 'Villa',
+      area: '2800 sq ft',
+      buyer: 'Priya Patel',
+      buyerEmail: 'priya.patel@email.com',
+      buyerPhone: '+91 87654 32109',
+      amount: '₹3.8 Cr',
+      amountValue: 38000000,
+      commission: '₹19L',
+      commissionValue: 1900000,
+      status: 'pending',
+      startDate: '2024-12-01',
+      completionDate: '2025-03-01',
+      registryDate: '2025-02-15',
+      progress: 25,
+      documents: ['Draft Agreement', 'Property Documents'],
+      nextMilestone: 'Buyer Signature & Token',
+      milestoneDate: '2024-12-05',
+      paymentSchedule: [
+        { stage: 'Token Amount', amount: 380000, status: 'pending', date: '2024-12-05' },
+        { stage: 'Agreement Amount', amount: 3800000, status: 'pending', date: '2024-12-10' },
+        { stage: 'Possession Amount', amount: 19000000, status: 'pending', date: '2025-01-15' },
+        { stage: 'Final Payment', amount: 14820000, status: 'pending', date: '2025-02-15' }
+      ]
+    },
+    {
+      id: 3,
+      contractNumber: 'SA-2024-003',
+      contractType: 'Sale Agreement',
+      property: 'Sea View Apartment',
+      propertyLocation: 'Marine Drive, Mumbai',
+      propertyType: 'Apartment',
+      area: '2200 sq ft',
+      buyer: 'Amit Kumar',
+      buyerEmail: 'amit.kumar@email.com',
+      buyerPhone: '+91 76543 21098',
+      amount: '₹6.2 Cr',
+      amountValue: 62000000,
+      commission: '₹31L',
+      commissionValue: 3100000,
+      status: 'completed',
+      startDate: '2024-09-01',
+      completionDate: '2024-11-30',
+      registryDate: '2024-11-30',
+      progress: 100,
+      documents: ['Sale Agreement', 'KYC Documents', 'Payment Receipts', 'Registry Documents', 'Possession Letter'],
+      nextMilestone: 'Completed',
+      milestoneDate: '2024-11-30',
+      paymentSchedule: [
+        { stage: 'Token Amount', amount: 620000, status: 'completed', date: '2024-09-01' },
+        { stage: 'Agreement Amount', amount: 6200000, status: 'completed', date: '2024-09-05' },
+        { stage: 'Possession Amount', amount: 31000000, status: 'completed', date: '2024-10-15' },
+        { stage: 'Final Payment', amount: 24180000, status: 'completed', date: '2024-11-30' }
+      ]
+    }
+  ]
+
+  // Sample contracts data for renters (lease agreements)
+  const renterContracts = [
+    {
+      id: 1,
+      contractNumber: 'LA-2024-001',
+      contractType: 'Lease Agreement',
+      property: 'Premium 3BHK Apartment',
+      propertyLocation: 'Bandra West, Mumbai',
+      propertyType: '3BHK Apartment',
+      area: '1800 sq ft',
+      tenant: 'Sneha Sharma',
+      tenantEmail: 'sneha.sharma@email.com',
+      tenantPhone: '+91 98765 43210',
+      monthlyRent: 85000,
+      securityDeposit: 255000,
+      totalValue: 1020000, // 12 months rent
+      status: 'active',
+      leaseStart: '2024-11-01',
+      leaseEnd: '2025-10-31',
+      renewalDate: '2025-09-01',
+      progress: 15, // 2 months out of 12
+      documents: ['Lease Agreement', 'Tenant KYC', 'Security Deposit Receipt', 'Police Verification'],
+      nextMilestone: 'Monthly Rent Collection',
+      milestoneDate: '2025-01-01',
+      rentSchedule: [
+        { month: 'November 2024', amount: 85000, status: 'completed', date: '2024-11-01' },
+        { month: 'December 2024', amount: 85000, status: 'completed', date: '2024-12-01' },
+        { month: 'January 2025', amount: 85000, status: 'pending', date: '2025-01-01' },
+        { month: 'February 2025', amount: 85000, status: 'pending', date: '2025-02-01' }
+      ],
+      maintenanceCharges: 3500,
+      utilities: ['Electricity', 'Water', 'Gas'],
+      amenities: ['Parking', 'Gym', 'Swimming Pool', 'Security']
+    },
+    {
+      id: 2,
+      contractNumber: 'LA-2024-002',
+      contractType: 'Lease Agreement',
+      property: 'Cozy 2BHK Flat',
+      propertyLocation: 'Koramangala, Bangalore',
+      propertyType: '2BHK Apartment',
+      area: '1200 sq ft',
+      tenant: 'Rajesh Patel',
+      tenantEmail: 'rajesh.patel@email.com',
+      tenantPhone: '+91 87654 32109',
+      monthlyRent: 35000,
+      securityDeposit: 105000,
+      totalValue: 385000, // 11 months rent
+      status: 'active',
+      leaseStart: '2024-10-15',
+      leaseEnd: '2025-09-14',
+      renewalDate: '2025-08-15',
+      progress: 25, // 2.5 months out of 11
+      documents: ['Lease Agreement', 'Tenant KYC', 'Security Deposit Receipt'],
+      nextMilestone: 'Monthly Rent Collection',
+      milestoneDate: '2025-01-15',
+      rentSchedule: [
+        { month: 'October 2024', amount: 35000, status: 'completed', date: '2024-10-15' },
+        { month: 'November 2024', amount: 35000, status: 'completed', date: '2024-11-15' },
+        { month: 'December 2024', amount: 35000, status: 'completed', date: '2024-12-15' },
+        { month: 'January 2025', amount: 35000, status: 'pending', date: '2025-01-15' }
+      ],
+      maintenanceCharges: 2500,
+      utilities: ['Electricity', 'Water'],
+      amenities: ['Parking', 'Security']
+    },
+    {
+      id: 3,
+      contractNumber: 'LA-2024-003',
+      contractType: 'Lease Agreement',
+      property: 'Studio Apartment',
+      propertyLocation: 'Powai, Mumbai',
+      propertyType: 'Studio',
+      area: '650 sq ft',
+      tenant: 'Vacant',
+      tenantEmail: '-',
+      tenantPhone: '-',
+      monthlyRent: 28000,
+      securityDeposit: 84000,
+      totalValue: 0,
+      status: 'cancelled',
+      leaseStart: '2024-09-01',
+      leaseEnd: '2024-09-30',
+      renewalDate: '-',
+      progress: 0,
+      documents: ['Draft Agreement'],
+      nextMilestone: 'Find New Tenant',
+      milestoneDate: '2025-01-01',
+      rentSchedule: [],
+      maintenanceCharges: 2000,
+      utilities: ['Electricity'],
+      amenities: ['Security']
+    }
+  ]
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
 
   const currentContracts = userRole === 'seller' ? sellerContracts : renterContracts
 

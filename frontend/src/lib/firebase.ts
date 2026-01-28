@@ -80,6 +80,7 @@ export const AuthUtils = {
   getUserRole: () => {
     if (typeof window === 'undefined') return 'buyer'
     return localStorage.getItem('userRole') || 'buyer'
+<<<<<<< HEAD
   },
 
   // Google Auth using Google Identity Services (no Firebase needed)
@@ -178,6 +179,8 @@ export const AuthUtils = {
       throw new Error('Invalid user credential')
     }
     return user.credential.idToken
+=======
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
   }
 }
 

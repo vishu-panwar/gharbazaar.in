@@ -2,8 +2,11 @@
 import { Request, Response } from 'express';
 import { generateToken, verifyToken as jwtVerifyToken } from '../utils/jwt';
 import { isMongoDBAvailable } from '../utils/memoryStore';
+<<<<<<< HEAD
 import User from '../models/user.model';
 
+=======
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
 export const login = async (req: Request, res: Response) => {
     try {
         const { email, password } = req.body;
@@ -15,6 +18,7 @@ export const login = async (req: Request, res: Response) => {
         let userData;
 
         if (isMongoDBAvailable()) {
+<<<<<<< HEAD
             console.log(`🔍 Looking up user in DB: ${email}`);
             // Try to find real user in DB
             const dbUser = await User.findOne({ email }).lean();
@@ -34,6 +38,14 @@ export const login = async (req: Request, res: Response) => {
                     role: email.includes('admin') ? 'admin' : email.includes('employee') ? 'employee' : 'buyer'
                 };
             }
+=======
+            userData = {
+                uid: 'demo-buyer-id',
+                email,
+                displayName: email.split('@')[0],
+                role: email.includes('admin') ? 'admin' : email.includes('employee') ? 'employee' : 'buyer'
+            };
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
         } else {
             // Mock authentication - accept any password for testing
             userData = {
@@ -46,7 +58,10 @@ export const login = async (req: Request, res: Response) => {
         const token = generateToken({
             userId: userData.uid,
             email: userData.email,
+<<<<<<< HEAD
             name: userData.displayName,
+=======
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
             role: userData.role
         });
 
@@ -83,7 +98,10 @@ export const register = async (req: Request, res: Response) => {
         const token = generateToken({
             userId: userData.uid,
             email: userData.email,
+<<<<<<< HEAD
             name: userData.displayName,
+=======
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
             role: userData.role
         });
 
@@ -119,7 +137,11 @@ export const verifyToken = async (req: Request, res: Response) => {
         const userData = {
             uid: decoded.userId,
             email: decoded.email,
+<<<<<<< HEAD
             displayName: decoded.name || decoded.email?.split('@')[0] || 'User',
+=======
+            displayName: decoded.email?.split('@')[0] || 'User',
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
             role: decoded.role || 'buyer'
         };
 

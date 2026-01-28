@@ -2,16 +2,26 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+<<<<<<< HEAD
 import { useAuth } from '@/contexts/AuthContext'
+=======
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
 import BuyerDashboard from './components/BuyerDashboard'
 import SellerDashboard from './components/SellerDashboard'
 
 export default function DashboardPage() {
   const router = useRouter()
+<<<<<<< HEAD
   const { user: authUser, loading: authLoading } = useAuth()
   const [user, setUser] = useState<any>(null)
   const [userMode, setUserMode] = useState<'buyer' | 'seller'>('buyer')
   const [currentTime, setCurrentTime] = useState(new Date())
+=======
+  const [user, setUser] = useState<any>(null)
+  const [userMode, setUserMode] = useState<'buyer' | 'seller'>('buyer')
+  const [currentTime, setCurrentTime] = useState(new Date())
+  const [loading, setLoading] = useState(true)
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
   const [mounted, setMounted] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -20,6 +30,7 @@ export default function DashboardPage() {
     setMounted(true)
   }, [])
 
+<<<<<<< HEAD
   // Sync with AuthContext or Demo Mode
   useEffect(() => {
     if (!mounted) return
@@ -72,6 +83,74 @@ export default function DashboardPage() {
       router.push('/login')
     }
   }, [mounted, authUser, authLoading, router])
+=======
+  useEffect(() => {
+    if (!mounted) return
+
+    try {
+      // PRIORITY 1: Check for demo mode FIRST
+      const demoMode = localStorage.getItem('demo_mode');
+      const demoUserStr = localStorage.getItem('demo_user');
+
+      if (demoMode === 'true' && demoUserStr) {
+        try {
+          const demoUser = JSON.parse(demoUserStr);
+          console.log('Dashboard: Demo mode active, user:', demoUser);
+
+          // Create user object from demo data
+          const mockUser = {
+            name: demoUser.displayName,
+            email: demoUser.email,
+            uid: demoUser.uid,
+            role: demoUser.role,
+          };
+
+          setUser(mockUser);
+          setUserMode(demoUser.role === 'seller' ? 'seller' : 'buyer');
+          setLoading(false);
+          return; // Exit early, don't check normal user
+        } catch (e) {
+          console.error('Dashboard: Error parsing demo user:', e);
+        }
+      }
+
+      // PRIORITY 2: Check for normal user in localStorage
+      const storedUser = localStorage.getItem('user')
+      console.log('Dashboard: Checking user...', storedUser ? 'Found' : 'Not found')
+
+      if (storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser)
+          console.log('Dashboard: User parsed successfully', parsedUser)
+          setUser(parsedUser)
+        } catch (error) {
+          console.error('Dashboard: Error parsing user:', error)
+          setError('Failed to load user data')
+          localStorage.removeItem('user')
+        }
+      } else {
+        console.log('Dashboard: No user found, redirecting to login')
+        // No user, redirect to login after a short delay
+        setTimeout(() => {
+          router.push('/login')
+        }, 100)
+      }
+
+      // Load user mode
+      const savedMode = localStorage.getItem('userMode') as 'buyer' | 'seller'
+      console.log('Dashboard: User mode:', savedMode || 'buyer (default)')
+      if (savedMode) {
+        setUserMode(savedMode)
+      }
+
+      setLoading(false)
+    } catch (error) {
+      console.error('Dashboard: Initialization error:', error)
+      setError('Failed to initialize dashboard')
+      setLoading(false)
+    }
+  }, [mounted, router])
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
 
   // Listen for mode changes from layout
   useEffect(() => {
@@ -95,7 +174,11 @@ export default function DashboardPage() {
     return null
   }
 
+<<<<<<< HEAD
   if (authLoading) {
+=======
+  if (loading) {
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-800 flex items-center justify-center">
         <div className="text-center">

@@ -4,7 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { MessageSquare, Users, Clock, CheckCircle, X, Send, Loader2, UserCog, Phone, Mail, Globe } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toast/ToastProvider';
+<<<<<<< HEAD
 import { CONFIG } from '@/config';
+=======
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
 import io, { Socket } from 'socket.io-client';
 
 interface QueueItem {
@@ -57,7 +60,11 @@ export default function AgentDashboard() {
             // Get Firebase ID token
             const token = localStorage.getItem('auth_token');
 
+<<<<<<< HEAD
             const newSocket = io(CONFIG.API.SOCKET_URL, {
+=======
+            const newSocket = io(process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:5000', {
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
                 auth: { token },
                 reconnection: true,
                 reconnectionDelay: 1000,

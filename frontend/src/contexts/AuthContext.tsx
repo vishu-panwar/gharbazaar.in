@@ -71,16 +71,7 @@ export const AuthProvider = ({
           return
         }
 
-        // 2. Check cached user from localStorage as fallback
-        const cachedUser = AuthUtils.getCachedUser()
-        if (cachedUser) {
-          console.log('👤 Found cached user:', cachedUser.email)
-          setUser(cachedUser)
-          setLoading(false)
-          return
-        }
-
-        // 3. Check demo mode
+        // 2. Check demo mode first
         if (typeof window !== 'undefined') {
           const demoMode = localStorage.getItem('demo_mode')
           const demoUserStr = localStorage.getItem('demo_user')
@@ -96,10 +87,22 @@ export const AuthProvider = ({
                 photoURL: null,
                 emailVerified: true,
               })
+              localStorage.setItem('userRole', demoUser.role || 'buyer')
               setLoading(false)
               return
-            } catch (e) { }
+            } catch (e) {
+              console.error('Demo mode parse error:', e)
+            }
           }
+        }
+
+        // 3. Check cached user from localStorage as fallback
+        const cachedUser = AuthUtils.getCachedUser()
+        if (cachedUser) {
+          console.log('👤 Found cached user:', cachedUser.email)
+          setUser(cachedUser)
+          setLoading(false)
+          return
         }
 
         // No auth found

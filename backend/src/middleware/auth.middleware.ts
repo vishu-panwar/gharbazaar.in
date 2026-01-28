@@ -1,7 +1,11 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../utils/jwt';
+<<<<<<< HEAD
 export const authenticate = async (
+=======
+export const authenticateRequest = async (
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
     req: Request,
     res: Response,
     next: NextFunction
@@ -16,6 +20,7 @@ export const authenticate = async (
             });
         }
         const token = authHeader.substring(7);
+<<<<<<< HEAD
 
         // Bypass for demo mode in development
         if (token === 'demo-token') {
@@ -27,6 +32,8 @@ export const authenticate = async (
             return next();
         }
 
+=======
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
         const decoded = verifyToken(token);
         (req as any).user = decoded;
         next();
@@ -39,5 +46,8 @@ export const authenticate = async (
     }
 };
 
+<<<<<<< HEAD
 export const authenticateRequest = authenticate;
 
+=======
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8

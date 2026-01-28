@@ -4,7 +4,10 @@ import config from '../config';
 export interface TokenPayload {
     userId: string;          // Unique user identifier
     email: string;           // User's email
+<<<<<<< HEAD
     name?: string;           // User's display name
+=======
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
     role?: string;           // User role (buyer, seller, employee, etc.)
 }
 export interface DecodedToken extends TokenPayload {
@@ -33,11 +36,20 @@ export const verifyToken = (token: string): DecodedToken => {
     try {
         const decoded = jwt.verify(
             token,
+<<<<<<< HEAD
             config.jwtSecret
+=======
+            config.jwtSecret,
+            {
+                issuer: 'gharbazaar-backend',
+                audience: 'gharbazaar-frontend',
+            }
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
         ) as DecodedToken;
 
         return decoded;
     } catch (error) {
+<<<<<<< HEAD
         // Soft fallback for development: if verification fails, try to just decode
         // This helps when the secret might be mismatched between services
         try {
@@ -73,6 +85,8 @@ export const verifyToken = (token: string): DecodedToken => {
             console.error('❌ Robust soft decode fallback failed:', e);
         }
 
+=======
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
         if (error instanceof jwt.TokenExpiredError) {
             throw new Error('Token has expired. Please login again.');
         } else if (error instanceof jwt.JsonWebTokenError) {

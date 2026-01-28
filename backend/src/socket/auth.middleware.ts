@@ -11,6 +11,7 @@ export const authenticateSocket = (
 ) => {
     try {
         const token = socket.handshake.auth?.token;
+<<<<<<< HEAD
 
         // Allow connections without token in development for demo mode
         if (!token) {
@@ -27,6 +28,12 @@ export const authenticateSocket = (
         }
 
         // Verify token if provided
+=======
+        if (!token) {
+            console.warn('⚠️  Socket connection rejected: No token provided');
+            return next(new Error('Authentication required. Please provide a valid token.'));
+        }
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
         const decoded = verifyToken(token);
         (socket as AuthenticatedSocket).user = {
             userId: decoded.userId,
@@ -39,6 +46,7 @@ export const authenticateSocket = (
 
     } catch (error) {
         console.error('❌ Socket authentication failed:', error);
+<<<<<<< HEAD
 
         // Still allow connection in development with demo user
         console.warn('⚠️  Invalid token - allowing connection with demo user for development');
@@ -48,6 +56,12 @@ export const authenticateSocket = (
             role: 'buyer',
         };
         next();
+=======
+        const errorMessage = error instanceof Error
+            ? error.message
+            : 'Authentication failed. Please login again.';
+        next(new Error(errorMessage));
+>>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
     }
 };
 export const getSocketUser = (socket: Socket): TokenPayload => {
