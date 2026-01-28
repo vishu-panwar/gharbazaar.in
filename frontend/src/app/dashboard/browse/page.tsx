@@ -40,7 +40,6 @@ export default function BrowsePropertiesPage() {
     sortBy: 'newest'
   })
 
-<<<<<<< HEAD
   const [properties, setProperties] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -78,175 +77,6 @@ export default function BrowsePropertiesPage() {
 
 
   const filteredProperties = properties
-=======
-  // Sample properties data - Updated with rental properties
-  const properties = [
-    {
-      id: 1,
-      title: 'Luxury 4BHK Penthouse with Panoramic Sea Views',
-      location: 'Worli, Mumbai',
-      price: '₹8.5 Cr',
-      priceValue: 85000000,
-      listingType: 'sale',
-      type: 'Apartment',
-      beds: 4,
-      baths: 5,
-      area: '3200 sq ft',
-      image: '/images/property1.jpg',
-      featured: true,
-      verified: true,
-      views: 1234,
-      rating: 4.8,
-      isFavorite: false
-    },
-    {
-      id: 2,
-      title: 'Modern 3BHK Villa with Private Garden',
-      location: 'Whitefield, Bangalore',
-      price: '₹3.8 Cr',
-      priceValue: 38000000,
-      listingType: 'sale',
-      type: 'Villa',
-      beds: 3,
-      baths: 4,
-      area: '2100 sq ft',
-      image: '/images/property2.jpg',
-      featured: true,
-      verified: true,
-      views: 892,
-      rating: 4.6,
-      isFavorite: true
-    },
-    {
-      id: 3,
-      title: 'Spacious 2BHK Apartment with City Views',
-      location: 'Gurgaon, Delhi NCR',
-      price: '₹1.8 Cr',
-      priceValue: 18000000,
-      listingType: 'sale',
-      type: 'Apartment',
-      beds: 2,
-      baths: 2,
-      area: '1200 sq ft',
-      image: '/images/property3.jpg',
-      featured: false,
-      verified: true,
-      views: 567,
-      rating: 4.3,
-      isFavorite: false
-    },
-    {
-      id: 4,
-      title: 'Premium 3BHK Apartment for Rent',
-      location: 'Bandra West, Mumbai',
-      price: '₹85,000/month',
-      priceValue: 85000,
-      listingType: 'rent',
-      type: 'Apartment',
-      beds: 3,
-      baths: 3,
-      area: '1800 sq ft',
-      image: '/images/property4.jpg',
-      featured: true,
-      verified: true,
-      views: 743,
-      rating: 4.7,
-      isFavorite: false
-    },
-    {
-      id: 5,
-      title: 'Furnished 2BHK Flat for Rent',
-      location: 'Koramangala, Bangalore',
-      price: '₹45,000/month',
-      priceValue: 45000,
-      listingType: 'rent',
-      type: 'Apartment',
-      beds: 2,
-      baths: 2,
-      area: '1100 sq ft',
-      image: '/images/property5.jpg',
-      featured: false,
-      verified: true,
-      views: 432,
-      rating: 4.4,
-      isFavorite: true
-    },
-    {
-      id: 6,
-      title: 'Luxury Villa on Rent',
-      location: 'DLF Phase 2, Gurgaon',
-      price: '₹1,20,000/month',
-      priceValue: 120000,
-      listingType: 'rent',
-      type: 'Villa',
-      beds: 4,
-      baths: 5,
-      area: '3000 sq ft',
-      image: '/images/property6.jpg',
-      featured: true,
-      verified: true,
-      views: 891,
-      rating: 4.9,
-      isFavorite: false
-    },
-    {
-      id: 7,
-      title: 'Garden Estate Villa',
-      location: 'Gurgaon, Delhi NCR',
-      price: '₹5.2 Cr',
-      priceValue: 52000000,
-      listingType: 'sale',
-      type: 'Villa',
-      beds: 4,
-      baths: 5,
-      area: '5000 sq ft',
-      image: '/images/property7.jpg',
-      featured: false,
-      verified: true,
-      views: 678,
-      rating: 4.6,
-      isFavorite: false
-    },
-    {
-      id: 8,
-      title: 'Smart Home Apartment',
-      location: 'Koramangala, Bangalore',
-      price: '₹2.5 Cr',
-      priceValue: 25000000,
-      listingType: 'sale',
-      type: 'Apartment',
-      beds: 3,
-      baths: 3,
-      area: '2200 sq ft',
-      image: '/images/property8.jpg',
-      featured: false,
-      verified: false,
-      views: 445,
-      rating: 4.5,
-      isFavorite: true
-    },
-    {
-      id: 9,
-      title: 'Riverside Villa',
-      location: 'Pune, Maharashtra',
-      price: '₹4.8 Cr',
-      priceValue: 48000000,
-      listingType: 'sale',
-      type: 'Villa',
-      beds: 4,
-      baths: 4,
-      area: '3800 sq ft',
-      image: '/images/property6.jpg',
-      featured: true,
-      verified: true,
-      views: 1023,
-      rating: 4.8,
-      isFavorite: false
-    }
-  ]
-
-  const [filteredProperties, setFilteredProperties] = useState(properties)
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
   const { toggleFavorite, isFavorite } = useFavorites()
 
   const handleToggleFavorite = (id: number) => {
@@ -409,7 +239,6 @@ export default function BrowsePropertiesPage() {
       </div>
 
       {/* Properties Grid/List */}
-<<<<<<< HEAD
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -467,21 +296,6 @@ export default function BrowsePropertiesPage() {
           ))}
         </div>
       )}
-=======
-      <div className={viewMode === 'grid'
-        ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6'
-        : 'space-y-6'
-      }>
-        {filteredProperties.map((property) => (
-          <PropertyCard
-            key={property.id}
-            property={property}
-            onToggleFavorite={handleToggleFavorite}
-            viewMode={viewMode}
-          />
-        ))}
-      </div>
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
 
       {/* Load More */}
       <div className="flex justify-center pt-6">

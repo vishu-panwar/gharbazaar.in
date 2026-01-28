@@ -1,11 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-<<<<<<< HEAD
 import {
-=======
-import { 
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
   DollarSign,
   TrendingUp,
   TrendingDown,
@@ -39,7 +35,6 @@ export default function EarningsPage() {
   const [viewMode, setViewMode] = useState<'overview' | 'transactions'>('overview')
   const [userRole, setUserRole] = useState<'seller' | 'renter'>('seller')
 
-<<<<<<< HEAD
   // No earnings for now
   const sellerEarningsStats = [
     { label: 'Total Sales Revenue', value: '₹0', change: '0%', trend: 'up', icon: DollarSign, color: 'green', description: 'Total property sales value' },
@@ -54,86 +49,6 @@ export default function EarningsPage() {
     { label: 'Occupancy Rate', value: '0%', change: '0%', trend: 'up', icon: Users, color: 'blue', description: 'Properties occupied' },
     { label: 'Active Properties', value: '0', change: '0', trend: 'up', icon: Key, color: 'purple', description: 'Rental properties' },
     { label: 'Avg Rent/SqFt', value: '₹0', change: '0%', trend: 'up', icon: Target, color: 'orange', description: 'Per square foot' }
-=======
-  // Sample earnings data for sellers
-  const sellerEarningsStats = [
-    {
-      label: 'Total Sales Revenue',
-      value: '₹45.2Cr',
-      change: '+18.5%',
-      trend: 'up',
-      icon: DollarSign,
-      color: 'green',
-      description: 'Total property sales value'
-    },
-    {
-      label: 'Commission Earned',
-      value: '₹2.26Cr',
-      change: '+12.3%',
-      trend: 'up',
-      icon: TrendingUp,
-      color: 'blue',
-      description: 'Your commission (5%)'
-    },
-    {
-      label: 'Properties Sold',
-      value: '18',
-      change: '+6',
-      trend: 'up',
-      icon: Building2,
-      color: 'purple',
-      description: 'This month'
-    },
-    {
-      label: 'Avg Deal Value',
-      value: '₹2.51Cr',
-      change: '+8.2%',
-      trend: 'up',
-      icon: Target,
-      color: 'orange',
-      description: 'Per property'
-    }
-  ]
-
-  // Sample earnings data for renters (property owners)
-  const renterEarningsStats = [
-    {
-      label: 'Total Rental Income',
-      value: '₹12.8L',
-      change: '+15.2%',
-      trend: 'up',
-      icon: DollarSign,
-      color: 'green',
-      description: 'Monthly rental collection'
-    },
-    {
-      label: 'Occupancy Rate',
-      value: '92%',
-      change: '+5%',
-      trend: 'up',
-      icon: Users,
-      color: 'blue',
-      description: 'Properties occupied'
-    },
-    {
-      label: 'Active Properties',
-      value: '24',
-      change: '+3',
-      trend: 'up',
-      icon: Key,
-      color: 'purple',
-      description: 'Rental properties'
-    },
-    {
-      label: 'Avg Rent/SqFt',
-      value: '₹45',
-      change: '+12%',
-      trend: 'up',
-      icon: Target,
-      color: 'orange',
-      description: 'Per square foot'
-    }
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
   ]
 
   const currentStats = userRole === 'seller' ? sellerEarningsStats : renterEarningsStats
@@ -175,22 +90,13 @@ export default function EarningsPage() {
             {userRole === 'seller' ? 'Sales Earnings' : 'Rental Income'}
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-<<<<<<< HEAD
             {userRole === 'seller'
               ? 'Track your property sales and commissions'
-=======
-            {userRole === 'seller' 
-              ? 'Track your property sales and commissions' 
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
               : 'Monitor your rental income and property performance'
             }
           </p>
         </div>
-<<<<<<< HEAD
 
-=======
-        
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
         <div className="flex items-center space-x-3">
           {/* User Role Selector */}
           <select
@@ -201,11 +107,7 @@ export default function EarningsPage() {
             <option value="seller">🏢 Property Seller</option>
             <option value="renter">🏠 Property Owner</option>
           </select>
-<<<<<<< HEAD
 
-=======
-          
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
           <select
             value={timeRange}
             onChange={(e) => setTimeRange(e.target.value as any)}
@@ -217,11 +119,7 @@ export default function EarningsPage() {
             <option value="1y">Last Year</option>
             <option value="all">All Time</option>
           </select>
-<<<<<<< HEAD
 
-=======
-          
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
           <button className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-all">
             <Download size={18} />
             <span>Export</span>
@@ -237,23 +135,13 @@ export default function EarningsPage() {
               <div className={`w-12 h-12 bg-${stat.color}-100 dark:bg-${stat.color}-900/30 rounded-xl flex items-center justify-center`}>
                 <stat.icon className={`text-${stat.color}-600`} size={24} />
               </div>
-<<<<<<< HEAD
               <div className={`flex items-center space-x-1 ${stat.trend === 'up' ? 'text-green-600' : 'text-red-600'
                 }`}>
-=======
-              <div className={`flex items-center space-x-1 ${
-                stat.trend === 'up' ? 'text-green-600' : 'text-red-600'
-              }`}>
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
                 {stat.trend === 'up' ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
                 <span className="text-sm font-semibold">{stat.change}</span>
               </div>
             </div>
-<<<<<<< HEAD
 
-=======
-            
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{stat.label}</p>
             <p className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{stat.value}</p>
             <p className="text-xs text-gray-500 dark:text-gray-500">{stat.description}</p>
@@ -270,11 +158,7 @@ export default function EarningsPage() {
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Commission Rate</h3>
                 <Percent className="text-green-500" size={24} />
               </div>
-<<<<<<< HEAD
               <p className="text-3xl font-bold text-green-600 mb-2">0%</p>
-=======
-              <p className="text-3xl font-bold text-green-600 mb-2">5.2%</p>
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
               <p className="text-sm text-gray-600 dark:text-gray-400">Average commission earned</p>
             </div>
 
@@ -283,11 +167,7 @@ export default function EarningsPage() {
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Closing Time</h3>
                 <Clock className="text-blue-500" size={24} />
               </div>
-<<<<<<< HEAD
               <p className="text-3xl font-bold text-blue-600 mb-2">0 days</p>
-=======
-              <p className="text-3xl font-bold text-blue-600 mb-2">45 days</p>
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
               <p className="text-sm text-gray-600 dark:text-gray-400">Average deal closure</p>
             </div>
 
@@ -296,11 +176,7 @@ export default function EarningsPage() {
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Success Rate</h3>
                 <Target className="text-purple-500" size={24} />
               </div>
-<<<<<<< HEAD
               <p className="text-3xl font-bold text-purple-600 mb-2">0%</p>
-=======
-              <p className="text-3xl font-bold text-purple-600 mb-2">94%</p>
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
               <p className="text-sm text-gray-600 dark:text-gray-400">Deal conversion rate</p>
             </div>
           </>
@@ -311,11 +187,7 @@ export default function EarningsPage() {
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Rental Yield</h3>
                 <TrendingUp className="text-green-500" size={24} />
               </div>
-<<<<<<< HEAD
               <p className="text-3xl font-bold text-green-600 mb-2">0%</p>
-=======
-              <p className="text-3xl font-bold text-green-600 mb-2">8.2%</p>
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
               <p className="text-sm text-gray-600 dark:text-gray-400">Annual rental yield</p>
             </div>
 
@@ -324,11 +196,7 @@ export default function EarningsPage() {
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Lease Duration</h3>
                 <Calendar className="text-blue-500" size={24} />
               </div>
-<<<<<<< HEAD
               <p className="text-3xl font-bold text-blue-600 mb-2">0 months</p>
-=======
-              <p className="text-3xl font-bold text-blue-600 mb-2">11 months</p>
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
               <p className="text-sm text-gray-600 dark:text-gray-400">Average lease period</p>
             </div>
 
@@ -337,11 +205,7 @@ export default function EarningsPage() {
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Tenant Retention</h3>
                 <Users className="text-purple-500" size={24} />
               </div>
-<<<<<<< HEAD
               <p className="text-3xl font-bold text-purple-600 mb-2">0%</p>
-=======
-              <p className="text-3xl font-bold text-purple-600 mb-2">89%</p>
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
               <p className="text-sm text-gray-600 dark:text-gray-400">Renewal success rate</p>
             </div>
           </>
@@ -349,29 +213,17 @@ export default function EarningsPage() {
       </div>
 
       {/* Action Card */}
-<<<<<<< HEAD
       <div className={`bg-gradient-to-r ${userRole === 'seller'
           ? 'from-green-600 to-emerald-600'
           : 'from-blue-600 to-indigo-600'
         } rounded-xl p-6 text-white`}>
-=======
-      <div className={`bg-gradient-to-r ${
-        userRole === 'seller' 
-          ? 'from-green-600 to-emerald-600' 
-          : 'from-blue-600 to-indigo-600'
-      } rounded-xl p-6 text-white`}>
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div>
             <h3 className="text-xl font-bold mb-2">
               {userRole === 'seller' ? 'Available for Withdrawal' : 'Rental Collection Summary'}
             </h3>
             <p className={userRole === 'seller' ? 'text-green-100' : 'text-blue-100'}>
-<<<<<<< HEAD
               {userRole === 'seller'
-=======
-              {userRole === 'seller' 
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
                 ? 'Your commission earnings are ready to be withdrawn'
                 : 'This month\'s rental income collection status'
               }
@@ -380,24 +232,14 @@ export default function EarningsPage() {
           <div className="flex items-center space-x-6">
             <div className="text-center">
               <p className="text-4xl font-bold">
-<<<<<<< HEAD
                 ₹0
-=======
-                {userRole === 'seller' ? '₹8.5L' : '₹12.8L'}
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
               </p>
               <p className={`text-sm ${userRole === 'seller' ? 'text-green-100' : 'text-blue-100'}`}>
                 {userRole === 'seller' ? 'Pending Amount' : 'This Month'}
               </p>
             </div>
-<<<<<<< HEAD
             <button className={`bg-white ${userRole === 'seller' ? 'text-green-600 hover:bg-green-50' : 'text-blue-600 hover:bg-blue-50'
               } px-8 py-3 rounded-lg font-semibold transition-all shadow-lg`}>
-=======
-            <button className={`bg-white ${
-              userRole === 'seller' ? 'text-green-600 hover:bg-green-50' : 'text-blue-600 hover:bg-blue-50'
-            } px-8 py-3 rounded-lg font-semibold transition-all shadow-lg`}>
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
               {userRole === 'seller' ? 'Withdraw Now' : 'View Details'}
             </button>
           </div>

@@ -5,10 +5,7 @@ import Link from 'next/link'
 import InteractiveBackground from '@/components/InteractiveBackground'
 import ContactBackground from '@/components/backgrounds/ContactBackground'
 import { motion } from 'framer-motion'
-<<<<<<< HEAD
 import { backendApi } from '@/lib/backendApi'
-=======
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
 import {
   Mail,
   Phone,
@@ -56,7 +53,6 @@ export default function ContactPage() {
     setSubmitting(true)
 
     try {
-<<<<<<< HEAD
       // Call backend API to send contact form
       const response = await backendApi.contact.sendMessage({
         name: formData.name,
@@ -77,50 +73,6 @@ export default function ContactPage() {
       console.error('Contact form error:', error)
       const errorMessage = error.message || 'Failed to send message'
       alert(`❌ Error: ${errorMessage}\n\nPlease try again or email us directly at gharbazaarofficial@zohomail.in`)
-=======
-      // EmailJS configuration
-      const serviceId = 'service_crozl1q'
-      const templateIdClient = 'template_xcyirgw'
-      const templateIdOwner = 'template_onopcze'
-      const publicKey = 'wUxdrnLFJlHH83x5D'
-
-      // Dynamically import EmailJS
-      const emailjs = (await import('@emailjs/browser')).default
-
-      // Prepare template parameters for client (confirmation email)
-      const clientTemplateParams = {
-        to_email: formData.email,  // Client's email - where to send
-        from_name: formData.name,
-        reply_to: 'gharbazaarofficial@zohomail.in',  // Owner's email for replies
-        from_email: formData.email,
-        phone: formData.phone || 'Not provided',
-        subject: formData.subject,
-        message: formData.message
-      }
-
-      // Prepare template parameters for owner (notification email)
-      const ownerTemplateParams = {
-        to_email: 'vp3999165@gmail.com',  // Owner's email - where to send
-        from_name: formData.name,
-        from_email: formData.email,
-        phone: formData.phone || 'Not provided',
-        subject: formData.subject,
-        message: formData.message,
-        reply_to: formData.email  // Client's email for replies
-      }
-
-      // Send email to client (confirmation)
-      await emailjs.send(serviceId, templateIdClient, clientTemplateParams, publicKey)
-
-      // Send email to owner (notification)
-      await emailjs.send(serviceId, templateIdOwner, ownerTemplateParams, publicKey)
-
-      alert('✅ Message sent successfully! We usually respond within 24-48 hours.')
-      setFormData({ name: '', email: '', phone: '', subject: '', message: '' })
-    } catch (error) {
-      console.error('EmailJS error:', error)
-      alert('❌ Failed to send message. Please try again or email us directly at vp3999165@gmail.com')
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
     } finally {
       setSubmitting(false)
     }

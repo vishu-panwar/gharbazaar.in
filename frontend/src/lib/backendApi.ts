@@ -2,10 +2,7 @@
 import { CONFIG } from '@/config';
 
 const API_BASE_URL = CONFIG.API.FULL_URL;
-<<<<<<< HEAD
 const AUTH_API_BASE_URL = CONFIG.AUTH_API.FULL_URL;
-=======
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
 
 /**
  * Get authentication token for backend API requests
@@ -25,7 +22,6 @@ async function getAuthToken(): Promise<string | null> {
 }
 
 /**
-<<<<<<< HEAD
  * Make API call to external authentication API (Koyeb with SMTP)
  */
 async function authApiCall(endpoint: string, options: RequestInit = {}) {
@@ -74,9 +70,6 @@ async function authApiCall(endpoint: string, options: RequestInit = {}) {
 
 /**
  * Make authenticated API call to local backend (for properties, messages, etc.)
-=======
- * Make authenticated API call to backend
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
  */
 async function backendApiCall(endpoint: string, options: RequestInit = {}) {
     const token = await getAuthToken();
@@ -95,7 +88,6 @@ async function backendApiCall(endpoint: string, options: RequestInit = {}) {
         headers,
     });
 
-<<<<<<< HEAD
     const contentType = response.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
         return await response.json();
@@ -118,24 +110,12 @@ export const backendApi = {
          * Register new user
          * External API endpoint: POST /auth/signup
          */
-=======
-    return await response.json();
-}
-
-/**
- * Backend API endpoints for property workflow
- */
-export const backendApi = {
-    // Authentication endpoints
-    auth: {
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
         register: async (data: {
             email: string;
             password: string;
             displayName: string;
             role?: string;
         }) => {
-<<<<<<< HEAD
             const response = await authApiCall('/auth/signup', {
                 method: 'POST',
                 body: JSON.stringify({
@@ -206,29 +186,11 @@ export const backendApi = {
          */
         verifyEmail: async (token: string) => {
             return authApiCall('/verify/email', {
-=======
-            return backendApiCall('/auth/register', {
-                method: 'POST',
-                body: JSON.stringify(data),
-            });
-        },
-
-        login: async (email: string, password: string) => {
-            return backendApiCall('/auth/login', {
-                method: 'POST',
-                body: JSON.stringify({ email, password }),
-            });
-        },
-
-        verifyToken: async (token: string) => {
-            return backendApiCall('/auth/verify-token', {
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
                 method: 'POST',
                 body: JSON.stringify({ token }),
             });
         },
 
-<<<<<<< HEAD
         /**
          * Reset password with token
          * External API endpoint: POST /verify/reset-password
@@ -384,8 +346,6 @@ export const backendApi = {
         /**
          * Refresh token (keep using local backend for now)
          */
-=======
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
         refreshToken: async (refreshToken: string) => {
             return backendApiCall('/auth/refresh-token', {
                 method: 'POST',
@@ -393,7 +353,6 @@ export const backendApi = {
             });
         },
 
-<<<<<<< HEAD
         /**
          * Logout user
          */
@@ -412,19 +371,6 @@ export const backendApi = {
                 console.error('Logout error:', error);
                 return { success: true };
             }
-=======
-        logout: async () => {
-            return backendApiCall('/auth/logout', {
-                method: 'POST',
-            });
-        },
-
-        forgotPassword: async (email: string) => {
-            return backendApiCall('/auth/forgot-password', {
-                method: 'POST',
-                body: JSON.stringify({ email }),
-            });
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
         },
     },
 
@@ -1035,7 +981,6 @@ export const backendApi = {
             });
         },
     },
-<<<<<<< HEAD
 
     // Contact form endpoints (using external Koyeb API as requested)
     contact: {
@@ -1095,6 +1040,4 @@ export const backendApi = {
             return await response.json();
         },
     },
-=======
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
 };

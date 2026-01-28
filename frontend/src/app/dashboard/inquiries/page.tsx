@@ -1,11 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-<<<<<<< HEAD
 import {
-=======
-import { 
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
   MessageCircle,
   Search,
   Filter,
@@ -27,7 +23,6 @@ import {
   TrendingUp
 } from 'lucide-react'
 
-<<<<<<< HEAD
 interface Inquiry {
   id: number;
   status: 'new' | 'replied' | 'archived';
@@ -44,103 +39,17 @@ interface Inquiry {
   budget: string;
 }
 
-=======
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
 export default function InquiriesPage() {
   const [activeTab, setActiveTab] = useState<'all' | 'new' | 'replied' | 'archived'>('all')
   const [selectedInquiry, setSelectedInquiry] = useState<number | null>(null)
   const [replyText, setReplyText] = useState('')
 
-<<<<<<< HEAD
   // No inquiries for now
   const inquiries: Inquiry[] = []
 
 
   const filteredInquiries = activeTab === 'all'
     ? inquiries
-=======
-  // Sample inquiries data
-  const inquiries = [
-    {
-      id: 1,
-      name: 'Rahul Sharma',
-      email: 'rahul.sharma@email.com',
-      phone: '+91 98765 43210',
-      property: 'Luxury Penthouse',
-      propertyLocation: 'Worli, Mumbai',
-      message: 'I am very interested in this property. Can we schedule a visit this weekend? Also, is the price negotiable?',
-      status: 'new',
-      priority: 'high',
-      date: '2024-12-01T10:30:00',
-      budget: '₹8-9 Cr',
-      source: 'Website',
-      rating: 5
-    },
-    {
-      id: 2,
-      name: 'Priya Patel',
-      email: 'priya.patel@email.com',
-      phone: '+91 98765 43211',
-      property: 'Modern Villa',
-      propertyLocation: 'Whitefield, Bangalore',
-      message: 'Looking for more details about the amenities and nearby facilities. Can you share the floor plan?',
-      status: 'replied',
-      priority: 'medium',
-      date: '2024-11-30T15:45:00',
-      budget: '₹3.5-4 Cr',
-      source: 'Google',
-      rating: 4
-    },
-    {
-      id: 3,
-      name: 'Amit Kumar',
-      email: 'amit.kumar@email.com',
-      phone: '+91 98765 43212',
-      property: 'Garden Estate',
-      propertyLocation: 'Gurgaon, Delhi NCR',
-      message: 'Is this property available for immediate possession? What are the payment terms?',
-      status: 'new',
-      priority: 'high',
-      date: '2024-12-01T09:15:00',
-      budget: '₹5-5.5 Cr',
-      source: 'Facebook',
-      rating: 5
-    },
-    {
-      id: 4,
-      name: 'Sneha Reddy',
-      email: 'sneha.reddy@email.com',
-      phone: '+91 98765 43213',
-      property: 'Sea View Apartment',
-      propertyLocation: 'Marine Drive, Mumbai',
-      message: 'I would like to know about the maintenance charges and parking availability.',
-      status: 'replied',
-      priority: 'low',
-      date: '2024-11-29T14:20:00',
-      budget: '₹6-6.5 Cr',
-      source: 'Instagram',
-      rating: 4
-    },
-    {
-      id: 5,
-      name: 'Vikram Singh',
-      email: 'vikram.singh@email.com',
-      phone: '+91 98765 43214',
-      property: 'Smart Home Apartment',
-      propertyLocation: 'Koramangala, Bangalore',
-      message: 'Can you provide virtual tour? I am currently out of the city.',
-      status: 'archived',
-      priority: 'medium',
-      date: '2024-11-25T11:30:00',
-      budget: '₹2.5-3 Cr',
-      source: 'Website',
-      rating: 3
-    }
-  ]
-
-  const filteredInquiries = activeTab === 'all' 
-    ? inquiries 
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
     : inquiries.filter(inq => inq.status === activeTab)
 
   const stats = {
@@ -247,18 +156,10 @@ export default function InquiriesPage() {
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key as any)}
-<<<<<<< HEAD
               className={`flex-1 min-w-[100px] px-4 py-3 rounded-lg font-medium transition-all ${activeTab === tab.key
                 ? 'bg-purple-600 text-white shadow-lg'
                 : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
                 }`}
-=======
-              className={`flex-1 min-w-[100px] px-4 py-3 rounded-lg font-medium transition-all ${
-                activeTab === tab.key
-                  ? 'bg-purple-600 text-white shadow-lg'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-              }`}
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
             >
               {tab.label} ({tab.count})
             </button>
@@ -274,18 +175,10 @@ export default function InquiriesPage() {
             <div
               key={inquiry.id}
               onClick={() => setSelectedInquiry(inquiry.id)}
-<<<<<<< HEAD
               className={`bg-white dark:bg-gray-900 rounded-xl p-4 shadow-lg border cursor-pointer transition-all ${selectedInquiry === inquiry.id
                 ? 'border-purple-500 ring-2 ring-purple-500'
                 : 'border-gray-200 dark:border-gray-800 hover:border-purple-300'
                 }`}
-=======
-              className={`bg-white dark:bg-gray-900 rounded-xl p-4 shadow-lg border cursor-pointer transition-all ${
-                selectedInquiry === inquiry.id
-                  ? 'border-purple-500 ring-2 ring-purple-500'
-                  : 'border-gray-200 dark:border-gray-800 hover:border-purple-300'
-              }`}
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center space-x-2">
@@ -302,13 +195,8 @@ export default function InquiriesPage() {
                 </div>
                 <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
                   <Clock size={14} className="mr-2" />
-<<<<<<< HEAD
                   <span>{new Date(inquiry.date).toLocaleDateString('en-IN', {
                     day: 'numeric',
-=======
-                  <span>{new Date(inquiry.date).toLocaleDateString('en-IN', { 
-                    day: 'numeric', 
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
                     month: 'short',
                     hour: '2-digit',
                     minute: '2-digit'
@@ -420,13 +308,8 @@ export default function InquiriesPage() {
                   <div className="flex items-center space-x-2 mt-4 text-xs text-gray-500 dark:text-gray-400">
                     <Calendar size={12} />
                     <span>
-<<<<<<< HEAD
                       Received on {new Date(selectedInquiryData.date).toLocaleDateString('en-IN', {
                         day: 'numeric',
-=======
-                      Received on {new Date(selectedInquiryData.date).toLocaleDateString('en-IN', { 
-                        day: 'numeric', 
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
                         month: 'long',
                         year: 'numeric',
                         hour: '2-digit',

@@ -12,13 +12,8 @@
  * Consider removing API calls that depend on this configuration.
  */
 export const API_CONFIG = {
-<<<<<<< HEAD
     // Base URL for backend API (Koyeb production)
     BASE_URL: process.env.NEXT_PUBLIC_API_URL || 'https://strict-matty-gharbazaar1-60d0c804.koyeb.app/api',
-=======
-    // Base URL for backend API
-    BASE_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
 
     // API version path
     VERSION: '/api/v1',
@@ -41,7 +36,6 @@ export const API_CONFIG = {
     RETRY_DELAY: 1000,
 } as const
 
-<<<<<<< HEAD
 // ==================== External Auth API Configuration ====================
 
 /**
@@ -61,8 +55,6 @@ export const AUTH_API_CONFIG = {
     TIMEOUT: 30000,
 } as const
 
-=======
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
 // ==================== Firebase Configuration ====================
 
 /**
@@ -309,10 +301,7 @@ export function validateConfig() {
  */
 export const CONFIG = {
     API: API_CONFIG,
-<<<<<<< HEAD
     AUTH_API: AUTH_API_CONFIG,
-=======
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
     FIREBASE: FIREBASE_CONFIG,
     MAPS: MAPS_CONFIG,
     PAYMENT: PAYMENT_CONFIG,

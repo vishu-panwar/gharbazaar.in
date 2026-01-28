@@ -40,11 +40,7 @@ import { ChatbotErrorBoundary } from '@/components/AI/ChatbotErrorBoundary'
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
-<<<<<<< HEAD
   const { user: authUser, logout: authLogout } = useAuth()
-=======
-  const { logout: authLogout } = useAuth()
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
   const { showLoader } = useLoader()
   const { theme, setTheme } = useTheme()
   const { canAddListing } = useSellerSubscription()
@@ -103,7 +99,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     initDashboard()
   }, [mounted, router])
 
-<<<<<<< HEAD
   // Sync with AuthContext user when it changes
   useEffect(() => {
     if (authUser && (!user || user.uid !== authUser.uid || user.name !== authUser.name || user.email !== authUser.email)) {
@@ -112,8 +107,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [authUser, user])
 
-=======
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
   // Listen for mode changes from layout
   useEffect(() => {
     const handleModeChange = (event: any) => {
@@ -325,11 +318,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-<<<<<<< HEAD
                   {user?.name || user?.displayName || 'User'}
-=======
-                  {user?.displayName || user?.name || 'User'}
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
                   {user?.email}

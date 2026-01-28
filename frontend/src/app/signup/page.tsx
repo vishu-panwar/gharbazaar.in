@@ -20,10 +20,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext'
 import { useLoader } from '@/components/GlobalLoader'
 import InteractiveBackground from '@/components/InteractiveBackground'
-<<<<<<< HEAD
 import toast from 'react-hot-toast'
-=======
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
 
 export default function SignupPage() {
   const router = useRouter()
@@ -81,16 +78,12 @@ export default function SignupPage() {
       await signup(formData.email, formData.password, formData.name)
       // Signup function already handles navigation with loader
     } catch (error: any) {
-<<<<<<< HEAD
       if (error.message.includes('User already exists')) {
         toast.error('This email is already registered. Please login instead.')
         setTimeout(() => router.push('/login'), 2000)
       } else {
         toast.error(error.message || 'Signup failed')
       }
-=======
-      alert(error.message || 'Signup failed')
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
       setLoading(false)
     }
   }
@@ -103,16 +96,12 @@ export default function SignupPage() {
       await loginWithGoogle()
       // LoginWithGoogle function already handles navigation with loader
     } catch (error: any) {
-<<<<<<< HEAD
       if (error.message.includes('User already exists')) {
         toast.error('You already have an account. Logging you in instead...')
         setTimeout(() => router.push('/login'), 2000)
       } else {
         toast.error(error.message || 'Google signup failed')
       }
-=======
-      alert(error.message || 'Google signup failed')
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
       setLoading(false)
     }
   }

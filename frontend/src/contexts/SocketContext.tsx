@@ -57,7 +57,6 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
                 // Get token from localStorage (set by backend login)
                 const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
 
-<<<<<<< HEAD
                 // Allow connections without token for demo mode
                 if (!token) {
                     console.warn('No auth token found, connecting in demo mode');
@@ -65,15 +64,6 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
                 const newSocket = io(CONFIG.API.SOCKET_URL, {
                     auth: { token: token || undefined },
-=======
-                if (!token) {
-                    console.warn('No auth token found, skipping socket connection');
-                    return;
-                }
-
-                const newSocket = io(CONFIG.API.SOCKET_URL, {
-                    auth: { token },
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
                     reconnection: true,
                     reconnectionDelay: 1000,
                     reconnectionAttempts: 5,

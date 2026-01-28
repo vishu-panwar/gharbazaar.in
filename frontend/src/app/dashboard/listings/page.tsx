@@ -45,37 +45,26 @@ import {
   Share2
 } from 'lucide-react'
 import { useSellerSubscription } from '@/contexts/SellerSubscriptionContext'
-<<<<<<< HEAD
 import { backendApi } from '@/lib/backendApi'
 import { useAuth } from '@/contexts/AuthContext'
 import toast from 'react-hot-toast'
-=======
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
 
 export default function MyListingsPage() {
   const router = useRouter()
   const { canAddListing } = useSellerSubscription()
-<<<<<<< HEAD
   const { user } = useAuth()
   const [listings, setListings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-=======
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [showFilters, setShowFilters] = useState(false)
   const [filters, setFilters] = useState({
     status: 'all',
     propertyType: 'all',
-<<<<<<< HEAD
     listingType: 'all',
-=======
-    listingType: 'all', // Added for Sale/Rent filter
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
     priceRange: 'all',
     sortBy: 'newest'
   })
 
-<<<<<<< HEAD
   useEffect(() => {
     const fetchListings = async () => {
       if (!user) return
@@ -96,8 +85,6 @@ export default function MyListingsPage() {
     fetchListings()
   }, [user])
 
-=======
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
   const handleAddListing = () => {
     if (canAddListing()) {
       router.push('/dashboard/listings/new')
@@ -107,7 +94,6 @@ export default function MyListingsPage() {
   }
 
   // Sample seller listings data with rental properties included
-<<<<<<< HEAD
   const [filteredListings, setFilteredListings] = useState<any[]>([])
 
   useEffect(() => {
@@ -125,230 +111,6 @@ export default function MyListingsPage() {
 
     setFilteredListings(result)
   }, [listings, filters])
-=======
-  const listings = [
-    {
-      id: 1,
-      title: 'Luxury 4BHK Penthouse with Panoramic Sea Views',
-      location: 'Worli, Mumbai',
-      price: '₹8.5 Cr',
-      priceValue: 85000000,
-      listingType: 'sale',
-      type: 'Apartment',
-      beds: 4,
-      baths: 5,
-      area: '3200 sq ft',
-      image: '/images/property1.jpg',
-      status: 'active',
-      featured: true,
-      verified: true,
-      views: 1234,
-      inquiries: 23,
-      favorites: 45,
-      rating: 4.8,
-      listedDate: '2024-01-15',
-      lastUpdated: '2024-01-20',
-      description: 'Stunning penthouse with breathtaking sea views, premium amenities, and modern architecture.',
-      amenities: ['Sea View', 'Swimming Pool', 'Gym', 'Parking', 'Security', 'Power Backup'],
-      nearbyPlaces: ['Worli Sea Face - 0.2 km', 'BKC - 2.5 km', 'Airport - 8 km'],
-      priceHistory: [
-        { date: '2024-01-15', price: '₹9.2 Cr', action: 'Listed' },
-        { date: '2024-01-20', price: '₹8.5 Cr', action: 'Price Reduced' }
-      ],
-      recentInquiries: [
-        { name: 'Rajesh Kumar', phone: '+91 98765 43210', email: 'rajesh@email.com', date: '2024-01-22', message: 'Interested in viewing this property' },
-        { name: 'Priya Sharma', phone: '+91 87654 32109', email: 'priya@email.com', date: '2024-01-21', message: 'Can we schedule a site visit?' }
-      ]
-    },
-    {
-      id: 2,
-      title: 'Premium 3BHK Apartment for Rent',
-      location: 'Bandra West, Mumbai',
-      price: '₹85,000/month',
-      priceValue: 85000,
-      listingType: 'rent',
-      type: 'Apartment',
-      beds: 3,
-      baths: 3,
-      area: '1800 sq ft',
-      image: '/images/property2.jpg',
-      status: 'active',
-      featured: true,
-      verified: true,
-      views: 743,
-      inquiries: 18,
-      favorites: 32,
-      rating: 4.7,
-      listedDate: '2024-01-10',
-      lastUpdated: '2024-01-18',
-      description: 'Fully furnished premium apartment in prime Bandra location with modern amenities.',
-      amenities: ['Furnished', 'AC', 'Gym', 'Parking', 'Security', 'Power Backup'],
-      nearbyPlaces: ['Bandra Station - 0.5 km', 'Linking Road - 0.8 km', 'Airport - 6 km'],
-      priceHistory: [
-        { date: '2024-01-10', price: '₹90,000/month', action: 'Listed' },
-        { date: '2024-01-18', price: '₹85,000/month', action: 'Price Reduced' }
-      ],
-      recentInquiries: [
-        { name: 'Amit Singh', phone: '+91 98765 43211', email: 'amit@email.com', date: '2024-01-21', message: 'Looking for immediate possession' },
-        { name: 'Neha Gupta', phone: '+91 87654 32108', email: 'neha@email.com', date: '2024-01-20', message: 'Is it available for 11 months lease?' }
-      ]
-    },
-    {
-      id: 3,
-      title: 'Modern 3BHK Villa with Private Garden',
-      location: 'Whitefield, Bangalore',
-      price: '₹3.8 Cr',
-      priceValue: 38000000,
-      listingType: 'sale',
-      type: 'Villa',
-      beds: 3,
-      baths: 4,
-      area: '2100 sq ft',
-      image: '/images/property2.jpg',
-      status: 'active',
-      featured: false,
-      verified: true,
-      views: 892,
-      inquiries: 15,
-      favorites: 28,
-      rating: 4.6,
-      listedDate: '2024-01-10',
-      lastUpdated: '2024-01-18',
-      description: 'Beautiful villa with private garden, modern interiors, and excellent connectivity.',
-      amenities: ['Private Garden', 'Parking', 'Security', 'Power Backup', 'Club House'],
-      nearbyPlaces: ['ITPL - 1.5 km', 'Forum Mall - 2 km', 'Airport - 45 km'],
-      priceHistory: [
-        { date: '2024-01-10', price: '₹3.8 Cr', action: 'Listed' }
-      ],
-      recentInquiries: [
-        { name: 'Amit Patel', phone: '+91 76543 21098', email: 'amit@email.com', date: '2024-01-21', message: 'What is the possession date?' }
-      ]
-    },
-    {
-      id: 4,
-      title: 'Furnished 2BHK Flat for Rent',
-      location: 'Koramangala, Bangalore',
-      price: '₹45,000/month',
-      priceValue: 45000,
-      listingType: 'rent',
-      type: 'Apartment',
-      beds: 2,
-      baths: 2,
-      area: '1100 sq ft',
-      image: '/images/property4.jpg',
-      status: 'active',
-      featured: false,
-      verified: true,
-      views: 432,
-      inquiries: 12,
-      favorites: 18,
-      rating: 4.4,
-      listedDate: '2024-01-08',
-      lastUpdated: '2024-01-16',
-      description: 'Fully furnished apartment in prime Koramangala location with all modern amenities.',
-      amenities: ['Furnished', 'AC', 'Parking', 'Security', 'Power Backup'],
-      nearbyPlaces: ['Forum Mall - 0.8 km', 'Metro Station - 1.2 km', 'Airport - 40 km'],
-      priceHistory: [
-        { date: '2024-01-08', price: '₹45,000/month', action: 'Listed' }
-      ],
-      recentInquiries: [
-        { name: 'Ravi Kumar', phone: '+91 98765 43212', email: 'ravi@email.com', date: '2024-01-19', message: 'Available for bachelors?' }
-      ]
-    },
-    {
-      id: 5,
-      title: 'Spacious 2BHK Apartment with City Views',
-      location: 'Gurgaon, Delhi NCR',
-      price: '₹1.8 Cr',
-      priceValue: 18000000,
-      listingType: 'sale',
-      type: 'Apartment',
-      beds: 2,
-      baths: 2,
-      area: '1200 sq ft',
-      image: '/images/property5.jpg',
-      status: 'pending',
-      featured: false,
-      verified: false,
-      views: 567,
-      inquiries: 8,
-      favorites: 12,
-      rating: 4.3,
-      listedDate: '2024-01-05',
-      lastUpdated: '2024-01-15',
-      description: 'Well-designed apartment with city views and modern amenities.',
-      amenities: ['City View', 'Gym', 'Parking', 'Security'],
-      nearbyPlaces: ['Cyber City - 3 km', 'Metro Station - 1 km', 'Airport - 15 km'],
-      priceHistory: [
-        { date: '2024-01-05', price: '₹1.8 Cr', action: 'Listed' }
-      ],
-      recentInquiries: []
-    },
-    {
-      id: 6,
-      title: 'Garden Estate Villa',
-      location: 'Gurgaon, Delhi NCR',
-      price: '₹5.2 Cr',
-      priceValue: 52000000,
-      listingType: 'sale',
-      type: 'Villa',
-      beds: 4,
-      baths: 5,
-      area: '5000 sq ft',
-      image: '/images/property4.jpg',
-      status: 'sold',
-      featured: true,
-      verified: true,
-      views: 2156,
-      inquiries: 67,
-      favorites: 89,
-      rating: 4.9,
-      listedDate: '2023-12-01',
-      lastUpdated: '2024-01-10',
-      soldDate: '2024-01-10',
-      soldPrice: '₹5.0 Cr',
-      description: 'Premium villa with extensive garden and luxury amenities.',
-      amenities: ['Large Garden', 'Swimming Pool', 'Gym', 'Parking', 'Security', 'Power Backup'],
-      nearbyPlaces: ['Golf Course - 0.5 km', 'International School - 2 km', 'Airport - 12 km'],
-      priceHistory: [
-        { date: '2023-12-01', price: '₹5.5 Cr', action: 'Listed' },
-        { date: '2023-12-15', price: '₹5.2 Cr', action: 'Price Reduced' },
-        { date: '2024-01-10', price: '₹5.0 Cr', action: 'Sold' }
-      ],
-      recentInquiries: []
-    },
-    {
-      id: 7,
-      title: 'Smart Home Apartment',
-      location: 'Koramangala, Bangalore',
-      price: '₹2.5 Cr',
-      priceValue: 25000000,
-      type: 'Apartment',
-      beds: 3,
-      baths: 3,
-      area: '2200 sq ft',
-      image: '/images/property5.jpg',
-      status: 'inactive',
-      featured: false,
-      verified: true,
-      views: 445,
-      inquiries: 5,
-      favorites: 8,
-      rating: 4.5,
-      listedDate: '2024-01-01',
-      lastUpdated: '2024-01-12',
-      description: 'Modern smart home with automated systems and premium finishes.',
-      amenities: ['Smart Home', 'Gym', 'Parking', 'Security', 'Power Backup'],
-      nearbyPlaces: ['Forum Mall - 1 km', 'Metro Station - 0.8 km', 'Airport - 35 km'],
-      priceHistory: [
-        { date: '2024-01-01', price: '₹2.5 Cr', action: 'Listed' }
-      ],
-      recentInquiries: []
-    }
-  ]
-
-  const [filteredListings, setFilteredListings] = useState(listings)
->>>>>>> 27e598ded527a2c61948df157c36da50b6ff83d8
 
   const getStatusColor = (status: string) => {
     switch (status) {
