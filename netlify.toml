@@ -1,0 +1,20 @@
+[build]
+  command = "npm --workspace @gharbazaar/frontend run build"
+  publish = "frontend/.next"
+  
+[build.environment]
+  NODE_VERSION = "18"
+  NEXT_PRIVATE_TARGET = "server"
+  NEXT_PUBLIC_GOOGLE_MAPS_API_KEY = "your-google-maps-api-key-here"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[functions]
+  node_bundler = "esbuild"
+
+# Redirects for SPA routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
