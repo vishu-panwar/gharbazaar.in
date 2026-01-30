@@ -1,6 +1,6 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import {
     MapPin,
     Bed,
@@ -12,12 +12,15 @@ import {
     Star,
     CheckCircle
 } from 'lucide-react'
+
 import { useFavorites } from '@/contexts/FavoritesContext'
 import { usePayment } from '@/contexts/PaymentContext'
+import { useAuth } from '@/contexts/AuthContext'
 
 // Property Interface
 export interface Property {
-    id: number
+    id?: number
+    _id?: string
     title: string
     location: string
     price: string
@@ -33,11 +36,12 @@ export interface Property {
     views: number
     rating: number
     isFavorite: boolean
+    status?: 'active' | 'pending' | 'rejected' | 'sold' | 'inactive'
 }
 
 interface PropertyCardProps {
     property: Property
-    onToggleFavorite?: (id: number) => void
+    onToggleFavorite?: (id: string | number) => void
     viewMode?: 'grid' | 'list'
 }
 
@@ -47,40 +51,56 @@ export default function PropertyCard({
     viewMode = 'grid'
 }: PropertyCardProps) {
     const router = useRouter()
+    const pathname = usePathname()
+
     const { isFavorite, toggleFavorite } = useFavorites()
     const { hasPaid, hasFeature } = usePayment()
-    const isPropertyFavorited = isFavorite(property.id)
+    const { user } = useAuth()
+
+    const propertyId = property._id || property.id
+    const isPropertyFavorited = isFavorite(propertyId)
 
     const handleCardClick = (e: React.MouseEvent) => {
         e.preventDefault()
-        
-        // First check: Do they have any plan?
+        if (!propertyId) return
+
+        // 🔐 Buyer plan check
         if (!hasPaid) {
             router.push('/dashboard/pricing')
             return
         }
 
-        // Second check: Do they have contact access feature?
-        // This allows viewing property details with restrictions
-        if (!hasFeature('contactAccess')) {
-            // Show upgrade prompt but still allow basic viewing
-            console.log('⚠️ Limited access - contact feature not available')
+        // ⚠️ Feature-level soft restriction
+        if (!hasFeature?.('contactAccess')) {
+            console.warn('Limited access: contact feature not available')
+            // Allow viewing but restrict actions inside detail page
         }
 
-        router.push(`/dashboard/browse/${property.id}`)
+        // 🧭 Context-aware routing
+        if (pathname.includes('/dashboard') || user) {
+            const targetPath = pathname.includes('/dashboard/listings')
+                ? `/dashboard/listings/${propertyId}`
+                : `/dashboard/browse/${propertyId}`
+            router.push(targetPath)
+        } else {
+            router.push(`/listings/${propertyId}`)
+        }
     }
 
     const handleFavoriteClick = (e: React.MouseEvent) => {
         e.preventDefault()
         e.stopPropagation()
-        // Use context's toggleFavorite directly
+
         toggleFavorite(property)
-        // Also call parent callback if provided
-        onToggleFavorite?.(property.id)
+
+        if (propertyId) {
+            onToggleFavorite?.(propertyId)
+        }
     }
 
-
-    // List View
+    // =========================
+    // LIST VIEW
+    // =========================
     if (viewMode === 'list') {
         return (
             <div
@@ -89,38 +109,45 @@ export default function PropertyCard({
             >
                 <div className="flex flex-col md:flex-row">
                     {/* Image */}
-                    <div className="relative w-full md:w-80 h-56 md:h-auto flex-shrink-0 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 overflow-hidden">
-                        <div className="absolute inset-0 flex items-center justify-center">
-                            <Home size={64} className="text-gray-400" />
-                        </div>
+                    <div className="relative w-full md:w-80 h-56 md:h-auto bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 overflow-hidden">
+                        {property.image ? (
+                            <img
+                                src={property.image}
+                                alt={property.title}
+                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                            />
+                        ) : (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <Home size={64} className="text-gray-400" />
+                            </div>
+                        )}
 
                         {/* Badges */}
                         <div className="absolute top-3 left-3 flex flex-col gap-2">
-                            <div className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center space-x-1 ${property.listingType === 'rent'
+                            <div className={`px-3 py-1 rounded-full text-xs font-semibold ${property.listingType === 'rent'
                                 ? 'bg-purple-500 text-white'
                                 : 'bg-blue-500 text-white'
                                 }`}>
-                                <span>{property.listingType === 'rent' ? 'FOR RENT' : 'FOR SALE'}</span>
+                                {property.listingType === 'rent' ? 'FOR RENT' : 'FOR SALE'}
                             </div>
 
                             {property.featured && (
-                                <div className="bg-yellow-500 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center space-x-1">
-                                    <Star size={12} />
-                                    <span>Featured</span>
+                                <div className="bg-yellow-500 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
+                                    <Star size={12} /> Featured
                                 </div>
                             )}
+
                             {property.verified && (
-                                <div className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center space-x-1">
-                                    <CheckCircle size={12} />
-                                    <span>Verified</span>
+                                <div className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
+                                    <CheckCircle size={12} /> Verified
                                 </div>
                             )}
                         </div>
 
-                        {/* Favorite Button */}
+                        {/* Favorite */}
                         <button
                             onClick={handleFavoriteClick}
-                            className="absolute top-3 right-3 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white transition-all z-10"
+                            className="absolute top-3 right-3 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center z-10"
                         >
                             <Heart
                                 size={20}
@@ -131,49 +158,28 @@ export default function PropertyCard({
 
                     {/* Content */}
                     <div className="flex-1 p-5">
-                        <div className="flex items-start justify-between mb-3">
-                            <div className="flex-1">
-                                <h3 className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-blue-600 transition-colors mb-1">
-                                    {property.title}
-                                </h3>
-                                <div className="flex items-center text-gray-600 dark:text-gray-400 text-sm">
-                                    <MapPin size={14} className="mr-1" />
-                                    <span>{property.location}</span>
-                                </div>
-                            </div>
-                            <div className="flex items-center space-x-1 text-yellow-500 ml-4">
-                                <Star size={14} className="fill-current" />
-                                <span className="text-sm font-semibold">{property.rating}</span>
-                            </div>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
+                            {property.title}
+                        </h3>
+
+                        <div className="flex items-center text-gray-600 dark:text-gray-400 text-sm mb-3">
+                            <MapPin size={14} className="mr-1" />
+                            {property.location}
                         </div>
 
-                        {/* Property Details */}
-                        <div className="flex items-center space-x-4 mb-4 text-sm text-gray-600 dark:text-gray-400">
-                            <div className="flex items-center bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg">
-                                <Bed size={16} className="mr-1 text-blue-500" />
-                                <span>{property.beds} Beds</span>
-                            </div>
-                            <div className="flex items-center bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg">
-                                <Bath size={16} className="mr-1 text-blue-500" />
-                                <span>{property.baths} Baths</span>
-                            </div>
-                            <div className="flex items-center bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg">
-                                <Square size={16} className="mr-1 text-blue-500" />
-                                <span>{property.area}</span>
-                            </div>
-                            <div className="flex items-center bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg">
-                                <Eye size={14} className="mr-1 text-gray-400" />
-                                <span>{property.views}</span>
-                            </div>
+                        <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-4">
+                            <span className="flex items-center"><Bed size={14} className="mr-1" /> {property.beds}</span>
+                            <span className="flex items-center"><Bath size={14} className="mr-1" /> {property.baths}</span>
+                            <span className="flex items-center"><Square size={14} className="mr-1" /> {property.area}</span>
+                            <span className="flex items-center"><Eye size={14} className="mr-1" /> {property.views}</span>
                         </div>
 
-                        {/* Price & CTA */}
-                        <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <div className="flex justify-between items-center border-t pt-4">
                             <div>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">Price</p>
+                                <p className="text-xs text-gray-500">Price</p>
                                 <p className="text-xl font-bold text-blue-600">{property.price}</p>
                             </div>
-                            <span className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition-all inline-block">
+                            <span className="bg-blue-600 text-white px-6 py-2 rounded-lg">
                                 View Details
                             </span>
                         </div>
@@ -183,7 +189,9 @@ export default function PropertyCard({
         )
     }
 
-    // Grid View (default)
+    // =========================
+    // GRID VIEW (DEFAULT)
+    // =========================
     return (
         <div
             onClick={handleCardClick}
@@ -191,38 +199,22 @@ export default function PropertyCard({
         >
             {/* Image */}
             <div className="relative h-56 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 overflow-hidden">
-                <div className="absolute inset-0 flex items-center justify-center">
-                    <Home size={64} className="text-gray-400" />
-                </div>
-
-                {/* Badges */}
-                <div className="absolute top-3 left-3 flex flex-col gap-2">
-                    {/* Sale/Rent Badge */}
-                    <div className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center space-x-1 ${property.listingType === 'rent'
-                        ? 'bg-purple-500 text-white'
-                        : 'bg-blue-500 text-white'
-                        }`}>
-                        <span>{property.listingType === 'rent' ? 'FOR RENT' : 'FOR SALE'}</span>
+                {property.image ? (
+                    <img
+                        src={property.image}
+                        alt={property.title}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    />
+                ) : (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <Home size={64} className="text-gray-400" />
                     </div>
+                )}
 
-                    {property.featured && (
-                        <div className="bg-yellow-500 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center space-x-1">
-                            <Star size={12} />
-                            <span>Featured</span>
-                        </div>
-                    )}
-                    {property.verified && (
-                        <div className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center space-x-1">
-                            <CheckCircle size={12} />
-                            <span>Verified</span>
-                        </div>
-                    )}
-                </div>
-
-                {/* Favorite Button */}
+                {/* Favorite */}
                 <button
                     onClick={handleFavoriteClick}
-                    className="absolute top-3 right-3 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white transition-all z-10"
+                    className="absolute top-3 right-3 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center z-10"
                 >
                     <Heart
                         size={20}
@@ -230,54 +222,34 @@ export default function PropertyCard({
                     />
                 </button>
 
-                {/* Views */}
-                <div className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs flex items-center space-x-1">
-                    <Eye size={12} />
-                    <span>{property.views}</span>
+                <div className="absolute bottom-3 right-3 bg-black/60 text-white px-3 py-1 rounded-full text-xs flex items-center gap-1">
+                    <Eye size={12} /> {property.views}
                 </div>
             </div>
 
             {/* Content */}
             <div className="p-5">
-                <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1">
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-blue-600 transition-colors mb-1">
-                            {property.title}
-                        </h3>
-                        <div className="flex items-center text-gray-600 dark:text-gray-400 text-sm">
-                            <MapPin size={14} className="mr-1" />
-                            <span>{property.location}</span>
-                        </div>
-                    </div>
-                    <div className="flex items-center space-x-1 text-yellow-500">
-                        <Star size={14} className="fill-current" />
-                        <span className="text-sm font-semibold">{property.rating}</span>
-                    </div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
+                    {property.title}
+                </h3>
+
+                <div className="flex items-center text-gray-600 dark:text-gray-400 text-sm mb-3">
+                    <MapPin size={14} className="mr-1" />
+                    {property.location}
                 </div>
 
-                {/* Property Details */}
-                <div className="flex items-center space-x-4 mb-4 text-sm text-gray-600 dark:text-gray-400">
-                    <div className="flex items-center">
-                        <Bed size={16} className="mr-1" />
-                        <span>{property.beds}</span>
-                    </div>
-                    <div className="flex items-center">
-                        <Bath size={16} className="mr-1" />
-                        <span>{property.baths}</span>
-                    </div>
-                    <div className="flex items-center">
-                        <Square size={16} className="mr-1" />
-                        <span>{property.area}</span>
-                    </div>
+                <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    <span className="flex items-center"><Bed size={14} className="mr-1" /> {property.beds}</span>
+                    <span className="flex items-center"><Bath size={14} className="mr-1" /> {property.baths}</span>
+                    <span className="flex items-center"><Square size={14} className="mr-1" /> {property.area}</span>
                 </div>
 
-                {/* Price & CTA */}
-                <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex justify-between items-center border-t pt-4">
                     <div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Price</p>
+                        <p className="text-xs text-gray-500">Price</p>
                         <p className="text-xl font-bold text-blue-600">{property.price}</p>
                     </div>
-                    <span className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition-all inline-block">
+                    <span className="bg-blue-600 text-white px-6 py-2 rounded-lg">
                         View Details
                     </span>
                 </div>

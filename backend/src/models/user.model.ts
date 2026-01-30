@@ -4,7 +4,7 @@ export interface IUser extends Document {
     uid: string;
     email: string;
     name: string;
-    role: 'buyer' | 'seller' | 'admin' | 'employee';
+    role: 'buyer' | 'seller' | 'admin' | 'employee' | 'legal_partner' | 'ground_partner' | 'promoter_partner';
     // Stats for dashboards
     propertiesViewed?: number;
     savedProperties?: number;
@@ -29,7 +29,12 @@ const UserSchema: Schema = new Schema({
     uid: { type: String, required: true, unique: true },
     email: { type: String, required: true, unique: true },
     name: { type: String, required: true },
-    role: { type: String, required: true, enum: ['buyer', 'seller', 'admin', 'employee'], default: 'buyer' },
+    role: {
+        type: String,
+        required: true,
+        enum: ['buyer', 'seller', 'admin', 'employee', 'legal_partner', 'ground_partner', 'promoter_partner'],
+        default: 'buyer'
+    },
     // Stats
     propertiesViewed: { type: Number, default: 0 },
     savedProperties: { type: Number, default: 0 },

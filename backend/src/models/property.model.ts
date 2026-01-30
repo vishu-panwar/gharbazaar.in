@@ -15,7 +15,7 @@ export interface IProperty extends Document {
     area: string; // e.g., "1200 sq ft"
     amenities: string[];
     photos: string[];
-    status: 'active' | 'pending' | 'sold' | 'inactive';
+    status: 'active' | 'pending' | 'rejected' | 'sold' | 'inactive';
     sellerId: string;
     views: number;
     likes: number;
@@ -23,6 +23,7 @@ export interface IProperty extends Document {
     featured: boolean;
     verified: boolean;
     virtualTour: boolean;
+    viewedBy: string[];
     matchScore?: number;
     readyToMove: boolean;
     newListing: boolean;
@@ -46,7 +47,7 @@ const PropertySchema: Schema = new Schema({
     area: { type: String, required: true },
     amenities: [{ type: String }],
     photos: [{ type: String }],
-    status: { type: String, required: true, enum: ['active', 'pending', 'sold', 'inactive'], default: 'active' },
+    status: { type: String, required: true, enum: ['active', 'pending', 'rejected', 'sold', 'inactive'], default: 'pending' },
     sellerId: { type: String, required: true },
     views: { type: Number, default: 0 },
     likes: { type: Number, default: 0 },
@@ -54,6 +55,7 @@ const PropertySchema: Schema = new Schema({
     featured: { type: Boolean, default: false },
     verified: { type: Boolean, default: false },
     virtualTour: { type: Boolean, default: false },
+    viewedBy: [{ type: String }],
     matchScore: { type: Number, default: 85 },
     readyToMove: { type: Boolean, default: true },
     newListing: { type: Boolean, default: true },
