@@ -7,6 +7,7 @@ router.post('/login', authController.login);
 router.post('/register', authController.register);
 router.post('/verify-token', authController.verifyToken);
 router.post('/logout', authController.logout);
+router.post('/google', authController.googleAuth); // Google OAuth endpoint
 router.post('/forgot-password', (req, res) => {
     res.json({ success: true, message: 'Reset email sent (Mock)' });
 });

@@ -2,15 +2,27 @@ import mongoose from 'mongoose';
 import config from '../config';
 
 export const connectDatabase = async (): Promise<void> => {
+    // Temporarily skip database connection for development
+    console.warn('⚠️  Skipping MongoDB connection for development');
+    console.warn('⚠️  Running in MEMORY-ONLY mode');
+    console.warn('💡 Data will NOT persist between restarts\n');
+    return;
+    
+    /* Original connection logic - commented for dev
     try {
         const options = {
             autoIndex: true,
             maxPoolSize: 10,
-            serverSelectionTimeoutMS: 5000,
-            socketTimeoutMS: 45000,
+            serverSelectionTimeoutMS: 3000,
+            socketTimeoutMS: 3000,
+            connectTimeoutMS: 3000,
         };
 
-        await mongoose.connect(config.mongodbUri, options);
+        // Race between connection and timeout
+        await Promise.race([
+            mongoose.connect(config.mongodbUri, options),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Connection timeout')), 4000))
+        ]);
 
         console.log('✅ MongoDB connected successfully');
         console.log(`📊 Database: ${mongoose.connection.db?.databaseName || 'gharbazaar'}`);
@@ -31,6 +43,7 @@ export const connectDatabase = async (): Promise<void> => {
         console.warn('⚠️  Running in MEMORY-ONLY mode');
         console.warn('💡 Chat and ticket data will NOT persist between restarts\n');
     }
+    */
 };
 
 export const disconnectDatabase = async (): Promise<void> => {
