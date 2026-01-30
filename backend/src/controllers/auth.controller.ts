@@ -65,6 +65,20 @@ export const login = async (req: Request, res: Response) => {
         res.status(500).json({ success: false, error: 'Login failed' });
     }
 };
+// Helper to generate custom ID
+const generateCustomId = (role: string): string => {
+    const randomNum = Math.floor(Math.random() * 9000000) + 1000000; // 7 digit random number
+    let prefix = 'gbclient';
+
+    if (role === 'employee') prefix = 'gbemployee';
+    else if (role === 'legal_partner') prefix = 'gblegal';
+    else if (role === 'ground_partner') prefix = 'gbground';
+    else if (role === 'promoter_partner') prefix = 'gbpromoter';
+
+    // Default or buyer/seller -> gbclient
+    return `${prefix}${randomNum}`;
+};
+
 export const register = async (req: Request, res: Response) => {
     try {
         const { email, password, displayName, role = 'buyer' } = req.body;
@@ -73,33 +87,54 @@ export const register = async (req: Request, res: Response) => {
             return res.status(400).json({ success: false, error: 'Missing required fields' });
         }
 
-        const userData = {
-            uid: `user-${Date.now()}`,
-            email,
-            displayName,
-            role
-        };
+        // Check if user exists
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            return res.status(400).json({ success: false, error: 'Email already registered' });
+        }
 
-        const token = generateToken({
-            userId: userData.uid,
-            email: userData.email,
-            name: userData.displayName,
-            role: userData.role
+        const uid = generateCustomId(role);
+
+        // Create new user
+        const newUser = new User({
+            uid,
+            email,
+            name: displayName,
+            role,
+            // Default stats will be handled by schema defaults
         });
 
-        console.log(`✅ Registration successful for: ${email}${!isMongoDBAvailable() ? ' (Memory Mode)' : ''}`);
+        // Save to DB
+        if (isMongoDBAvailable()) {
+            await newUser.save();
+            console.log(`✅ User registered and saved to DB: ${displayName} (${uid})`);
+        } else {
+            console.log(`⚠️ MongoDB not available, skipping save for: ${displayName} (${uid})`);
+        }
+
+        const token = generateToken({
+            userId: newUser.uid,
+            email: newUser.email,
+            name: newUser.name,
+            role: newUser.role
+        });
 
         res.status(201).json({
             success: true,
             data: {
                 token,
-                user: userData
+                user: {
+                    uid: newUser.uid,
+                    email: newUser.email,
+                    displayName: newUser.name,
+                    role: newUser.role
+                }
             }
         });
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('❌ Registration error:', error);
-        res.status(500).json({ success: false, error: 'Registration failed' });
+        res.status(500).json({ success: false, error: error.message || 'Registration failed' });
     }
 };
 export const verifyToken = async (req: Request, res: Response) => {

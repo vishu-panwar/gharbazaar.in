@@ -5,12 +5,13 @@ import { usePathname } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
 import { ChevronDown, Moon, Sun, Menu, X } from 'lucide-react'
 import { useTheme } from 'next-themes'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function FloatingNavbar() {
     const pathname = usePathname()
     const { theme, setTheme } = useTheme()
+    const { user, loading } = useAuth()
     const [mounted, setMounted] = useState(false)
-    const [user, setUser] = useState<any>(null)
     const [isPortalsOpen, setIsPortalsOpen] = useState(false)
     const [isPartnerOpen, setIsPartnerOpen] = useState(false)
     const [isMobilePortalsOpen, setIsMobilePortalsOpen] = useState(false)
@@ -21,10 +22,6 @@ export default function FloatingNavbar() {
 
     useEffect(() => {
         setMounted(true)
-        const userData = localStorage.getItem('user')
-        if (userData) {
-            setUser(JSON.parse(userData))
-        }
 
         const handleClick = (e: MouseEvent) => {
             if (portalsRef.current && !portalsRef.current.contains(e.target as Node)) {

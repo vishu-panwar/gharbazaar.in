@@ -79,8 +79,8 @@ export default function BrowsePropertiesPage() {
   const filteredProperties = properties
   const { toggleFavorite, isFavorite } = useFavorites()
 
-  const handleToggleFavorite = (id: number) => {
-    const property = properties.find(p => p.id === id)
+  const handleToggleFavorite = (id: string | number) => {
+    const property = properties.find(p => (p._id || p.id) === id)
     if (property) {
       // Convert to the format expected by FavoritesContext
       toggleFavorite(property as Property)
@@ -273,7 +273,8 @@ export default function BrowsePropertiesPage() {
             <PropertyCard
               key={property._id || property.id}
               property={{
-                id: (property._id || property.id) as number,
+                id: property.id as number | undefined,
+                _id: property._id as string | undefined,
                 title: (property.title || 'Untitled Property') as string,
                 location: (property.location || 'Location not specified') as string,
                 price: property.price ? `₹${property.price.toLocaleString()}` : 'Price not set',

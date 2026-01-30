@@ -58,6 +58,9 @@ import {
     AlertCircle
 } from 'lucide-react'
 
+import PropertyCard from '@/components/PropertyCard'
+import { backendApi } from '@/lib/backendApi'
+
 interface SellerDashboardProps {
     user: any
     currentTime: Date
@@ -506,128 +509,19 @@ export default function SellerDashboard({ user, currentTime }: SellerDashboardPr
                                     {/* Horizontal Scrollable Container */}
                                     <div className="overflow-x-auto pb-4">
                                         <div className="flex space-x-6 min-w-max">
-                                            {sellerProperties.map((property) => (
-                                                <div key={property.id} className="group relative bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-xl hover:shadow-3xl transition-all duration-500 hover:-translate-y-2 border border-gray-200 dark:border-gray-700 hover:border-green-500 w-96 flex-shrink-0">
-                                                    {/* Property Image - Top */}
-                                                    <div className="relative h-48 bg-gradient-to-br from-gray-200 to-gray-400 dark:from-gray-600 dark:to-gray-800 overflow-hidden">
-                                                        <div className="absolute inset-0 flex items-center justify-center">
-                                                            <Building2 size={48} className="text-gray-400" />
-                                                        </div>
-
-                                                        {/* Badges */}
-                                                        <div className="absolute top-3 left-3 flex flex-col gap-2">
-                                                            {property.verified && (
-                                                                <div className="bg-green-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center space-x-1 shadow-lg">
-                                                                    <CheckCircle size={10} />
-                                                                    <span>Verified</span>
-                                                                </div>
-                                                            )}
-                                                            {property.featured && (
-                                                                <div className="bg-yellow-500 text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg">
-                                                                    Featured
-                                                                </div>
-                                                            )}
-                                                            {property.priceReduced && (
-                                                                <div className="bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg">
-                                                                    Price Reduced
-                                                                </div>
-                                                            )}
-                                                        </div>
-
-                                                        {/* Status */}
-                                                        <div className="absolute top-3 right-3">
-                                                            {getStatusBadge(property.status)}
-                                                        </div>
-
-                                                        {/* Actions */}
-                                                        <div className="absolute bottom-3 right-3 flex space-x-2">
-                                                            <button className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white transition-all shadow-lg group-hover:scale-110">
-                                                                <Edit size={14} className="text-gray-600 hover:text-blue-500 transition-colors" />
-                                                            </button>
-                                                            {property.virtualTour && (
-                                                                <button className="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center hover:bg-green-600 transition-all shadow-lg group-hover:scale-110">
-                                                                    <PlayCircle size={14} />
-                                                                </button>
-                                                            )}
-                                                        </div>
-
-                                                        {/* Stats */}
-                                                        <div className="absolute bottom-3 left-3 flex space-x-2">
-                                                            <div className="bg-black/60 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs flex items-center space-x-1">
-                                                                <Eye size={10} />
-                                                                <span>{property.views}</span>
-                                                            </div>
-                                                            <div className="bg-black/60 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs flex items-center space-x-1">
-                                                                <MessageCircle size={10} />
-                                                                <span>{property.inquiries}</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Property Details - Bottom */}
-                                                    <div className="p-5">
-                                                        <div className="mb-4">
-                                                            <div className="flex items-center space-x-2 mb-2">
-                                                                <h3 className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-green-600 transition-colors leading-[1.2] pb-1 truncate">
-                                                                    {property.title}
-                                                                </h3>
-                                                                <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 py-1 rounded-full text-xs font-semibold flex-shrink-0">
-                                                                    {property.type}
-                                                                </span>
-                                                            </div>
-                                                            <div className="flex items-center text-gray-600 dark:text-gray-400 text-sm mb-3">
-                                                                <MapPin size={14} className="mr-1 flex-shrink-0" />
-                                                                <span className="truncate">{property.location}</span>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Property Features */}
-                                                        <div className="flex items-center justify-between mb-4 text-sm text-gray-600 dark:text-gray-400">
-                                                            <div className="flex items-center space-x-1">
-                                                                <Bed size={14} />
-                                                                <span>{property.beds}</span>
-                                                            </div>
-                                                            <div className="flex items-center space-x-1">
-                                                                <Bath size={14} />
-                                                                <span>{property.baths}</span>
-                                                            </div>
-                                                            <div className="flex items-center space-x-1">
-                                                                <Square size={14} />
-                                                                <span className="text-xs">{property.area}</span>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Performance Metrics */}
-                                                        <div className="flex justify-between mb-4 text-xs">
-                                                            <div className="text-center">
-                                                                <p className="font-bold text-gray-900 dark:text-white">{property.daysListed}</p>
-                                                                <p className="text-gray-500">Days Listed</p>
-                                                            </div>
-                                                            <div className="text-center">
-                                                                <p className="font-bold text-gray-900 dark:text-white">{property.photos}</p>
-                                                                <p className="text-gray-500">Photos</p>
-                                                            </div>
-                                                            <div className="text-center">
-                                                                <p className="font-bold text-gray-900 dark:text-white">{property.likes}</p>
-                                                                <p className="text-gray-500">Likes</p>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Price & Action */}
-                                                        <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                                                            <div className="mb-3">
-                                                                {property.originalPrice && (
-                                                                    <p className="text-sm text-gray-400 line-through mb-1">{property.originalPrice}</p>
-                                                                )}
-                                                                <p className="text-2xl font-black text-green-600 leading-[1.1] pb-1">{property.price}</p>
-                                                                <p className="text-xs text-gray-500">Last updated: {property.lastUpdated}</p>
-                                                            </div>
-                                                            <Link href={`/dashboard/listings/${property.id}`} className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-3 rounded-xl font-bold transition-all flex items-center justify-center space-x-2 group shadow-lg hover:shadow-xl text-sm">
-                                                                <span>Manage</span>
-                                                                <ArrowUpRight size={16} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                                                            </Link>
-                                                        </div>
-                                                    </div>
+                                            {properties.map((property) => (
+                                                <div key={property._id || property.id} className="w-96 flex-shrink-0">
+                                                    <PropertyCard
+                                                        property={{
+                                                            ...property,
+                                                            id: property._id || property.id,
+                                                            beds: property.bedrooms || property.beds || 0,
+                                                            baths: property.bathrooms || property.baths || 0,
+                                                            area: property.area || property.size || 'N/A',
+                                                            views: property.views || 0,
+                                                            rating: property.rating || 4.5
+                                                        }}
+                                                    />
                                                 </div>
                                             ))}
                                         </div>

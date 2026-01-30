@@ -3,9 +3,13 @@
 import { useState, useEffect } from 'react'
 import { listingsAPI } from '@/lib/api'
 import Link from 'next/link'
-import { MapPin, Home, Search } from 'lucide-react'
+import { MapPin, Home, Search, Lock } from 'lucide-react'
+import { usePayment } from '@/contexts/PaymentContext'
+import { useRouter } from 'next/navigation'
 
 export default function ListingsPage() {
+  const router = useRouter()
+  const { hasPaid } = usePayment()
   const [listings, setListings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [filters, setFilters] = useState({
@@ -127,11 +131,25 @@ export default function ListingsPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
             {listings.map((listing) => (
-              <Link
-                key={listing.id}
-                href={`/listings/${listing.id}`}
-                className="card group hover:shadow-lg transition-shadow"
+              <div
+                key={listing._id || listing.id}
+                onClick={() => {
+                  const id = listing._id || listing.id;
+                  if (hasPaid) {
+                    router.push(`/listings/${id}`)
+                  } else {
+                    router.push('/pricing')
+                  }
+                }}
+                className="card group hover:shadow-lg transition-shadow cursor-pointer relative"
               >
+                {!hasPaid && (
+                  <div className="absolute inset-0 bg-white/10 dark:bg-black/10 backdrop-blur-[1px] z-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="bg-white dark:bg-gray-900 p-3 rounded-full shadow-xl">
+                      <Lock size={24} className="text-primary-600" />
+                    </div>
+                  </div>
+                )}
                 <div className="aspect-video bg-gray-200 dark:bg-gray-800 rounded-lg mb-3 sm:mb-4 relative overflow-hidden">
                   {listing.isFeatured && (
                     <span className="absolute top-2 right-2 bg-accent-500 text-white text-xs px-2 py-1 rounded z-10">
@@ -143,6 +161,12 @@ export default function ListingsPage() {
                       Verified
                     </span>
                   )}
+                  {!hasPaid && (
+                    <div className="absolute bottom-2 right-2 bg-gray-900/80 text-white text-[10px] px-2 py-0.5 rounded z-10 flex items-center">
+                      <Lock size={10} className="mr-1" />
+                      Premium
+                    </div>
+                  )}
                   <div className="w-full h-full flex items-center justify-center">
                     <Home size={32} className="text-gray-400 sm:w-12 sm:h-12" />
                   </div>
@@ -151,11 +175,11 @@ export default function ListingsPage() {
                   {listing.title}
                 </h3>
                 <p className="text-lg sm:text-xl font-bold text-primary-600 mb-2">
-                  {formatPrice(listing.price, listing.category)}
+                  {formatPrice(listing.price, listing.listingType)}
                 </p>
                 <div className="flex items-center text-gray-600 dark:text-gray-400 text-xs sm:text-sm mb-2">
                   <MapPin size={14} className="mr-1 flex-shrink-0" />
-                  <span className="truncate">{listing.location.city}, {listing.location.state}</span>
+                  <span className="truncate">{listing.city}, {listing.location}</span>
                 </div>
                 {listing.propertySpecs && (
                   <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
@@ -163,7 +187,7 @@ export default function ListingsPage() {
                     {listing.propertySpecs.area} {listing.propertySpecs.areaUnit}
                   </div>
                 )}
-              </Link>
+              </div>
             ))}
           </div>
         )}

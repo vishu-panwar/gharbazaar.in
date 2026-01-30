@@ -434,6 +434,22 @@ export const backendApi = {
             });
         },
 
+        uploadImage: async (file: File) => {
+            const formData = new FormData();
+            formData.append('image', file);
+
+            const token = await getAuthToken();
+            const response = await fetch(`${API_BASE_URL}/properties/upload`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: formData,
+            });
+
+            return await response.json();
+        },
+
         search: async (filters: any = {}) => {
             const params = new URLSearchParams(filters).toString();
             return backendApiCall(`/properties/search?${params}`);

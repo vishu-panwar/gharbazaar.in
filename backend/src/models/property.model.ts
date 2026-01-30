@@ -23,6 +23,7 @@ export interface IProperty extends Document {
     featured: boolean;
     verified: boolean;
     virtualTour: boolean;
+    viewedBy: string[];
     matchScore?: number;
     readyToMove: boolean;
     newListing: boolean;
@@ -54,6 +55,7 @@ const PropertySchema: Schema = new Schema({
     featured: { type: Boolean, default: false },
     verified: { type: Boolean, default: false },
     virtualTour: { type: Boolean, default: false },
+    viewedBy: [{ type: String }],
     matchScore: { type: Number, default: 85 },
     readyToMove: { type: Boolean, default: true },
     newListing: { type: Boolean, default: true },

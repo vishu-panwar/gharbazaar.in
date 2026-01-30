@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import Property from '../models/property.model';
+import { uploadFile } from '../utils/fileStorage';
 
 export const createProperty = async (req: Request, res: Response) => {
     try {
@@ -78,5 +79,78 @@ export const getUserProperties = async (req: Request, res: Response) => {
     } catch (error) {
         console.error('getUserProperties error:', error);
         res.status(500).json({ success: false, error: 'Failed to get user properties' });
+    }
+};
+
+export const trackPropertyView = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const authHeader = req.headers.authorization;
+        let userId = 'guest-' + (req.ip || 'unknown');
+
+        // If user is logged in, use their real userId
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            try {
+                const token = authHeader.substring(7);
+                if (token !== 'demo-token') {
+                    const { verifyToken } = require('../utils/jwt');
+                    const decoded = verifyToken(token);
+                    if (decoded && decoded.userId) {
+                        userId = decoded.userId;
+                    }
+                } else {
+                    userId = 'demo-buyer';
+                }
+            } catch (e) {
+                // Ignore invalid tokens for view tracking
+            }
+        }
+
+        // Find property to check if user already viewed it
+        const property = await Property.findById(id);
+        if (!property) {
+            return res.status(404).json({ success: false, error: 'Property not found' });
+        }
+
+        // Only increment if user hasn't viewed it yet
+        if (!property.viewedBy.includes(userId)) {
+            const updatedProperty = await Property.findByIdAndUpdate(
+                id,
+                {
+                    $inc: { views: 1 },
+                    $push: { viewedBy: userId }
+                },
+                { new: true }
+            );
+            return res.json({ success: true, views: updatedProperty?.views, updated: true });
+        }
+
+        res.json({ success: true, views: property.views, updated: false });
+    } catch (error) {
+        console.error('trackPropertyView error:', error);
+        res.status(500).json({ success: false, error: 'Failed to track view' });
+    }
+};
+
+export const uploadPropertyImage = async (req: Request, res: Response) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, error: 'No image file provided' });
+        }
+
+        const result = await uploadFile(
+            req.file.buffer,
+            req.file.originalname,
+            req.file.mimetype
+        );
+
+        res.json({
+            success: true,
+            url: result.url,
+            thumbnailUrl: result.thumbnailUrl
+        });
+    } catch (error: any) {
+        console.error('uploadPropertyImage error:', error);
+        res.status(500).json({ success: false, error: error.message || 'Failed to upload image' });
     }
 };

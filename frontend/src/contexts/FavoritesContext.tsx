@@ -6,9 +6,9 @@ import { Property } from '@/components/PropertyCard'
 interface FavoritesContextType {
     favorites: Property[]
     addFavorite: (property: Property) => void
-    removeFavorite: (id: number) => void
+    removeFavorite: (id: string | number) => void
     toggleFavorite: (property: Property) => void
-    isFavorite: (id: number) => boolean
+    isFavorite: (id: string | number | undefined) => boolean
     clearAllFavorites: () => void
     getFavoritesCount: () => number
 }
@@ -50,27 +50,30 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
     const addFavorite = (property: Property) => {
         setFavorites(prev => {
             // Check if already exists
-            if (prev.some(p => p.id === property.id)) {
+            const propId = property._id || property.id
+            if (prev.some(p => (p._id || p.id) === propId)) {
                 return prev
             }
             return [...prev, { ...property, isFavorite: true }]
         })
     }
 
-    const removeFavorite = (id: number) => {
-        setFavorites(prev => prev.filter(p => p.id !== id))
+    const removeFavorite = (id: string | number) => {
+        setFavorites(prev => prev.filter(p => (p._id || p.id) !== id))
     }
 
     const toggleFavorite = (property: Property) => {
-        if (isFavorite(property.id)) {
-            removeFavorite(property.id)
+        const propId = property._id || property.id
+        if (isFavorite(propId)) {
+            if (propId) removeFavorite(propId)
         } else {
             addFavorite(property)
         }
     }
 
-    const isFavorite = (id: number) => {
-        return favorites.some(p => p.id === id)
+    const isFavorite = (id: string | number | undefined) => {
+        if (!id) return false
+        return favorites.some(p => (p._id || p.id) === id)
     }
 
     const clearAllFavorites = () => {

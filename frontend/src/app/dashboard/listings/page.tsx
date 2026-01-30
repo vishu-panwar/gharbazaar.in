@@ -44,6 +44,7 @@ import {
   Camera,
   Share2
 } from 'lucide-react'
+import PropertyCard from '@/components/PropertyCard'
 import { useSellerSubscription } from '@/contexts/SellerSubscriptionContext'
 import { backendApi } from '@/lib/backendApi'
 import { useAuth } from '@/contexts/AuthContext'
@@ -311,148 +312,20 @@ export default function MyListingsPage() {
         : 'space-y-6'
       }>
         {filteredListings.map((listing) => (
-          <div
-            key={listing.id}
-            className="group bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-800 overflow-hidden hover:shadow-2xl hover:border-green-500 transition-all duration-300"
-          >
-            {/* Image */}
-            <div className="relative h-56 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 overflow-hidden">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Home size={64} className="text-gray-400" />
-              </div>
-
-              {/* Status Badge */}
-              <div className="absolute top-3 left-3 flex flex-col gap-2">
-                {/* Sale/Rent Badge */}
-                <div className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center space-x-1 ${listing.listingType === 'rent'
-                  ? 'bg-purple-500 text-white'
-                  : 'bg-blue-500 text-white'
-                  }`}>
-                  <span>{listing.listingType === 'rent' ? 'FOR RENT' : 'FOR SALE'}</span>
-                </div>
-
-                {/* Status Badge */}
-                <div className={`flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(listing.status)}`}>
-                  {getStatusIcon(listing.status)}
-                  <span className="capitalize">{listing.status}</span>
-                </div>
-              </div>
-
-              {/* Additional Badges */}
-              <div className="absolute top-3 right-3 flex flex-col gap-2">
-                {listing.featured && (
-                  <div className="bg-yellow-500 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center space-x-1">
-                    <Star size={12} />
-                    <span>Featured</span>
-                  </div>
-                )}
-                {listing.verified && (
-                  <div className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center space-x-1">
-                    <CheckCircle size={12} />
-                    <span>Verified</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Action Buttons */}
-              <div className="absolute bottom-3 right-3 flex space-x-2">
-                <button className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white transition-all">
-                  <Camera size={16} className="text-gray-600" />
-                </button>
-                <button className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white transition-all">
-                  <Share2 size={16} className="text-gray-600" />
-                </button>
-              </div>
-
-              {/* Stats */}
-              <div className="absolute bottom-3 left-3 flex space-x-3">
-                <div className="bg-black/60 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs flex items-center space-x-1">
-                  <Eye size={10} />
-                  <span>{listing.views}</span>
-                </div>
-                <div className="bg-black/60 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs flex items-center space-x-1">
-                  <MessageCircle size={10} />
-                  <span>{listing.inquiries}</span>
-                </div>
-                <div className="bg-black/60 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs flex items-center space-x-1">
-                  <Heart size={10} />
-                  <span>{listing.favorites}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Content */}
-            <div className="p-5">
-              <Link href={`/dashboard/listings/${listing.id}`} className="block">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-green-600 transition-colors mb-1">
-                      {listing.title}
-                    </h3>
-                    <div className="flex items-center text-gray-600 dark:text-gray-400 text-sm">
-                      <MapPin size={14} className="mr-1" />
-                      <span>{listing.location}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-1 text-yellow-500">
-                    <Star size={14} className="fill-current" />
-                    <span className="text-sm font-semibold">{listing.rating}</span>
-                  </div>
-                </div>
-
-                {/* Property Details */}
-                <div className="flex items-center space-x-4 mb-4 text-sm text-gray-600 dark:text-gray-400">
-                  <div className="flex items-center">
-                    <Bed size={16} className="mr-1" />
-                    <span>{listing.beds}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <Bath size={16} className="mr-1" />
-                    <span>{listing.baths}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <Square size={16} className="mr-1" />
-                    <span>{listing.area}</span>
-                  </div>
-                </div>
-
-                {/* Performance Metrics */}
-                <div className="grid grid-cols-3 gap-2 mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                  <div className="text-center">
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Views</p>
-                    <p className="font-bold text-gray-900 dark:text-white">{listing.views}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Inquiries</p>
-                    <p className="font-bold text-gray-900 dark:text-white">{listing.inquiries}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Favorites</p>
-                    <p className="font-bold text-gray-900 dark:text-white">{listing.favorites}</p>
-                  </div>
-                </div>
-
-                {/* Price & Actions */}
-                <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Price</p>
-                    <p className="text-xl font-bold text-green-600">{listing.price}</p>
-                    {listing.status === 'sold' && listing.soldPrice && (
-                      <p className="text-xs text-gray-500">Sold for {listing.soldPrice}</p>
-                    )}
-                  </div>
-                  <div className="flex space-x-2">
-                    <button className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-all">
-                      <Edit size={18} />
-                    </button>
-                    <span className="bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-lg font-medium transition-all inline-block text-sm">
-                      View Details
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            </div>
-          </div>
+          <PropertyCard
+            key={listing._id || listing.id}
+            viewMode={viewMode}
+            property={{
+              ...listing,
+              id: listing._id || listing.id,
+              image: listing.photos?.[0] || listing.image,
+              beds: listing.bedrooms || listing.beds || 0,
+              baths: listing.bathrooms || listing.baths || 0,
+              area: listing.area || listing.size || 'N/A',
+              views: listing.views || 0,
+              rating: listing.rating || 4.5
+            }}
+          />
         ))}
       </div>
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import {
     MapPin,
     Bed,
@@ -15,9 +15,12 @@ import {
 import { useFavorites } from '@/contexts/FavoritesContext'
 import { usePayment } from '@/contexts/PaymentContext'
 
+import { useAuth } from '@/contexts/AuthContext'
+
 // Property Interface
 export interface Property {
-    id: number
+    id?: number
+    _id?: string
     title: string
     location: string
     price: string
@@ -37,7 +40,7 @@ export interface Property {
 
 interface PropertyCardProps {
     property: Property
-    onToggleFavorite?: (id: number) => void
+    onToggleFavorite?: (id: string | number) => void
     viewMode?: 'grid' | 'list'
 }
 
@@ -47,16 +50,25 @@ export default function PropertyCard({
     viewMode = 'grid'
 }: PropertyCardProps) {
     const router = useRouter()
+    const pathname = usePathname()
     const { isFavorite, toggleFavorite } = useFavorites()
     const { hasPaid } = usePayment()
-    const isPropertyFavorited = isFavorite(property.id)
+    const { user } = useAuth()
+    const isPropertyFavorited = isFavorite(property._id || property.id)
 
     const handleCardClick = (e: React.MouseEvent) => {
         e.preventDefault()
-        if (hasPaid) {
-            router.push(`/dashboard/browse/${property.id}`)
+        const id = property._id || property.id
+
+        // Context-aware navigation to preserve dashboard layout if present or if logged in
+        if (pathname.includes('/dashboard') || user) {
+            // Determine if it's the seller's listings or the buyer's browse view
+            const targetPath = pathname.includes('/dashboard/listings')
+                ? `/dashboard/listings/${id}`
+                : `/dashboard/browse/${id}`
+            router.push(targetPath)
         } else {
-            router.push('/dashboard/pricing')
+            router.push(`/listings/${id}`)
         }
     }
 
@@ -66,7 +78,8 @@ export default function PropertyCard({
         // Use context's toggleFavorite directly
         toggleFavorite(property)
         // Also call parent callback if provided
-        onToggleFavorite?.(property.id)
+        const propId = property._id || property.id
+        if (propId) onToggleFavorite?.(propId)
     }
 
 
@@ -80,9 +93,17 @@ export default function PropertyCard({
                 <div className="flex flex-col md:flex-row">
                     {/* Image */}
                     <div className="relative w-full md:w-80 h-56 md:h-auto flex-shrink-0 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 overflow-hidden">
-                        <div className="absolute inset-0 flex items-center justify-center">
-                            <Home size={64} className="text-gray-400" />
-                        </div>
+                        {property.image ? (
+                            <img
+                                src={property.image}
+                                alt={property.title}
+                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                            />
+                        ) : (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <Home size={64} className="text-gray-400" />
+                            </div>
+                        )}
 
                         {/* Badges */}
                         <div className="absolute top-3 left-3 flex flex-col gap-2">
@@ -181,9 +202,17 @@ export default function PropertyCard({
         >
             {/* Image */}
             <div className="relative h-56 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 overflow-hidden">
-                <div className="absolute inset-0 flex items-center justify-center">
-                    <Home size={64} className="text-gray-400" />
-                </div>
+                {property.image ? (
+                    <img
+                        src={property.image}
+                        alt={property.title}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    />
+                ) : (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <Home size={64} className="text-gray-400" />
+                    </div>
+                )}
 
                 {/* Badges */}
                 <div className="absolute top-3 left-3 flex flex-col gap-2">
