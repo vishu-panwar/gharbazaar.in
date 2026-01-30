@@ -48,16 +48,26 @@ export default function PropertyCard({
 }: PropertyCardProps) {
     const router = useRouter()
     const { isFavorite, toggleFavorite } = useFavorites()
-    const { hasPaid } = usePayment()
+    const { hasPaid, hasFeature } = usePayment()
     const isPropertyFavorited = isFavorite(property.id)
 
     const handleCardClick = (e: React.MouseEvent) => {
         e.preventDefault()
-        if (hasPaid) {
-            router.push(`/dashboard/browse/${property.id}`)
-        } else {
+        
+        // First check: Do they have any plan?
+        if (!hasPaid) {
             router.push('/dashboard/pricing')
+            return
         }
+
+        // Second check: Do they have contact access feature?
+        // This allows viewing property details with restrictions
+        if (!hasFeature('contactAccess')) {
+            // Show upgrade prompt but still allow basic viewing
+            console.log('⚠️ Limited access - contact feature not available')
+        }
+
+        router.push(`/dashboard/browse/${property.id}`)
     }
 
     const handleFavoriteClick = (e: React.MouseEvent) => {

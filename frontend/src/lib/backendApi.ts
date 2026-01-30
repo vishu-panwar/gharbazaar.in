@@ -33,10 +33,9 @@ async function authApiCall(endpoint: string, options: RequestInit = {}) {
     try {
         // Dynamic config lookup [auth-v6]
         const conf = CONFIG.AUTH_API;
-        const rawBaseUrl = conf.FULL_URL || conf.BASE_URL;
-
-        // Force unversioned root for all auth calls
-        const baseUrl = rawBaseUrl.replace(/\/v1(\/|$)/, '/').replace(/\/$/, '');
+        const baseUrl = conf.BASE_URL || conf.FULL_URL;
+        
+        // Build full URL - endpoint should include /api/v1/auth prefix
         const url = `${baseUrl}${endpoint}`;
 
         console.log(`📡 [auth-v6] Calling: ${url}`);
@@ -108,7 +107,7 @@ export const backendApi = {
     auth: {
         /**
          * Register new user
-         * External API endpoint: POST /auth/signup
+         * Backend API endpoint: POST /api/v1/auth/register
          */
         register: async (data: {
             email: string;
@@ -116,7 +115,7 @@ export const backendApi = {
             displayName: string;
             role?: string;
         }) => {
-            const response = await authApiCall('/auth/signup', {
+            const response = await authApiCall('/api/v1/auth/register', {
                 method: 'POST',
                 body: JSON.stringify({
                     email: data.email,
@@ -136,10 +135,10 @@ export const backendApi = {
 
         /**
          * Login user
-         * External API endpoint: POST /auth/login
+         * Backend API endpoint: POST /api/v1/auth/login
          */
         login: async (email: string, password: string) => {
-            const response = await authApiCall('/auth/login', {
+            const response = await authApiCall('/api/v1/auth/login', {
                 method: 'POST',
                 body: JSON.stringify({ email, password }),
             });
@@ -154,10 +153,10 @@ export const backendApi = {
 
         /**
          * Google OAuth login (redirect-based flow)
-         * External API endpoint: POST /auth/google?code=xxx
+         * Backend API endpoint: POST /api/v1/auth/google?code=xxx
          */
         googleLogin: async (authCode: string) => {
-            const response = await authApiCall(`/auth/google?code=${encodeURIComponent(authCode)}`, {
+            const response = await authApiCall(`/api/v1/auth/google?code=${encodeURIComponent(authCode)}`, {
                 method: 'POST',
             });
 
@@ -171,10 +170,10 @@ export const backendApi = {
 
         /**
          * Forgot password - sends reset email via SMTP
-         * External API endpoint: POST /auth/forgot-password
+         * Backend API endpoint: POST /api/v1/auth/forgot-password
          */
         forgotPassword: async (email: string) => {
-            return authApiCall('/auth/forgot-password', {
+            return authApiCall('/api/v1/auth/forgot-password', {
                 method: 'POST',
                 body: JSON.stringify({ email }),
             });

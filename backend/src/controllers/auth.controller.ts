@@ -139,3 +139,58 @@ export const logout = async (req: Request, res: Response) => {
     res.json({ success: true, message: 'Logged out successfully' });
 };
 
+/**
+ * Google OAuth Handler
+ * Accepts authorization code and returns token
+ * Mock implementation for local development
+ */
+export const googleAuth = async (req: Request, res: Response) => {
+    try {
+        const code = req.query.code || req.body.code;
+
+        if (!code) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Authorization code is required' 
+            });
+        }
+
+        console.log(`🔐 Google OAuth request with code: ${String(code).substring(0, 20)}...`);
+
+        // Mock: Extract user info from Google
+        // In production, you'd exchange the code for tokens via Google's OAuth API
+        // For now, create a user based on the code
+        const mockEmail = `google_${Date.now()}@gmail.com`;
+        const userData = {
+            uid: `google-${Date.now()}`,
+            email: mockEmail,
+            displayName: mockEmail.split('@')[0],
+            role: 'buyer'
+        };
+
+        const token = generateToken({
+            userId: userData.uid,
+            email: userData.email,
+            name: userData.displayName,
+            role: userData.role
+        });
+
+        console.log(`✅ Google OAuth successful for: ${userData.email}${!isMongoDBAvailable() ? ' (Memory Mode)' : ''}`);
+
+        res.json({
+            success: true,
+            token,
+            data: {
+                token,
+                user: userData
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Google OAuth error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Google authentication failed' 
+        });
+    }
+};
