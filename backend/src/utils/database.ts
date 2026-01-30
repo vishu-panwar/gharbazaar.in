@@ -2,30 +2,23 @@ import mongoose from 'mongoose';
 import config from '../config';
 
 export const connectDatabase = async (): Promise<void> => {
-    // Temporarily skip database connection for development
-    console.warn('⚠️  Skipping MongoDB connection for development');
-    console.warn('⚠️  Running in MEMORY-ONLY mode');
-    console.warn('💡 Data will NOT persist between restarts\n');
-    return;
-    
-    /* Original connection logic - commented for dev
     try {
         const options = {
             autoIndex: true,
             maxPoolSize: 10,
-            serverSelectionTimeoutMS: 3000,
-            socketTimeoutMS: 3000,
-            connectTimeoutMS: 3000,
+            serverSelectionTimeoutMS: 5000,
+            socketTimeoutMS: 45000,
+            family: 4, // Use IPv4, skip trying IPv6
         };
 
-        // Race between connection and timeout
-        await Promise.race([
-            mongoose.connect(config.mongodbUri, options),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Connection timeout')), 4000))
-        ]);
+        console.log('🔄 Attempting to connect to MongoDB...');
+        console.log(`📍 URI: ${config.mongodbUri.replace(/\/\/.*@/, '//***:***@')}`);
+
+        await mongoose.connect(config.mongodbUri, options);
 
         console.log('✅ MongoDB connected successfully');
         console.log(`📊 Database: ${mongoose.connection.db?.databaseName || 'gharbazaar'}`);
+        console.log(`🌐 Host: ${mongoose.connection.host}\n`);
 
         mongoose.connection.on('error', (error) => {
             console.error('❌ MongoDB connection error:', error);
@@ -40,10 +33,13 @@ export const connectDatabase = async (): Promise<void> => {
         });
     } catch (error) {
         console.error('❌ Failed to connect to MongoDB:', error);
-        console.warn('⚠️  Running in MEMORY-ONLY mode');
-        console.warn('💡 Chat and ticket data will NOT persist between restarts\n');
+        console.warn('\n⚠️  Running in MEMORY-ONLY mode');
+        console.warn('💡 Properties, users, and chat data will NOT persist');
+        console.warn('💡 To enable database:');
+        console.warn('   1. Install MongoDB locally, OR');
+        console.warn('   2. Create free MongoDB Atlas cluster at https://mongodb.com/atlas');
+        console.warn('   3. Update MONGODB_URI in .env file\n');
     }
-    */
 };
 
 export const disconnectDatabase = async (): Promise<void> => {

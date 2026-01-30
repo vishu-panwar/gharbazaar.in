@@ -5,6 +5,7 @@ import { Providers } from '@/components/providers'
 import { LayoutWrapper } from '@/components/layout/LayoutWrapper'
 import { Suspense } from 'react'
 import LoadingScreen from '@/components/LoadingScreen'
+import PWARegister from '@/components/PWARegister'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 const manrope = Manrope({ subsets: ['latin'], variable: '--font-manrope' })
@@ -21,6 +22,21 @@ export const metadata: Metadata = {
     shortcut: '/favicon.ico',
     apple: '/images/gharbazaar-logo.jpg',
   },
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'GharBazaar',
+  },
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 5,
+  },
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#2563eb' },
+    { media: '(prefers-color-scheme: dark)', color: '#1e40af' }
+  ],
 }
 
 export default function RootLayout({
@@ -46,6 +62,7 @@ export default function RootLayout({
         }} />
       </head>
       <body className={`${inter.variable} ${manrope.variable} font-sans`} suppressHydrationWarning>
+        <PWARegister />
         <Providers>
           <Suspense fallback={<LoadingScreen />}>
             <LayoutWrapper>{children}</LayoutWrapper>

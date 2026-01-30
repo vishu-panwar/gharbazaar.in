@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import PlanUsageWidget from '@/components/Dashboard/PlanUsageWidget'
+import UpgradeBanner from '@/components/Dashboard/UpgradeBanner'
 import {
   Eye,
   Heart,
@@ -386,6 +387,9 @@ export default function BuyerDashboard({ user, currentTime }: BuyerDashboardProp
 
           {/* Main Dashboard Content */}
           <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+            {/* Upgrade Banner for Unpaid Users */}
+            <UpgradeBanner variant="compact" />
+
             {/* Enhanced Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {buyerStats.map((stat, index) => (
