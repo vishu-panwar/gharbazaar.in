@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   Heart,
   Home,
@@ -31,10 +32,13 @@ import {
   Twitter
 } from 'lucide-react'
 import { useFavorites } from '@/contexts/FavoritesContext'
+import { usePayment } from '@/contexts/PaymentContext'
 import { Property } from '@/components/PropertyCard'
 
 export default function FavoritesPage() {
+  const router = useRouter()
   const { favorites, removeFavorite, clearAllFavorites, getFavoritesCount } = useFavorites()
+  const { hasFeature } = usePayment()
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [showShareModal, setShowShareModal] = useState(false)
   const [shareProperty, setShareProperty] = useState<Property | null>(null)
@@ -130,6 +134,14 @@ export default function FavoritesPage() {
       setShowScheduleModal(false)
       setScheduleForm({ name: '', phone: '', email: '', date: '', time: '', message: '' })
     }, 2000)
+  }
+
+  const handleContactClick = () => {
+    if (!hasFeature('contactAccess')) {
+      router.push('/dashboard/pricing')
+      return
+    }
+    setShowContactModal(true)
   }
 
   const handleContactSubmit = (e: React.FormEvent) => {
@@ -767,11 +779,11 @@ export default function FavoritesPage() {
                 <span>Schedule Visits</span>
               </button>
               <button
-                onClick={() => setShowContactModal(true)}
+                onClick={handleContactClick}
                 className="bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white px-6 py-3 rounded-lg font-semibold transition-all flex items-center space-x-2"
               >
                 <MessageCircle size={18} />
-                <span>Contact Sellers</span>
+                <span>{hasFeature('contactAccess') ? 'Contact Sellers' : 'Upgrade to Contact'}</span>
               </button>
             </div>
           </div>

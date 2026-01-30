@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { usePayment } from '@/contexts/PaymentContext'
 import {
   ArrowLeft, Play, Pause, SkipForward, SkipBack, Volume2, VolumeX,
   Maximize2, Settings, Eye, Share2, Heart, Download, MapPin,
@@ -12,6 +13,7 @@ import {
 export default function PropertyVirtualTourPage() {
   const params = useParams()
   const router = useRouter()
+  const { hasFeature } = usePayment()
   const propertyId = params.id
 
   const [isPlaying, setIsPlaying] = useState(false)
@@ -19,6 +21,14 @@ export default function PropertyVirtualTourPage() {
   const [isMuted, setIsMuted] = useState(false)
   const [showMap, setShowMap] = useState(true)
   const [tourProgress, setTourProgress] = useState(15)
+
+  const handleContact = () => {
+    if (!hasFeature('contactAccess')) {
+      router.push('/dashboard/pricing')
+      return
+    }
+    alert('Contact feature - implement your contact logic here')
+  }
 
   const tourStops = [
     {
@@ -378,17 +388,17 @@ export default function PropertyVirtualTourPage() {
             <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 p-6">
               <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Interested in this property?</h3>
               <div className="space-y-3">
-                <button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold transition-all flex items-center justify-center space-x-2">
+                <button onClick={handleContact} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold transition-all flex items-center justify-center space-x-2">
                   <Phone size={18} />
-                  <span>Contact Owner</span>
+                  <span>{hasFeature('contactAccess') ? 'Contact Owner' : 'Upgrade to Contact'}</span>
                 </button>
                 <button className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-semibold transition-all flex items-center justify-center space-x-2">
                   <Calendar size={18} />
                   <span>Schedule Site Visit</span>
                 </button>
-                <button className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-xl font-semibold transition-all flex items-center justify-center space-x-2">
+                <button onClick={handleContact} className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-xl font-semibold transition-all flex items-center justify-center space-x-2">
                   <MessageCircle size={18} />
-                  <span>Send Message</span>
+                  <span>{hasFeature('contactAccess') ? 'Send Message' : 'Upgrade to Message'}</span>
                 </button>
               </div>
             </div>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import PlanUsageWidget from '@/components/Dashboard/PlanUsageWidget'
 import {
   Eye,
   Heart,
@@ -536,6 +537,9 @@ export default function BuyerDashboard({ user, currentTime }: BuyerDashboardProp
 
               {/* Right Sidebar */}
               <div className="xl:col-span-1 space-y-6">
+
+                {/* Plan Usage Widget */}
+                <PlanUsageWidget />
 
                 {/* Smart Alerts */}
                 <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-3xl p-6 shadow-2xl border border-gray-200/50 dark:border-gray-700/50">

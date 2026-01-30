@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import BidManagement from '@/components/Dashboard/BidManagement'
+import PlanUsageWidget from '@/components/Dashboard/PlanUsageWidget'
 import {
     Eye,
     Heart,
@@ -442,7 +444,39 @@ export default function SellerDashboard({ user, currentTime }: SellerDashboardPr
                             ))}
                         </div>
 
-                        {/* Main Content Grid */}
+                        {/* Tab Navigation */}
+                        <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-3xl p-2 shadow-xl border border-gray-200/50 dark:border-gray-700/50">
+                            <div className="flex space-x-2 overflow-x-auto">
+                                {[
+                                    { id: 'overview', label: 'Overview', icon: Home },
+                                    { id: 'bids', label: 'Bid Management', icon: Gavel },
+                                    { id: 'properties', label: 'Properties', icon: Building2 },
+                                    { id: 'analytics', label: 'Analytics', icon: BarChart3 }
+                                ].map((tab) => (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id)}
+                                        className={`flex items-center space-x-2 px-6 py-3 rounded-2xl font-semibold transition-all whitespace-nowrap ${
+                                            activeTab === tab.id
+                                                ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg'
+                                                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                        }`}
+                                    >
+                                        <tab.icon size={20} />
+                                        <span>{tab.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Tab Content */}
+                        {activeTab === 'bids' && (
+                            <BidManagement />
+                        )}
+
+                        {/* Main Content Grid - Only show on overview tab */}
+                        {activeTab === 'overview' && (
+                        <>
                         <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
                             {/* Left Column - Property Management */}
                             <div className="xl:col-span-3 space-y-8">
@@ -531,6 +565,9 @@ export default function SellerDashboard({ user, currentTime }: SellerDashboardPr
 
                             {/* Right Sidebar */}
                             <div className="xl:col-span-1 space-y-6">
+
+                                {/* Plan Usage Widget */}
+                                <PlanUsageWidget />
 
                                 {/* Smart Alerts */}
                                 <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-3xl p-6 shadow-2xl border border-gray-200/50 dark:border-gray-700/50">
@@ -682,6 +719,8 @@ export default function SellerDashboard({ user, currentTime }: SellerDashboardPr
                                 </div>
                             </div>
                         </div>
+                        </>
+                        )}
                     </div>
                 </>
             )}

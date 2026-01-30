@@ -17,7 +17,7 @@ export default function PropertyDetailView({ isDashboard = false, backPath = '/l
     const params = useParams()
     const router = useRouter()
     const pathname = usePathname()
-    const { hasPaid } = usePayment()
+    const { hasPaid, hasFeature } = usePayment()
     const { user } = useAuth()
     const [listing, setListing] = useState<any>(null)
     const [loading, setLoading] = useState(true)
@@ -230,7 +230,7 @@ export default function PropertyDetailView({ isDashboard = false, backPath = '/l
                         {/* Place Bid */}
                         <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-2xl border border-gray-100 dark:border-gray-800 sticky top-24">
                             <h2 className="font-heading font-bold text-xl mb-6 text-gray-900 dark:text-white">Place Your Bid</h2>
-                            {hasPaid ? (
+                            {hasFeature('contactAccess') ? (
                                 <form onSubmit={handlePlaceBid} className="space-y-4">
                                     <div>
                                         <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Bid Amount (₹)</label>
@@ -271,7 +271,7 @@ export default function PropertyDetailView({ isDashboard = false, backPath = '/l
                                     </div>
                                     <h3 className="font-bold text-gray-900 dark:text-white mb-2">Premium Feature</h3>
                                     <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                                        Inquiries and direct contact are restricted to premium members.
+                                        Contact seller and send inquiries are restricted to plan members. Upgrade to unlock this feature.
                                     </p>
                                     <Link
                                         href={isDashboard || user ? "/dashboard/pricing" : "/pricing"}
