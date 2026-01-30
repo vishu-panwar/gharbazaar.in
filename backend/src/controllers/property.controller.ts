@@ -134,7 +134,18 @@ export const trackPropertyView = async (req: Request, res: Response) => {
 
 export const uploadPropertyImage = async (req: Request, res: Response) => {
     try {
+        console.log('📸 uploadPropertyImage called');
+        console.log('File present:', !!req.file);
+        if (req.file) {
+            console.log('File details:', {
+                originalname: req.file.originalname,
+                mimetype: req.file.mimetype,
+                size: req.file.size
+            });
+        }
+
         if (!req.file) {
+            console.error('❌ No file in request');
             return res.status(400).json({ success: false, error: 'No image file provided' });
         }
 

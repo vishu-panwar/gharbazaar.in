@@ -36,6 +36,7 @@ export interface Property {
     views: number
     rating: number
     isFavorite: boolean
+    status?: 'active' | 'pending' | 'rejected' | 'sold' | 'inactive'
 }
 
 interface PropertyCardProps {
@@ -124,6 +125,14 @@ export default function PropertyCard({
                                 <div className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center space-x-1">
                                     <CheckCircle size={12} />
                                     <span>Verified</span>
+                                </div>
+                            )}
+                            {property.status && property.status !== 'active' && (
+                                <div className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center space-x-1 ${property.status === 'pending' ? 'bg-yellow-500 text-white' :
+                                        property.status === 'rejected' ? 'bg-red-500 text-white' :
+                                            'bg-gray-500 text-white'
+                                    }`}>
+                                    <span>{property.status.toUpperCase()}</span>
                                 </div>
                             )}
                         </div>
@@ -234,6 +243,14 @@ export default function PropertyCard({
                         <div className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center space-x-1">
                             <CheckCircle size={12} />
                             <span>Verified</span>
+                        </div>
+                    )}
+                    {property.status && property.status !== 'active' && (
+                        <div className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center space-x-1 ${property.status === 'pending' ? 'bg-yellow-500 text-white' :
+                                property.status === 'rejected' ? 'bg-red-500 text-white' :
+                                    'bg-gray-500 text-white'
+                            }`}>
+                            <span>{property.status.toUpperCase()}</span>
                         </div>
                     )}
                 </div>

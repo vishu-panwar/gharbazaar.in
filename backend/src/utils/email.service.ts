@@ -154,6 +154,29 @@ class EmailService {
             }
         }
     }
+
+    /**
+     * Send a generic email
+     */
+    async sendEmail(to: string, subject: string, html: string): Promise<void> {
+        if (!this.transporter) {
+            console.warn('⚠️  Email service not configured. Skipping email.');
+            return;
+        }
+
+        try {
+            await this.transporter.sendMail({
+                from: `"GharBazaar Support" <${process.env.SMTP_USER}>`,
+                to,
+                subject,
+                html,
+            });
+            console.log(`✅ Email sent to ${to}`);
+        } catch (error) {
+            console.error('❌ Failed to send email:', error);
+            throw error;
+        }
+    }
 }
 
 // Export singleton instance

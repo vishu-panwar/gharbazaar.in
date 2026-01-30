@@ -3,7 +3,60 @@ import Ticket from '../models/ticket.model';
 import TicketMessage from '../models/ticketMessage.model';
 import Conversation from '../models/conversation.model';
 import Message from '../models/message.model';
+import Property from '../models/property.model';
 import { isMongoDBAvailable, memoryTickets, memoryConversations } from '../utils/memoryStore';
+import { emailService } from '../utils/email.service';
+
+export const getPendingProperties = async (req: Request, res: Response) => {
+    try {
+        const properties = await Property.find({ status: 'pending' }).sort({ createdAt: -1 });
+        res.json({ success: true, data: { properties } });
+    } catch (error) {
+        console.error('Error fetching pending properties:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch pending properties' });
+    }
+};
+
+export const approveProperty = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const property = await Property.findByIdAndUpdate(id, { status: 'active' }, { new: true });
+
+        if (!property) {
+            return res.status(404).json({ success: false, error: 'Property not found' });
+        }
+
+        // Ideally send email notification to seller
+        // await emailService.sendEmail(sellerEmail, 'Property Approved', ...);
+
+        res.json({ success: true, data: { property } });
+    } catch (error) {
+        console.error('Error approving property:', error);
+        res.status(500).json({ success: false, error: 'Failed to approve property' });
+    }
+};
+
+export const rejectProperty = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { reason } = req.body;
+
+        const property = await Property.findByIdAndUpdate(id, { status: 'rejected' }, { new: true });
+
+        if (!property) {
+            return res.status(404).json({ success: false, error: 'Property not found' });
+        }
+
+        // TODO: Get seller email from User model using property.sellerId and send notification
+        // For now, assuming rejection is logged/handled
+        // await emailService.sendEmail(sellerEmail, 'Property Rejected', ...);
+
+        res.json({ success: true, data: { property } });
+    } catch (error) {
+        console.error('Error rejecting property:', error);
+        res.status(500).json({ success: false, error: 'Failed to reject property' });
+    }
+};
 
 export const getTickets = async (req: Request, res: Response) => {
     try {

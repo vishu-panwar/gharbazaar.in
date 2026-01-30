@@ -439,15 +439,36 @@ export const backendApi = {
             formData.append('image', file);
 
             const token = await getAuthToken();
-            const response = await fetch(`${API_BASE_URL}/properties/upload`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-                body: formData,
-            });
+            const url = `${API_BASE_URL}/properties/upload`;
 
-            return await response.json();
+            console.log(`📤 Uploading image to: ${url}`);
+
+            if (!token) {
+                console.error('❌ No auth token found for upload');
+                throw new Error('Not authenticated');
+            }
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                    body: formData,
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    console.error('❌ Upload failed response:', data);
+                    throw new Error(data.error || `Upload failed with status ${response.status}`);
+                }
+
+                return data;
+            } catch (error) {
+                console.error('❌ Upload error:', error);
+                throw error;
+            }
         },
 
         search: async (filters: any = {}) => {
@@ -924,6 +945,23 @@ export const backendApi = {
 
         getStats: async () => {
             return backendApiCall('/employee/stats');
+        },
+
+        getPendingProperties: async () => {
+            return backendApiCall('/employee/pending-properties');
+        },
+
+        approveProperty: async (id: string) => {
+            return backendApiCall(`/employee/approve-property/${id}`, {
+                method: 'POST',
+            });
+        },
+
+        rejectProperty: async (id: string, reason: string) => {
+            return backendApiCall(`/employee/reject-property/${id}`, {
+                method: 'POST',
+                body: JSON.stringify({ reason }),
+            });
         },
     },
 

@@ -279,7 +279,8 @@ export default function NewListingPage() {
             if (response.success && response.url) {
               return response.url
             }
-            throw new Error('Upload failed')
+            console.error('Upload failed response:', response)
+            throw new Error(response.error || 'Upload failed')
           } catch (error) {
             console.error('Image upload failed:', error)
             return null
@@ -641,8 +642,8 @@ export default function NewListingPage() {
                     >
                       <div className="flex items-center space-x-4 mb-4">
                         <div className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all ${formData.listingType === 'sale'
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-gray-100 dark:bg-gray-800 text-gray-500 group-hover:bg-blue-100 group-hover:text-blue-500'
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-500 group-hover:bg-blue-100 group-hover:text-blue-500'
                           }`}>
                           <Home size={32} />
                         </div>
@@ -680,8 +681,8 @@ export default function NewListingPage() {
                     >
                       <div className="flex items-center space-x-4 mb-4">
                         <div className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all ${formData.listingType === 'rent'
-                            ? 'bg-purple-500 text-white'
-                            : 'bg-gray-100 dark:bg-gray-800 text-gray-500 group-hover:bg-purple-100 group-hover:text-purple-500'
+                          ? 'bg-purple-500 text-white'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-500 group-hover:bg-purple-100 group-hover:text-purple-500'
                           }`}>
                           <Key size={32} />
                         </div>
@@ -735,8 +736,8 @@ export default function NewListingPage() {
                       `}
                         >
                           <type.icon size={40} className={`mx-auto mb-3 transition-all ${formData.propertyType === type.value
-                              ? 'text-green-600'
-                              : 'text-gray-500 group-hover:text-green-500'
+                            ? 'text-green-600'
+                            : 'text-gray-500 group-hover:text-green-500'
                             }`} />
                           <div className="font-bold text-gray-900 dark:text-white mb-1">{type.label}</div>
                           <div className="text-xs text-gray-600 dark:text-gray-400">{type.desc}</div>
@@ -786,8 +787,8 @@ export default function NewListingPage() {
                           required
                           rows={6}
                           placeholder={`Describe your property in detail... Include key features, location advantages, and what makes it special. ${formData.listingType === 'rent'
-                              ? 'Mention tenant preferences, lease terms, and any special conditions.'
-                              : 'Highlight investment potential, appreciation prospects, and unique selling points.'
+                            ? 'Mention tenant preferences, lease terms, and any special conditions.'
+                            : 'Highlight investment potential, appreciation prospects, and unique selling points.'
                             }`}
                           className="w-full px-4 py-4 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
                           value={formData.description}
@@ -1130,8 +1131,8 @@ export default function NewListingPage() {
                             type="button"
                             onClick={() => setFormData({ ...formData, priceType: 'fixed' })}
                             className={`p-4 rounded-xl border-2 transition-all ${formData.priceType === 'fixed'
-                                ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
-                                : 'border-gray-200 dark:border-gray-800'
+                              ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                              : 'border-gray-200 dark:border-gray-800'
                               }`}
                           >
                             <div className="text-center">
@@ -1144,8 +1145,8 @@ export default function NewListingPage() {
                             type="button"
                             onClick={() => setFormData({ ...formData, priceType: 'negotiable' })}
                             className={`p-4 rounded-xl border-2 transition-all ${formData.priceType === 'negotiable'
-                                ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
-                                : 'border-gray-200 dark:border-gray-800'
+                              ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                              : 'border-gray-200 dark:border-gray-800'
                               }`}
                           >
                             <div className="text-center">
@@ -1371,8 +1372,8 @@ export default function NewListingPage() {
                             >
                               <div className="flex items-center space-x-3">
                                 <amenity.icon size={20} className={`${formData.amenities.includes(amenity.name)
-                                    ? 'text-green-600'
-                                    : 'text-gray-500 group-hover:text-green-500'
+                                  ? 'text-green-600'
+                                  : 'text-gray-500 group-hover:text-green-500'
                                   }`} />
                                 <span className="font-medium text-sm">{amenity.name}</span>
                               </div>
