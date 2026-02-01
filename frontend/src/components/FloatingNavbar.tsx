@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
-import { ChevronDown, Moon, Sun, Menu, X } from 'lucide-react'
+import { ChevronDown, Moon, Sun, Menu, X, Download } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useAuth } from '@/contexts/AuthContext'
 import NotificationDropdown from './NotificationDropdown'
@@ -34,8 +34,28 @@ export default function FloatingNavbar() {
         }
 
         document.addEventListener('mousedown', handleClick)
-        return () => document.removeEventListener('mousedown', handleClick)
+
+        const handleCanInstall = () => setCanInstall(true);
+        window.addEventListener('pwa-can-install', handleCanInstall);
+        if ((window as any).deferredPrompt) setCanInstall(true);
+
+        return () => {
+            document.removeEventListener('mousedown', handleClick);
+            window.removeEventListener('pwa-can-install', handleCanInstall);
+        }
     }, [])
+
+    const handleInstallClick = async () => {
+        const promptEvent = (window as any).deferredPrompt;
+        if (!promptEvent) return;
+        promptEvent.prompt();
+        const { outcome } = await promptEvent.userChoice;
+        console.log(`User response to the install prompt: ${outcome}`);
+        (window as any).deferredPrompt = null;
+        setCanInstall(false);
+    };
+
+    const [canInstall, setCanInstall] = useState(false)
 
     // Close dropdowns when navigating to a new page
     useEffect(() => {
@@ -44,6 +64,12 @@ export default function FloatingNavbar() {
         setIsMobilePortalsOpen(false)
         setIsMobilePartnerOpen(false)
         setIsMobileMenuOpen(false)
+
+        // Debug PWA state on every mount/navigation
+        if ((window as any).deferredPrompt) {
+            console.log('🔍 PWA: deferredPrompt found on navigation');
+            setCanInstall(true);
+        }
     }, [pathname])
 
     // Prevent scrolling when mobile menu is open

@@ -4,43 +4,45 @@ import { useEffect } from 'react'
 
 export default function PWARegister() {
   useEffect(() => {
-    if (
-      typeof window !== 'undefined' &&
-      'serviceWorker' in navigator &&
-      process.env.NODE_ENV === 'production'
-    ) {
-      // Register service worker
-      navigator.serviceWorker
-        .register('/sw.js')
-        .then((registration) => {
-          console.log('✅ Service Worker registered:', registration.scope)
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
 
-          // Check for updates
-          registration.addEventListener('updatefound', () => {
-            const newWorker = registration.installing
-            if (newWorker) {
-              newWorker.addEventListener('statechange', () => {
-                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  // New service worker available, prompt user to reload
-                  if (confirm('New version available! Reload to update?')) {
-                    newWorker.postMessage({ type: 'SKIP_WAITING' })
-                    window.location.reload()
-                  }
-                }
-              })
-            }
-          })
-        })
-        .catch((error) => {
-          console.error('❌ Service Worker registration failed:', error)
-        })
-
-      // Listen for controller change (new SW activated)
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        window.location.reload()
+    // Register service worker
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((registration) => {
+        console.log('✅ PWA: Service Worker registered!', registration.scope);
+        
+        // Diagnostic: Check if active
+        if (registration.active) {
+          console.log('✅ PWA: Service Worker is ACTIVE');
+        } else {
+          console.log('⏳ PWA: Service Worker is installing/waiting...');
+        }
       })
-    }
-  }, [])
+      .catch((error) => {
+        console.error('❌ PWA: Service Worker registration failed:', error);
+      });
 
-  return null
+    // Handle install prompt
+    const handleBeforeInstallPrompt = (e: any) => {
+      // Prevent the mini-infobar from appearing on mobile
+      e.preventDefault();
+      // Stash the event so it can be triggered later.
+      (window as any).deferredPrompt = e;
+      console.log('✅ PWA: Install prompt CAPTURED!');
+      // Simple alert to help the developer see when it's ready
+      window.alert('🚀 GharBazaar is ready to be installed! Look for the "Install" icon in your browser address bar.');
+      window.dispatchEvent(new CustomEvent('pwa-can-install'));
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  // The bis_skin_checked error in your console is caused by the Brave browser extension
+  // and is not a bug in our code. It is safe to ignore.
+  return null;
 }

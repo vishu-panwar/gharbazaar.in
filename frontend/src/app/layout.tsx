@@ -16,10 +16,9 @@ export const metadata: Metadata = {
   keywords: 'real estate, property, India, buy, sell, rent, plots, homes',
   icons: {
     icon: [
-      { url: '/favicon.ico' },
       { url: '/images/gharbazaar-logo.jpg', type: 'image/jpeg' }
     ],
-    shortcut: '/favicon.ico',
+    shortcut: '/images/gharbazaar-logo.jpg',
     apple: '/images/gharbazaar-logo.jpg',
   },
   manifest: '/manifest.json',
