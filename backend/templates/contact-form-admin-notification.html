@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Contact Form Submission - GharBazaar</title>
+</head>
+
+<body
+    style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7fa;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td align="center" style="padding: 40px 0;">
+                <table role="presentation"
+                    style="width: 650px; border-collapse: collapse; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <tr>
+                        <td
+                            style="padding: 30px 40px; text-align: center; background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); border-radius: 8px 8px 0 0;">
+                            <h1 style="margin: 0 0 10px 0; color: #ffffff; font-size: 26px; font-weight: 600;">🔔 New
+                                Contact Form Submission</h1>
+                            <p style="margin: 0; color: #ffffff; font-size: 14px; opacity: 0.9;">
+                                Action Required - Review and Respond
+                            </p>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="padding: 40px;">
+                            <div
+                                style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px 20px; margin-bottom: 30px; border-radius: 4px;">
+                                <p style="margin: 0; color: #856404; font-size: 14px; font-weight: 600;">
+                                    ⚡ A new contact form has been submitted on GharBazaar and requires your attention.
+                                </p>
+                            </div>
+
+                            <h2
+                                style="margin: 0 0 20px 0; color: #333333; font-size: 20px; font-weight: 600; border-bottom: 2px solid #667eea; padding-bottom: 10px;">
+                                📋 Submission Details
+                            </h2>
+
+                            <table role="presentation"
+                                style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+                                <tr>
+                                    <td
+                                        style="padding: 12px 15px; background-color: #f8f9fa; border-bottom: 1px solid #e9ecef; width: 35%;">
+                                        <strong style="color: #555555; font-size: 14px;">👤 Name:</strong>
+                                    </td>
+                                    <td
+                                        style="padding: 12px 15px; background-color: #ffffff; border-bottom: 1px solid #e9ecef;">
+                                        <span style="color: #333333; font-size: 14px;">${username}</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td
+                                        style="padding: 12px 15px; background-color: #f8f9fa; border-bottom: 1px solid #e9ecef;">
+                                        <strong style="color: #555555; font-size: 14px;">📧 Email:</strong>
+                                    </td>
+                                    <td
+                                        style="padding: 12px 15px; background-color: #ffffff; border-bottom: 1px solid #e9ecef;">
+                                        <a href="mailto:${userEmail}"
+                                            style="color: #667eea; font-size: 14px; text-decoration: none;">${userEmail}</a>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td
+                                        style="padding: 12px 15px; background-color: #f8f9fa; border-bottom: 1px solid #e9ecef;">
+                                        <strong style="color: #555555; font-size: 14px;">📱 Phone:</strong>
+                                    </td>
+                                    <td
+                                        style="padding: 12px 15px; background-color: #ffffff; border-bottom: 1px solid #e9ecef;">
+                                        <span style="color: #333333; font-size: 14px;">${phone}</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td
+                                        style="padding: 12px 15px; background-color: #f8f9fa; border-bottom: 1px solid #e9ecef;">
+                                        <strong style="color: #555555; font-size: 14px;">📝 Subject:</strong>
+                                    </td>
+                                    <td
+                                        style="padding: 12px 15px; background-color: #ffffff; border-bottom: 1px solid #e9ecef;">
+                                        <span
+                                            style="color: #333333; font-size: 14px; font-weight: 600;">${subject}</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td
+                                        style="padding: 12px 15px; background-color: #f8f9fa; border-bottom: 1px solid #e9ecef;">
+                                        <strong style="color: #555555; font-size: 14px;">🕐 Submitted At:</strong>
+                                    </td>
+                                    <td
+                                        style="padding: 12px 15px; background-color: #ffffff; border-bottom: 1px solid #e9ecef;">
+                                        <span style="color: #666666; font-size: 14px;">${submittedAt}</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 12px 15px; background-color: #f8f9fa;">
+                                        <strong style="color: #555555; font-size: 14px;">🆔 Submission ID:</strong>
+                                    </td>
+                                    <td style="padding: 12px 15px; background-color: #ffffff;">
+                                        <code
+                                            style="background-color: #f8f9fa; padding: 4px 8px; border-radius: 3px; color: #d63384; font-size: 13px;">${submissionId}</code>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <h2
+                                style="margin: 30px 0 15px 0; color: #333333; font-size: 18px; font-weight: 600; border-bottom: 2px solid #667eea; padding-bottom: 10px;">
+                                💬 Message Content
+                            </h2>
+
+                            <div
+                                style="background-color: #f8f9fa; border: 1px solid #e9ecef; padding: 20px; border-radius: 6px; margin-bottom: 30px;">
+                                <p
+                                    style="margin: 0; color: #333333; font-size: 15px; line-height: 1.8; white-space: pre-wrap;">
+                                    ${message}</p>
+                            </div>
+
+                            <div
+                                style="background-color: #e8f5e9; border-left: 4px solid #4caf50; padding: 20px; margin: 30px 0; border-radius: 4px;">
+                                <p style="margin: 0 0 15px 0; color: #2e7d32; font-size: 15px; font-weight: 600;">
+                                    ✅ Action Items:
+                                </p>
+                                <ul
+                                    style="margin: 0; padding-left: 20px; color: #2e7d32; font-size: 14px; line-height: 1.8;">
+                                    <li>Review the message and assess priority level</li>
+                                    <li>Respond to <strong>${userEmail}</strong> within 24-48 hours</li>
+                                    <li>Update CRM/ticket system with submission details</li>
+                                    <li>Mark as resolved once the query is addressed</li>
+                                </ul>
+                            </div>
+
+                            <div style="text-align: center; margin: 40px 0 20px 0;">
+                                <a href="mailto:${userEmail}?subject=Re: ${subject}"
+                                    style="display: inline-block; padding: 14px 35px; background-color: #667eea; color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 15px; font-weight: 600; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.4);">
+                                    📧 Reply to ${username}
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="padding: 25px 40px; background-color: #f8f9fa; border-radius: 0 0 8px 8px;">
+                            <p style="margin: 0 0 5px 0; color: #666666; font-size: 13px; text-align: center;">
+                                This is an automated notification from GharBazaar Contact System
+                            </p>
+                            <p style="margin: 0; color: #999999; font-size: 12px; text-align: center;">
+                                © 2026 GharBazaar Admin Panel. All rights reserved.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+
+</html>

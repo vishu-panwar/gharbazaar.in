@@ -1,0 +1,72 @@
+✅ Email templates loaded successfully
+✅ Email transporter configured
+
+🔧 Validating configuration...
+✅ Configuration validated successfully
+
+💾 Attempting to connect to database...
+(node:26864) [MONGOOSE] Warning: Duplicate schema index on {"lastSeen":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+(Use `node --trace-warnings ...` to show where the warning was created)
+❌ Failed to connect to MongoDB: MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017
+    at _handleConnectionErrors (C:\Users\Dixie\Downloads\gharbazaar.in-main\gharbazaar.in-main\backend\node_modules\mongoose\lib\connection.js:1169:11)
+    at NativeConnection.openUri (C:\Users\Dixie\Downloads\gharbazaar.in-main\gharbazaar.in-main\backend\node_modules\mongoose\lib\connection.js:1100:11)
+    at async connectDatabase (C:\Users\Dixie\Downloads\gharbazaar.in-main\gharbazaar.in-main\backend\src\utils\database.ts:13:9)
+    at async startServer (C:\Users\Dixie\Downloads\gharbazaar.in-main\gharbazaar.in-main\backend\src\server.ts:18:13) {
+  errorLabelSet: Set(0) {},
+  reason: TopologyDescription {
+    type: 'Unknown',
+    servers: Map(1) { 'localhost:27017' => [ServerDescription] },
+    stale: false,
+    compatible: true,
+    heartbeatFrequencyMS: 10000,
+    localThresholdMS: 15,
+    setName: null,
+    maxElectionId: null,
+    maxSetVersion: null,
+    commonWireVersion: 0,
+    logicalSessionTimeoutMinutes: null
+  },
+  code: undefined,
+  cause: TopologyDescription {
+    type: 'Unknown',
+    servers: Map(1) { 'localhost:27017' => [ServerDescription] },
+    stale: false,
+    compatible: true,
+    heartbeatFrequencyMS: 10000,
+    localThresholdMS: 15,
+    setName: null,
+    maxElectionId: null,
+    maxSetVersion: null,
+    commonWireVersion: 0,
+    logicalSessionTimeoutMinutes: null
+  }
+}
+⚠️  Running in MEMORY-ONLY mode
+💡 Chat and ticket data will NOT persist between restarts
+
+
+🔌 Setting up Socket.IO...
+🔌 Initializing Socket.IO server...
+✅ Socket.IO server initialized successfully
+📡 CORS allowed origins: http://localhost:3000
+⏱️  Ping timeout: 60000ms
+💓 Ping interval: 25000ms
+
+❌ Uncaught Exception: Error: listen EADDRINUSE: address already in use :::5000
+    at Server.setupListenHandle [as _listen2] (node:net:1939:16)
+    at listenInCluster (node:net:1996:12)
+    at Server.listen (node:net:2101:7)
+    at startServer (C:\Users\Dixie\Downloads\gharbazaar.in-main\gharbazaar.in-main\backend\src\server.ts:76:20) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 5000
+}
+
+
+⚠️  Shutting down gracefully...
+📴 HTTP server closed
+📴 Socket.IO closed
+📴 MongoDB connection closed
+✅ Graceful shutdown complete

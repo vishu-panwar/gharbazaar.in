@@ -1,0 +1,1277 @@
+'use client'
+
+import { useState } from 'react'
+import Link from 'next/link'
+import { 
+  Check, 
+  Star, 
+  Shield,
+  Zap,
+  Users,
+  Home,
+  Award,
+  IndianRupee,
+  ArrowRight,
+  CheckCircle,
+  Building2,
+  UserCheck,
+  Eye,
+  Heart,
+  Target,
+  Unlock,
+  Calculator,
+  CreditCard,
+  Clock,
+  Sparkles,
+  TrendingUp,
+  Gift,
+  Crown,
+  Calendar,
+  Percent,
+  X,
+  User,
+  Mail,
+  Phone,
+  Lock,
+  Loader2
+} from 'lucide-react'
+import PaymentForm from '@/components/payment/PaymentForm'
+
+export default function DashboardPricingPage() {
+  const [selectedPlan, setSelectedPlan] = useState<string | null>(null)
+  const [showPaymentForm, setShowPaymentForm] = useState(false)
+  const [currentPlan, setCurrentPlan] = useState<any>(null)
+  const [userDetails, setUserDetails] = useState({
+    name: '',
+    email: '',
+    phone: ''
+  })
+
+  // Buyer Access Plans
+  const buyerPlans = [
+    {
+      id: 'basic-buyer',
+      name: '🚀 Basic Buyer Access',
+      price: 99,
+      originalPrice: null,
+      period: 'Per Month',
+      description: 'Perfect for casual property seekers',
+      color: 'blue',
+      popular: false,
+      features: [
+        'Browse unlimited properties',
+        'Basic search filters',
+        'Save up to 10 favorites',
+        'Contact 5 owners per month',
+        'Email support',
+        'Mobile app access',
+        'Property alerts (basic)',
+        'Monthly market insights'
+      ],
+      buttonText: 'Start Basic Plan',
+      savings: null,
+      badge: 'AFFORDABLE'
+    },
+    {
+      id: 'smart-buyer',
+      name: '⭐ Smart Buyer Plan',
+      price: 499,
+      originalPrice: null,
+      period: '6 Months',
+      description: 'Perfect for serious buyers',
+      color: 'emerald',
+      popular: true,
+      features: [
+        'Everything in Basic',
+        'Advanced search & locality filters',
+        'Save up to 30 properties',
+        'Contact up to 20 owners',
+        'Priority email support',
+        'Early access to premium listings',
+        'Market price guidance',
+        'Property comparison tools'
+      ],
+      buttonText: 'Get Smart Plan',
+      savings: null,
+      badge: 'MOST POPULAR'
+    },
+    {
+      id: 'pro-buyer',
+      name: '👑 Pro Buyer Plan',
+      price: 899,
+      originalPrice: null,
+      period: '1 Year',
+      description: 'Perfect for investors & committed buyers',
+      color: 'purple',
+      popular: false,
+      features: [
+        'Everything in Smart',
+        'Unlimited owner contacts',
+        'Priority access to new listings',
+        'Dedicated support manager',
+        'Advanced market insights',
+        'Negotiation assistance',
+        'Investment analysis tools',
+        'Legal consultation (2 hours)'
+      ],
+      buttonText: 'Get Pro Plan',
+      savings: null,
+      badge: 'BEST VALUE'
+    }
+  ]
+
+  // Professional Services for Buyers
+  const professionalServices = [
+    {
+      id: 'property-due-diligence',
+      name: '🔍 Property Due Diligence',
+      price: 15000,
+      originalPrice: 20000,
+      period: 'One-Time Service',
+      description: 'Complete legal & technical verification',
+      color: 'blue',
+      popular: true,
+      features: [
+        'Document verification & authenticity check',
+        'Circle rate & market value analysis', 
+        'Legal compliance & clearance verification',
+        'Technical inspection report',
+        'Professional assistance letter',
+        'Risk assessment & recommendations',
+        'Title deed verification',
+        'Encumbrance certificate check'
+      ],
+      buttonText: 'Get Due Diligence',
+      savings: '₹5,000 saved',
+      badge: 'MOST TRUSTED'
+    },
+    {
+      id: 'end-to-end-assistance',
+      name: '🤝 End-to-End Assistance',
+      price: 25000,
+      originalPrice: 35000,
+      period: 'Complete Transaction',
+      description: 'Full property buying support',
+      color: 'purple',
+      popular: false,
+      features: [
+        'Property search & shortlisting',
+        'Complete due diligence process',
+        'Negotiation & price finalization',
+        'Legal documentation & registration',
+        'Bank loan facilitation',
+        'Home inspection & handover',
+        'Post-transaction support',
+        'Dedicated relationship manager'
+      ],
+      buttonText: 'Get Full Service',
+      savings: '₹10,000 saved',
+      badge: 'PREMIUM'
+    }
+  ]
+
+  const handleSelectPlan = (plan: any) => {
+    console.log('🎯 Plan selected:', plan.name, '- ₹' + plan.price)
+    setSelectedPlan(plan.id)
+    setCurrentPlan(plan)
+    setShowPaymentForm(true)
+    
+    // Auto-fill user details if available
+    const userData = localStorage.getItem('user')
+    if (userData) {
+      try {
+        const user = JSON.parse(userData)
+        const userDetails = {
+          name: user.displayName || user.name || '',
+          email: user.email || '',
+          phone: user.phoneNumber || user.phone || ''
+        }
+        console.log('👤 Auto-filled user details:', userDetails)
+        setUserDetails(userDetails)
+      } catch (error) {
+        console.error('Error parsing user data:', error)
+      }
+    }
+  }
+
+  const handlePaymentSuccess = (paymentData: any) => {
+    console.log('🎉 Payment successful in pricing page:', paymentData)
+    setShowPaymentForm(false)
+    
+    // Show success message
+    alert(`🎉 Payment Successful!\n\nTransaction ID: ${paymentData.transactionId}\nAmount: ₹${paymentData.amount}\nMethod: ${paymentData.method.toUpperCase()}\n\nThank you for choosing GharBazaar!`)
+    
+    // Reset to show plans again
+    setCurrentPlan(null)
+    setSelectedPlan(null)
+  }
+
+  const handlePaymentError = (error: string) => {
+    console.error('❌ Payment failed in pricing page:', error)
+    alert(`❌ Payment Failed\n\n${error}\n\nPlease try again or contact support if the issue persists.`)
+  }
+
+  const handleBackToPlans = () => {
+    setShowPaymentForm(false)
+    setCurrentPlan(null)
+    setSelectedPlan(null)
+  }
+
+  const getColorClasses = (color: string, type: 'bg' | 'text' | 'border' | 'button' | 'badge') => {
+    const colors = {
+      blue: {
+        bg: 'from-blue-500 to-blue-600',
+        text: 'text-blue-600',
+        border: 'border-blue-500',
+        button: 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800',
+        badge: 'bg-blue-500'
+      },
+      emerald: {
+        bg: 'from-emerald-500 to-emerald-600',
+        text: 'text-emerald-600',
+        border: 'border-emerald-500',
+        button: 'bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800',
+        badge: 'bg-emerald-500'
+      },
+      purple: {
+        bg: 'from-purple-500 to-purple-600',
+        text: 'text-purple-600',
+        border: 'border-purple-500',
+        button: 'bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800',
+        badge: 'bg-purple-500'
+      },
+      orange: {
+        bg: 'from-orange-500 to-orange-600',
+        text: 'text-orange-600',
+        border: 'border-orange-500',
+        button: 'bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800',
+        badge: 'bg-orange-500'
+      },
+      red: {
+        bg: 'from-red-500 to-red-600',
+        text: 'text-red-600',
+        border: 'border-red-500',
+        button: 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800',
+        badge: 'bg-red-500'
+      }
+    }
+    
+    // Default to blue if color is undefined or not found
+    const safeColor = color && colors[color as keyof typeof colors] ? color : 'blue'
+    return colors[safeColor as keyof typeof colors][type]
+  }
+
+  const getPlanIcon = (planId: string) => {
+    if (planId === 'basic-buyer') return <Zap className="text-white" size={32} />
+    if (planId === 'smart-buyer') return <Star className="text-white" size={32} />
+    if (planId === 'pro-buyer') return <Crown className="text-white" size={32} />
+    if (planId === 'property-due-diligence') return <Shield className="text-white" size={32} />
+    if (planId === 'end-to-end-assistance') return <Users className="text-white" size={32} />
+    return <Star className="text-white" size={32} />
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* Show Payment Form if plan is selected */}
+      {showPaymentForm && currentPlan ? (
+        <div className="space-y-8">
+          {/* Payment Header */}
+          <div className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-800 dark:via-gray-900 dark:to-gray-800 rounded-3xl p-8 border border-blue-100/50 dark:border-gray-700/50">
+            <div className="flex items-center justify-between mb-6">
+              <button
+                onClick={handleBackToPlans}
+                className="flex items-center space-x-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg"
+              >
+                <ArrowRight className="w-5 h-5 rotate-180" />
+                <span>Back to Plans</span>
+              </button>
+              <div className="flex items-center space-x-2 text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-4 py-2 rounded-full">
+                <Shield className="w-4 h-4" />
+                <span className="font-medium">Secure Payment</span>
+              </div>
+            </div>
+
+            <div className="text-center">
+              <div className={`w-20 h-20 bg-gradient-to-br ${getColorClasses(currentPlan?.color || 'blue', 'bg')} rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg`}>
+                {getPlanIcon(currentPlan?.id || 'basic-monthly')}
+              </div>
+              <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+                Complete Your Payment
+              </h1>
+              <p className="text-xl text-gray-600 dark:text-gray-300 mb-2">
+                {currentPlan?.name || 'Selected Plan'}
+              </p>
+              <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+                ₹{currentPlan?.price?.toLocaleString() || '0'}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-300 mt-2">
+                {currentPlan?.period || 'N/A'}
+              </div>
+            </div>
+          </div>
+
+          {/* Payment Content */}
+          <div className="grid lg:grid-cols-3 gap-8">
+            {/* Plan Summary */}
+            <div className="lg:col-span-1">
+              <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-xl border border-gray-200 dark:border-gray-700 sticky top-6">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Order Summary</h3>
+                
+                <div className="space-y-4 mb-6">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 dark:text-gray-400">Plan</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">{currentPlan?.name || 'Selected Plan'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 dark:text-gray-400">Period</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">{currentPlan?.period || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <span className="text-lg font-bold text-gray-900 dark:text-white">Total</span>
+                    <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                      ₹{currentPlan?.price?.toLocaleString() || '0'}
+                    </span>
+                  </div>
+                </div>
+
+                {currentPlan?.savings && (
+                  <div className="mb-6 p-4 bg-green-100 dark:bg-green-900/30 rounded-xl border border-green-200 dark:border-green-700">
+                    <div className="flex items-center space-x-2 text-green-700 dark:text-green-300">
+                      <Gift className="w-5 h-5" />
+                      <span className="font-semibold">{currentPlan.savings}</span>
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-4">Features Included:</h4>
+                  <ul className="space-y-3">
+                    {(currentPlan?.features || []).map((feature: string, index: number) => (
+                      <li key={index} className="flex items-start space-x-3 text-sm">
+                        <div className={`w-5 h-5 bg-gradient-to-br ${getColorClasses(currentPlan?.color || 'blue', 'bg')} rounded-full flex items-center justify-center flex-shrink-0 mt-0.5`}>
+                          <Check className="w-3 h-3 text-white" />
+                        </div>
+                        <span className="text-gray-700 dark:text-gray-300 leading-relaxed">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* Payment Form */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* User Details */}
+              <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-xl border border-gray-200 dark:border-gray-700">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+                  <User className="w-6 h-6 mr-3 text-blue-500" />
+                  Your Details
+                </h3>
+                
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                      Full Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={userDetails.name}
+                      onChange={(e) => setUserDetails({...userDetails, name: e.target.value})}
+                      className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-all duration-200"
+                      placeholder="Enter your full name"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                      Email Address *
+                    </label>
+                    <input
+                      type="email"
+                      value={userDetails.email}
+                      onChange={(e) => setUserDetails({...userDetails, email: e.target.value})}
+                      className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-all duration-200"
+                      placeholder="your@email.com"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                      Phone Number *
+                    </label>
+                    <input
+                      type="tel"
+                      value={userDetails.phone}
+                      onChange={(e) => setUserDetails({...userDetails, phone: e.target.value})}
+                      className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-all duration-200"
+                      placeholder="+91 98765 43210"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="md:col-span-2">
+                    <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                      <Lock className="w-3 h-3" />
+                      <span>Your information is secure and will only be used for payment processing</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Methods */}
+              <PaymentForm
+                amount={currentPlan?.price || 0}
+                serviceName={currentPlan?.name || 'Selected Plan'}
+                userDetails={userDetails}
+                onPaymentSuccess={handlePaymentSuccess}
+                onPaymentError={handlePaymentError}
+                loading={false}
+              />
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* Show Pricing Plans */
+        <>
+          {/* World-Class Header */}
+          <div className="relative bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 rounded-3xl p-12 border border-blue-100/50 dark:border-gray-700/50 overflow-hidden">
+            {/* Background Pattern */}
+            <div className="absolute inset-0 opacity-40">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-indigo-500/5"></div>
+            </div>
+            
+            {/* Floating Elements */}
+            <div className="absolute top-8 right-8 w-32 h-32 bg-gradient-to-br from-blue-400/20 to-indigo-500/20 rounded-full blur-2xl animate-pulse"></div>
+            <div className="absolute bottom-8 left-8 w-24 h-24 bg-gradient-to-br from-emerald-400/20 to-teal-500/20 rounded-full blur-2xl animate-pulse" style={{animationDelay: '1s'}}></div>
+            
+            <div className="relative z-10 text-center">
+              {/* Badge */}
+              <div className="inline-flex items-center space-x-3 bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl px-8 py-4 rounded-2xl mb-8 shadow-xl border border-white/20 dark:border-gray-700/20">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <IndianRupee className="text-white" size={20} />
+                </div>
+                <div className="text-left">
+                  <div className="text-blue-700 dark:text-blue-300 font-bold text-sm">TRANSPARENT PRICING</div>
+                  <div className="text-gray-600 dark:text-gray-400 text-xs">No hidden charges • Cancel anytime</div>
+                </div>
+              </div>
+              
+              {/* Main Heading */}
+              <h1 className="text-5xl md:text-6xl lg:text-7xl font-black text-gray-900 dark:text-white mb-6 leading-tight">
+                <span className="block">Choose Your</span>
+                <span className="block bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 dark:from-blue-400 dark:via-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">
+                  Perfect Plan
+                </span>
+              </h1>
+              
+              {/* Subtitle */}
+              <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 mb-12 max-w-4xl mx-auto leading-relaxed font-medium">
+                Start from just <span className="font-bold text-blue-600 dark:text-blue-400">₹99/month</span> with complete transparency. 
+                <br className="hidden md:block" />
+                No hidden charges, no long-term commitments.
+              </p>
+              
+              {/* Enhanced Trust Indicators */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-5xl mx-auto">
+                {[
+                  { icon: Shield, label: '100% Secure', desc: 'Bank-grade security', color: 'emerald' },
+                  { icon: Zap, label: 'Instant Access', desc: 'Immediate activation', color: 'blue' },
+                  { icon: Users, label: '15K+ Users', desc: 'Trusted by thousands', color: 'purple' },
+                  { icon: Award, label: 'Best Value', desc: 'Transparent pricing', color: 'orange' }
+                ].map((item, index) => (
+                  <div key={index} className="group">
+                    <div className="flex flex-col items-center p-6 bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl border border-white/30 dark:border-gray-700/30 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                      <div className={`w-12 h-12 bg-gradient-to-br from-${item.color}-500 to-${item.color}-600 rounded-xl flex items-center justify-center mb-3 shadow-lg group-hover:shadow-xl group-hover:scale-110 transition-all duration-300`}>
+                        <item.icon className="text-white" size={24} />
+                      </div>
+                      <span className="text-sm font-bold text-gray-900 dark:text-white mb-1">{item.label}</span>
+                      <span className="text-xs text-gray-600 dark:text-gray-400 text-center">{item.desc}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Buyer Access Plans Section */}
+          <div className="space-y-8">
+            <div className="text-center">
+              <div className="inline-flex items-center space-x-2 bg-blue-100 dark:bg-blue-900/30 px-6 py-3 rounded-full mb-6">
+                <Users className="text-blue-600 dark:text-blue-400" size={20} />
+                <span className="text-blue-700 dark:text-blue-300 font-semibold">BUYER ACCESS PLANS</span>
+              </div>
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+                Choose Your Buyer Plan
+              </h2>
+              <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+                Find your perfect property with plans designed for every type of buyer
+              </p>
+            </div>
+
+            {/* Buyer Plans Grid */}
+            <div className="grid lg:grid-cols-3 gap-8">
+              {buyerPlans.map((plan, index) => (
+                <div
+                  key={plan.id}
+                  className={`group relative bg-white dark:bg-gray-900 rounded-3xl overflow-hidden transition-all duration-500 hover:scale-[1.02] cursor-pointer ${
+                    plan.popular 
+                      ? 'shadow-2xl shadow-emerald-500/20 ring-2 ring-emerald-500/30 dark:shadow-emerald-400/20' 
+                      : 'shadow-xl hover:shadow-2xl border border-gray-100 dark:border-gray-800'
+                  } ${
+                    selectedPlan === plan.id ? 'ring-4 ring-blue-500/40 shadow-2xl shadow-blue-500/20' : ''
+                  }`}
+                  style={{ animationDelay: `${index * 100}ms` }}
+                >
+                  {/* Gradient Background Overlay */}
+                  <div className={`absolute inset-0 bg-gradient-to-br ${getColorClasses(plan.color, 'bg')} opacity-[0.02] group-hover:opacity-[0.05] transition-opacity duration-500`}></div>
+                  
+                  {/* Popular Ribbon */}
+                  {plan.popular && (
+                    <div className="absolute -top-1 -right-1 z-20">
+                      <div className={`bg-gradient-to-r ${getColorClasses(plan.color, 'bg')} text-white px-6 py-2 rounded-bl-2xl rounded-tr-3xl shadow-lg`}>
+                        <div className="flex items-center space-x-1 text-sm font-bold">
+                          <Crown className="w-4 h-4" />
+                          <span>MOST POPULAR</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Top Badge */}
+                  <div className="absolute top-6 left-6 z-10">
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${getColorClasses(plan.color, 'text')} bg-${plan.color}-50 dark:bg-${plan.color}-900/20 border border-${plan.color}-200 dark:border-${plan.color}-800`}>
+                      {plan.badge}
+                    </span>
+                  </div>
+
+                  {/* Card Content */}
+                  <div className="relative z-10 p-8 pt-16">
+                    {/* Icon */}
+                    <div className={`w-20 h-20 bg-gradient-to-br ${getColorClasses(plan.color, 'bg')} rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-${plan.color}-500/30 group-hover:shadow-xl group-hover:shadow-${plan.color}-500/40 transition-all duration-300`}>
+                      {getPlanIcon(plan.id)}
+                    </div>
+
+                    {/* Plan Name */}
+                    <div className="text-center mb-6">
+                      <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 group-hover:text-gray-800 dark:group-hover:text-gray-100 transition-colors">
+                        {plan.name}
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
+                        {plan.description}
+                      </p>
+                    </div>
+
+                    {/* Pricing */}
+                    <div className="text-center mb-8">
+                      {plan.originalPrice && (
+                        <div className="text-lg text-gray-400 dark:text-gray-500 line-through mb-2 font-medium">
+                          ₹{plan.originalPrice.toLocaleString()}
+                        </div>
+                      )}
+                      <div className="flex items-baseline justify-center space-x-2 mb-2">
+                        <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">₹</span>
+                        <span className={`text-5xl font-bold ${getColorClasses(plan.color, 'text')} dark:text-${plan.color}-400`}>
+                          {plan.price.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-300 font-medium bg-gray-50 dark:bg-gray-800 px-4 py-2 rounded-full inline-block">
+                        {plan.period}
+                      </div>
+                      
+                      {plan.savings && (
+                        <div className="mt-4 inline-flex items-center space-x-2 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 text-green-700 dark:text-green-300 px-4 py-2 rounded-full text-sm font-semibold border border-green-200 dark:border-green-800">
+                          <Sparkles className="w-4 h-4" />
+                          <span>{plan.savings}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Features */}
+                    <div className="mb-8">
+                      <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-4 uppercase tracking-wide">What's Included</h4>
+                      <ul className="space-y-3">
+                        {plan.features.slice(0, 6).map((feature, index) => (
+                          <li key={index} className="flex items-start space-x-3 text-sm">
+                            <div className={`w-5 h-5 bg-gradient-to-br ${getColorClasses(plan.color, 'bg')} rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm`}>
+                              <Check className="w-3 h-3 text-white" />
+                            </div>
+                            <span className="text-gray-700 dark:text-gray-300 leading-relaxed font-medium">{feature}</span>
+                          </li>
+                        ))}
+                        {plan.features.length > 6 && (
+                          <li className="flex items-center space-x-3 text-sm">
+                            <div className="w-5 h-5 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center flex-shrink-0">
+                              <span className="text-xs font-bold text-gray-600 dark:text-gray-400">+{plan.features.length - 6}</span>
+                            </div>
+                            <span className="text-gray-500 dark:text-gray-400 font-medium">and {plan.features.length - 6} more features</span>
+                          </li>
+                        )}
+                      </ul>
+                    </div>
+
+                    {/* Action Button */}
+                    <button
+                      onClick={() => handleSelectPlan(plan)}
+                      className={`block w-full text-center ${getColorClasses(plan.color, 'button')} text-white py-4 rounded-2xl font-bold text-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-${plan.color}-500/30 transform hover:-translate-y-1 group-hover:scale-105`}
+                    >
+                      <div className="flex items-center justify-center space-x-3">
+                        <span>{plan.buttonText}</span>
+                        <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </button>
+
+                    {/* Bottom Info */}
+                    <div className="mt-4 text-center">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-center space-x-1">
+                        <Shield className="w-3 h-3" />
+                        <span>Secure payment • Cancel anytime</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Hover Effect Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-transparent via-transparent to-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Professional Services Section */}
+          <div className="space-y-8 mt-16">
+            <div className="text-center">
+              <div className="inline-flex items-center space-x-2 bg-purple-100 dark:bg-purple-900/30 px-6 py-3 rounded-full mb-6">
+                <Award className="text-purple-600 dark:text-purple-400" size={20} />
+                <span className="text-purple-700 dark:text-purple-300 font-semibold">PROFESSIONAL SERVICES</span>
+              </div>
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+                Expert Property Services
+              </h2>
+              <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+                Professional assistance for your property buying journey
+              </p>
+            </div>
+
+            {/* Professional Services Grid */}
+            <div className="grid lg:grid-cols-2 gap-8 max-w-5xl mx-auto">
+              {professionalServices.map((service, index) => (
+                <div
+                  key={service.id}
+                  className={`group relative bg-white dark:bg-gray-900 rounded-3xl overflow-hidden transition-all duration-500 hover:scale-[1.02] cursor-pointer ${
+                    service.popular 
+                      ? 'shadow-2xl shadow-blue-500/20 ring-2 ring-blue-500/30 dark:shadow-blue-400/20' 
+                      : 'shadow-xl hover:shadow-2xl border border-gray-100 dark:border-gray-800'
+                  }`}
+                  style={{ animationDelay: `${index * 100}ms` }}
+                >
+                  {/* Gradient Background Overlay */}
+                  <div className={`absolute inset-0 bg-gradient-to-br ${getColorClasses(service.color, 'bg')} opacity-[0.02] group-hover:opacity-[0.05] transition-opacity duration-500`}></div>
+                  
+                  {/* Popular Ribbon */}
+                  {service.popular && (
+                    <div className="absolute -top-1 -right-1 z-20">
+                      <div className={`bg-gradient-to-r ${getColorClasses(service.color, 'bg')} text-white px-6 py-2 rounded-bl-2xl rounded-tr-3xl shadow-lg`}>
+                        <div className="flex items-center space-x-1 text-sm font-bold">
+                          <Crown className="w-4 h-4" />
+                          <span>{service.badge}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Top Badge */}
+                  <div className="absolute top-6 left-6 z-10">
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${getColorClasses(service.color, 'text')} bg-${service.color}-50 dark:bg-${service.color}-900/20 border border-${service.color}-200 dark:border-${service.color}-800`}>
+                      {service.badge}
+                    </span>
+                  </div>
+
+                  {/* Card Content */}
+                  <div className="relative z-10 p-8 pt-16">
+                    {/* Icon */}
+                    <div className={`w-20 h-20 bg-gradient-to-br ${getColorClasses(service.color, 'bg')} rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-${service.color}-500/30 group-hover:shadow-xl group-hover:shadow-${service.color}-500/40 transition-all duration-300`}>
+                      {getPlanIcon(service.id)}
+                    </div>
+
+                    {/* Service Name */}
+                    <div className="text-center mb-6">
+                      <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 group-hover:text-gray-800 dark:group-hover:text-gray-100 transition-colors">
+                        {service.name}
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
+                        {service.description}
+                      </p>
+                    </div>
+
+                    {/* Pricing */}
+                    <div className="text-center mb-8">
+                      {service.originalPrice && (
+                        <div className="text-lg text-gray-400 dark:text-gray-500 line-through mb-2 font-medium">
+                          ₹{service.originalPrice.toLocaleString()}
+                        </div>
+                      )}
+                      <div className="flex items-baseline justify-center space-x-2 mb-2">
+                        <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">₹</span>
+                        <span className={`text-5xl font-bold ${getColorClasses(service.color, 'text')} dark:text-${service.color}-400`}>
+                          {service.price.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-300 font-medium bg-gray-50 dark:bg-gray-800 px-4 py-2 rounded-full inline-block">
+                        {service.period}
+                      </div>
+                      
+                      {service.savings && (
+                        <div className="mt-4 inline-flex items-center space-x-2 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 text-green-700 dark:text-green-300 px-4 py-2 rounded-full text-sm font-semibold border border-green-200 dark:border-green-800">
+                          <Sparkles className="w-4 h-4" />
+                          <span>{service.savings}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Features */}
+                    <div className="mb-8">
+                      <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-4 uppercase tracking-wide">What's Included</h4>
+                      <ul className="space-y-3">
+                        {service.features.slice(0, 6).map((feature, index) => (
+                          <li key={index} className="flex items-start space-x-3 text-sm">
+                            <div className={`w-5 h-5 bg-gradient-to-br ${getColorClasses(service.color, 'bg')} rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm`}>
+                              <Check className="w-3 h-3 text-white" />
+                            </div>
+                            <span className="text-gray-700 dark:text-gray-300 leading-relaxed font-medium">{feature}</span>
+                          </li>
+                        ))}
+                        {service.features.length > 6 && (
+                          <li className="flex items-center space-x-3 text-sm">
+                            <div className="w-5 h-5 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center flex-shrink-0">
+                              <span className="text-xs font-bold text-gray-600 dark:text-gray-400">+{service.features.length - 6}</span>
+                            </div>
+                            <span className="text-gray-500 dark:text-gray-400 font-medium">and {service.features.length - 6} more features</span>
+                          </li>
+                        )}
+                      </ul>
+                    </div>
+
+                    {/* Action Button */}
+                    <button
+                      onClick={() => handleSelectPlan(service)}
+                      className={`block w-full text-center ${getColorClasses(service.color, 'button')} text-white py-4 rounded-2xl font-bold text-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-${service.color}-500/30 transform hover:-translate-y-1 group-hover:scale-105`}
+                    >
+                      <div className="flex items-center justify-center space-x-3">
+                        <span>{service.buttonText}</span>
+                        <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </button>
+
+                    {/* Bottom Info */}
+                    <div className="mt-4 text-center">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-center space-x-1">
+                        <Shield className="w-3 h-3" />
+                        <span>Secure payment • Professional service</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Hover Effect Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-transparent via-transparent to-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div
+            key={plan.id}
+            className={`group relative bg-white dark:bg-gray-900 rounded-3xl overflow-hidden transition-all duration-500 hover:scale-[1.02] cursor-pointer ${
+              plan.popular 
+                ? 'shadow-2xl shadow-emerald-500/20 ring-2 ring-emerald-500/30 dark:shadow-emerald-400/20' 
+                : 'shadow-xl hover:shadow-2xl border border-gray-100 dark:border-gray-800'
+            } ${
+              selectedPlan === plan.id ? 'ring-4 ring-blue-500/40 shadow-2xl shadow-blue-500/20' : ''
+            }`}
+            onClick={() => handleSelectPlan(plan.id)}
+            style={{ animationDelay: `${index * 100}ms` }}
+          >
+            {/* Gradient Background Overlay */}
+            <div className={`absolute inset-0 bg-gradient-to-br ${getColorClasses(plan.color, 'bg')} opacity-[0.02] group-hover:opacity-[0.05] transition-opacity duration-500`}></div>
+            
+            {/* Popular Ribbon */}
+            {plan.popular && (
+              <div className="absolute -top-1 -right-1 z-20">
+                <div className={`bg-gradient-to-r ${getColorClasses(plan.color, 'bg')} text-white px-6 py-2 rounded-bl-2xl rounded-tr-3xl shadow-lg`}>
+                  <div className="flex items-center space-x-1 text-sm font-bold">
+                    <Crown className="w-4 h-4" />
+                    <span>MOST POPULAR</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Top Badge */}
+            <div className="absolute top-6 left-6 z-10">
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${getColorClasses(plan.color, 'text')} bg-${plan.color}-50 dark:bg-${plan.color}-900/20 border border-${plan.color}-200 dark:border-${plan.color}-800`}>
+                {plan.badge}
+              </span>
+            </div>
+
+            {/* Card Content */}
+            <div className="relative z-10 p-8 pt-16">
+              {/* Icon */}
+              <div className={`w-20 h-20 bg-gradient-to-br ${getColorClasses(plan.color, 'bg')} rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-${plan.color}-500/30 group-hover:shadow-xl group-hover:shadow-${plan.color}-500/40 transition-all duration-300`}>
+                {getPlanIcon(plan.id)}
+              </div>
+
+              {/* Plan Name */}
+              <div className="text-center mb-6">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 group-hover:text-gray-800 dark:group-hover:text-gray-100 transition-colors">
+                  {plan.name}
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
+                  {plan.description}
+                </p>
+              </div>
+
+              {/* Pricing */}
+              <div className="text-center mb-8">
+                {plan.originalPrice && (
+                  <div className="text-lg text-gray-400 dark:text-gray-500 line-through mb-2 font-medium">
+                    ₹{plan.originalPrice.toLocaleString()}
+                  </div>
+                )}
+                <div className="flex items-baseline justify-center space-x-2 mb-2">
+                  <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">₹</span>
+                  <span className={`text-5xl font-bold ${getColorClasses(plan.color, 'text')} dark:text-${plan.color}-400`}>
+                    {plan.price.toLocaleString()}
+                  </span>
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-300 font-medium bg-gray-50 dark:bg-gray-800 px-4 py-2 rounded-full inline-block">
+                  {plan.period}
+                </div>
+                
+                {plan.savings && (
+                  <div className="mt-4 inline-flex items-center space-x-2 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 text-green-700 dark:text-green-300 px-4 py-2 rounded-full text-sm font-semibold border border-green-200 dark:border-green-800">
+                    <Sparkles className="w-4 h-4" />
+                    <span>{plan.savings}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Features */}
+              <div className="mb-8">
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-4 uppercase tracking-wide">What's Included</h4>
+                <ul className="space-y-3">
+                  {plan.features.slice(0, 6).map((feature, index) => (
+                    <li key={index} className="flex items-start space-x-3 text-sm">
+                      <div className={`w-5 h-5 bg-gradient-to-br ${getColorClasses(plan.color, 'bg')} rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm`}>
+                        <Check className="w-3 h-3 text-white" />
+                      </div>
+                      <span className="text-gray-700 dark:text-gray-300 leading-relaxed font-medium">{feature}</span>
+                    </li>
+                  ))}
+                  {plan.features.length > 6 && (
+                    <li className="flex items-center space-x-3 text-sm">
+                      <div className="w-5 h-5 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-xs font-bold text-gray-600 dark:text-gray-400">+{plan.features.length - 6}</span>
+                      </div>
+                      <span className="text-gray-500 dark:text-gray-400 font-medium">and {plan.features.length - 6} more features</span>
+                    </li>
+                  )}
+                </ul>
+              </div>
+
+              {/* Action Button */}
+              <button
+                onClick={() => window.location.href = `/payment?service=${plan.id}`}
+                className={`block w-full text-center ${getColorClasses(plan.color, 'button')} text-white py-4 rounded-2xl font-bold text-lg transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-${plan.color}-500/30 transform hover:-translate-y-1 group-hover:scale-105`}
+              >
+                <div className="flex items-center justify-center space-x-3">
+                  <span>{plan.buttonText}</span>
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </button>
+
+              {/* Bottom Info */}
+              <div className="mt-4 text-center">
+                <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-center space-x-1">
+                  <Shield className="w-3 h-3" />
+                  <span>Secure payment • Cancel anytime</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Hover Effect Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-t from-transparent via-transparent to-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+          </div>
+        ))}
+      </div>
+
+          {/* Buyer Plans Comparison Table */}
+          <div className="relative bg-white dark:bg-gray-900 rounded-3xl overflow-hidden shadow-2xl border border-gray-100 dark:border-gray-800 mt-16">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-slate-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 p-8 border-b border-gray-200 dark:border-gray-700">
+              <div className="text-center">
+                <div className="inline-flex items-center space-x-2 bg-blue-100 dark:bg-blue-900/30 px-4 py-2 rounded-full mb-4">
+                  <Calculator className="text-blue-600 dark:text-blue-400" size={20} />
+                  <span className="text-blue-700 dark:text-blue-300 font-semibold text-sm">PLAN COMPARISON</span>
+                </div>
+                <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                  Compare Buyer Plans
+                </h2>
+                <p className="text-lg text-gray-600 dark:text-gray-300">
+                  Find the perfect plan that matches your property search needs
+                </p>
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className="p-8">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b-2 border-gray-200 dark:border-gray-700">
+                      <th className="text-left py-6 px-6 font-bold text-gray-900 dark:text-white text-lg">Features</th>
+                      <th className="text-center py-6 px-6">
+                        <div className="flex flex-col items-center">
+                          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-2 shadow-lg">
+                            <Zap className="text-white" size={20} />
+                          </div>
+                          <div className="font-bold text-blue-600 dark:text-blue-400">Basic</div>
+                          <div className="text-sm text-gray-500">₹99/month</div>
+                        </div>
+                      </th>
+                      <th className="text-center py-6 px-6">
+                        <div className="flex flex-col items-center">
+                          <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center mb-2 shadow-lg">
+                            <Star className="text-white" size={20} />
+                          </div>
+                          <div className="font-bold text-emerald-600 dark:text-emerald-400">Smart</div>
+                          <div className="text-sm text-gray-500">₹499/6mo</div>
+                        </div>
+                      </th>
+                      <th className="text-center py-6 px-6">
+                        <div className="flex flex-col items-center">
+                          <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mb-2 shadow-lg">
+                            <Crown className="text-white" size={20} />
+                          </div>
+                          <div className="font-bold text-purple-600 dark:text-purple-400">Pro</div>
+                          <div className="text-sm text-gray-500">₹899/year</div>
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { feature: 'Property Browsing', basic: true, smart: true, pro: true },
+                      { feature: 'Owner Contacts', basic: '5/month', smart: '20/month', pro: 'Unlimited' },
+                      { feature: 'Advanced Filters', basic: false, smart: true, pro: true },
+                      { feature: 'Priority Support', basic: false, smart: true, pro: true },
+                      { feature: 'Market Insights', basic: false, smart: 'Basic', pro: 'Advanced' },
+                      { feature: 'Dedicated Manager', basic: false, smart: false, pro: true },
+                      { feature: 'Legal Consultation', basic: false, smart: false, pro: '2 hours' },
+                      { feature: 'Investment Analysis', basic: false, smart: false, pro: true }
+                    ].map((row, index) => (
+                      <tr key={index} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                        <td className="py-4 px-6 font-semibold text-gray-900 dark:text-white">{row.feature}</td>
+                        <td className="py-4 px-6 text-center">
+                          {typeof row.basic === 'boolean' ? (
+                            row.basic ? (
+                              <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto">
+                                <Check className="text-green-600 dark:text-green-400" size={16} />
+                              </div>
+                            ) : (
+                              <div className="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto">
+                                <X className="text-red-500 dark:text-red-400" size={16} />
+                              </div>
+                            )
+                          ) : (
+                            <span className="text-sm font-medium text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/30 px-3 py-1 rounded-full">
+                              {row.basic}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-4 px-6 text-center">
+                          {typeof row.smart === 'boolean' ? (
+                            row.smart ? (
+                              <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto">
+                                <Check className="text-green-600 dark:text-green-400" size={16} />
+                              </div>
+                            ) : (
+                              <div className="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto">
+                                <X className="text-red-500 dark:text-red-400" size={16} />
+                              </div>
+                            )
+                          ) : (
+                            <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/30 px-3 py-1 rounded-full">
+                              {row.smart}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-4 px-6 text-center">
+                          {typeof row.pro === 'boolean' ? (
+                            row.pro ? (
+                              <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto">
+                                <Check className="text-green-600 dark:text-green-400" size={16} />
+                              </div>
+                            ) : (
+                              <div className="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto">
+                                <X className="text-red-500 dark:text-red-400" size={16} />
+                              </div>
+                            )
+                          ) : (
+                            <span className="text-sm font-medium text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-900/30 px-3 py-1 rounded-full">
+                              {row.pro}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+                        <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/30 px-3 py-1 rounded-full">
+                          {row.premium}
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-4 px-6 text-center">
+                      {typeof row.plus === 'boolean' ? (
+                        row.plus ? (
+                          <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto">
+                            <Check className="text-green-600 dark:text-green-400" size={16} />
+                          </div>
+                        ) : (
+                          <div className="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto">
+                            <X className="text-red-500 dark:text-red-400" size={16} />
+                          </div>
+                        )
+                      ) : (
+                        <span className="text-sm font-medium text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-900/30 px-3 py-1 rounded-full">
+                          {row.plus}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* Why Choose GharBazaar - Premium Section */}
+      <div className="relative bg-gradient-to-br from-gray-900 via-blue-900 to-indigo-900 rounded-3xl overflow-hidden shadow-2xl">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 opacity-30">
+          <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-blue-500/5"></div>
+        </div>
+        
+        {/* Floating Elements */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-400/10 to-indigo-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-emerald-400/10 to-teal-500/10 rounded-full blur-3xl"></div>
+        
+        <div className="relative z-10 p-12">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center space-x-2 bg-white/10 backdrop-blur-xl px-6 py-3 rounded-2xl mb-6 border border-white/20">
+              <Award className="text-yellow-400" size={24} />
+              <span className="text-white font-bold">WHY CHOOSE US</span>
+            </div>
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
+              Why GharBazaar Stands Out?
+            </h2>
+            <p className="text-xl text-blue-100 max-w-3xl mx-auto leading-relaxed">
+              Experience the difference with India's most transparent property platform
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {[
+              {
+                icon: Shield,
+                title: 'No Hidden Fees',
+                description: 'Complete transparency in all charges and pricing. What you see is what you pay.',
+                color: 'emerald',
+                stats: '100% Transparent'
+              },
+              {
+                icon: Heart,
+                title: 'No Forced Services',
+                description: 'All services are optional and user-controlled. Your choice, your way.',
+                color: 'red',
+                stats: 'Your Control'
+              },
+              {
+                icon: Eye,
+                title: 'Flexible Plans',
+                description: 'Start from ₹99/month and upgrade anytime. No long-term commitments.',
+                color: 'blue',
+                stats: 'From ₹99/mo'
+              },
+              {
+                icon: Users,
+                title: 'Cancel Anytime',
+                description: 'No cancellation fees or penalties. Freedom to change your mind.',
+                color: 'purple',
+                stats: '15K+ Happy Users'
+              }
+            ].map((item, index) => (
+              <div key={index} className="group">
+                <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-8 border border-white/20 hover:bg-white/15 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl">
+                  <div className={`w-16 h-16 bg-gradient-to-br from-${item.color}-400 to-${item.color}-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:shadow-xl group-hover:scale-110 transition-all duration-300`}>
+                    <item.icon className="text-white" size={28} />
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-3">{item.title}</h3>
+                  <p className="text-blue-100 text-sm leading-relaxed mb-4">{item.description}</p>
+                  <div className={`inline-flex items-center px-3 py-1 bg-${item.color}-500/20 text-${item.color}-300 rounded-full text-xs font-semibold border border-${item.color}-400/30`}>
+                    {item.stats}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Bottom CTA */}
+          <div className="text-center mt-12">
+            <div className="inline-flex items-center space-x-4 bg-white/10 backdrop-blur-xl px-8 py-4 rounded-2xl border border-white/20">
+              <div className="flex -space-x-2">
+                {[1,2,3,4,5].map((i) => (
+                  <div key={i} className="w-8 h-8 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full border-2 border-white flex items-center justify-center text-white text-xs font-bold">
+                    {i}
+                  </div>
+                ))}
+              </div>
+              <div className="text-left">
+                <div className="text-white font-bold text-sm">Join 15,000+ satisfied users</div>
+                <div className="text-blue-200 text-xs">Trusted by property seekers across India</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+          {/* Current Plan Status */}
+          <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-xl border border-gray-200 dark:border-gray-700 mt-16">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                Your Current Status
+              </h2>
+              <div className="flex items-center space-x-2 text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-4 py-2 rounded-full">
+                <CheckCircle className="w-5 h-5" />
+                <span className="font-medium">Free User</span>
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-6">
+              {/* Free Browsing */}
+              <div className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl border border-blue-200 dark:border-blue-800">
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center">
+                    <Eye className="text-white" size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 dark:text-white">Free Browsing</h3>
+                    <p className="text-sm text-blue-600 dark:text-blue-400">Always Active</p>
+                  </div>
+                </div>
+                <p className="text-gray-600 dark:text-gray-300 text-sm">
+                  Browse unlimited properties for free. No restrictions on viewing listings.
+                </p>
+              </div>
+
+              {/* Upgrade to Basic */}
+              <div className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-600">
+                <div className="text-center">
+                  <div className="w-10 h-10 bg-blue-300 dark:bg-blue-600 rounded-xl flex items-center justify-center mx-auto mb-3">
+                    <Zap className="text-white" size={20} />
+                  </div>
+                  <h3 className="font-bold text-gray-900 dark:text-white mb-2">Basic Buyer Access</h3>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm mb-3">
+                    Start contacting owners for just ₹99/month
+                  </p>
+                  <button
+                    onClick={() => handleSelectPlan(buyerPlans[0])} // Basic plan
+                    className="text-blue-600 dark:text-blue-400 text-sm font-medium hover:underline"
+                  >
+                    Upgrade Now →
+                  </button>
+                </div>
+              </div>
+
+              {/* Upgrade to Smart */}
+              <div className="p-6 bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-2xl border-2 border-dashed border-emerald-300 dark:border-emerald-600">
+                <div className="text-center">
+                  <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center mx-auto mb-3">
+                    <Star className="text-white" size={20} />
+                  </div>
+                  <h3 className="font-bold text-gray-900 dark:text-white mb-2">Smart Buyer Plan</h3>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm mb-3">
+                    Advanced features and priority support
+                  </p>
+                  <button
+                    onClick={() => handleSelectPlan(buyerPlans[1])} // Smart plan
+                    className="text-emerald-600 dark:text-emerald-400 text-sm font-medium hover:underline"
+                  >
+                    Get Smart Plan →
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+      </>
+      )}
+    </div>
+  )
+}
+                  <div>
+                    <h3 className="font-bold text-gray-900 dark:text-white">Free Browsing</h3>
+                    <p className="text-sm text-blue-600 dark:text-blue-400">Always Active</p>
+                  </div>
+                </div>
+                <p className="text-gray-600 dark:text-gray-300 text-sm">
+                  Browse unlimited properties for free. No restrictions on viewing listings.
+                </p>
+              </div>
+
+              {/* Upgrade to Basic */}
+              <div className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-600">
+                <div className="text-center">
+                  <div className="w-10 h-10 bg-blue-300 dark:bg-blue-600 rounded-xl flex items-center justify-center mx-auto mb-3">
+                    <Zap className="text-white" size={20} />
+                  </div>
+                  <h3 className="font-bold text-gray-900 dark:text-white mb-2">Basic Buyer Access</h3>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm mb-3">
+                    Start contacting owners for just ₹99/month
+                  </p>
+                  <button
+                    onClick={() => handleSelectPlan(buyerPlans[0])} // Basic plan
+                    className="text-blue-600 dark:text-blue-400 text-sm font-medium hover:underline"
+                  >
+                    Upgrade Now →
+                  </button>
+                </div>
+              </div>
+
+              {/* Upgrade to Smart */}
+              <div className="p-6 bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-2xl border-2 border-dashed border-emerald-300 dark:border-emerald-600">
+                <div className="text-center">
+                  <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center mx-auto mb-3">
+                    <Star className="text-white" size={20} />
+                  </div>
+                  <h3 className="font-bold text-gray-900 dark:text-white mb-2">Smart Buyer Plan</h3>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm mb-3">
+                    Advanced features and priority support
+                  </p>
+                  <button
+                    onClick={() => handleSelectPlan(buyerPlans[1])} // Smart plan
+                    className="text-emerald-600 dark:text-emerald-400 text-sm font-medium hover:underline"
+                  >
+                    Get Smart Plan →
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}

@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Conversation {
+  id               String   @id @default(uuid())
+  conversationType String   @default("buyer-seller") // 'buyer-seller', 'support-ticket', 'employee-direct'
+  propertyId       String?
+  propertyTitle    String?
+  lastMessage      String?
+  lastMessageAt    DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  participants     ConversationParticipant[]
+  messages         Message[]
+
+  @@index([lastMessageAt])
+}
+
+model ConversationParticipant {
+  id             String       @id @default(uuid())
+  conversationId String
+  userId         String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  senderId       String
+  senderEmail    String
+  content        String
+  type           String       @default("text") // 'text', 'image', 'file'
+  fileUrl        String?
+  thumbnailUrl   String?
+  fileName       String?
+  fileSize       Int?
+  read           Boolean      @default(false)
+  edited         Boolean      @default(false)
+  deleted        Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+}
+
+model User {
+  id              String   @id @default(uuid())
+  email           String   @unique
+  name            String
+  role            String   @default("buyer")
+  buyerClientId   String?  @unique
+  sellerClientId  String?  @unique
+  phone           String?
+  address         String?
+  branch          String?
+  office          String?
+  branchManagerName String?
+  onboardingCompleted Boolean @default(false)
+  createdAt       DateTime @default(now())
+
+  updatedAt       DateTime @updatedAt
+  
+  buyerProfile    BuyerProfile?
+  sellerProfile   SellerProfile?
+}
+
+model BuyerProfile {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  propertiesViewed Int     @default(0)
+  savedProperties  Int     @default(0)
+  budget           String  @default("₹0")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model SellerProfile {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activeListings   Int     @default(0)
+  totalViews       Int     @default(0)
+  revenue          String  @default("₹0")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
