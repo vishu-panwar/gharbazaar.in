@@ -339,8 +339,8 @@ export default function PaymentForm({
 
       // Create payment order first
       console.log('📝 Creating payment order...')
-      const orderData = await backendApi.payments.createOrder(
-        amount * 100, // Convert to paise
+      const orderResponse = await backendApi.payments.createOrder(
+        amount,
         selectedMethod,
         {
           service: serviceName,
@@ -351,11 +351,22 @@ export default function PaymentForm({
         }
       )
 
-      if (!orderData.success) {
-        throw new Error(orderData.error || 'Failed to create payment order')
+      if (!orderResponse.success) {
+        throw new Error(orderResponse.error || 'Failed to create payment order')
       }
 
-      console.log('✅ Order created successfully:', orderData.order.id)
+      const orderId = orderResponse?.data?.orderId || orderResponse?.orderId
+      if (!orderId) {
+        throw new Error('Payment order id not returned by server')
+      }
+
+      const orderData = {
+        id: orderId,
+        amount: amount * 100,
+        currency: 'INR'
+      }
+
+      console.log('✅ Order created successfully:', orderData.id)
 
       // Process payment based on selected method
       console.log(`💳 Processing ${selectedMethod.toUpperCase()} payment...`)
@@ -363,19 +374,19 @@ export default function PaymentForm({
 
       switch (selectedMethod) {
         case 'upi':
-          paymentResult = await processUPIPayment(orderData.order, upiId)
+          paymentResult = await processUPIPayment(orderData, upiId)
           break
         case 'card':
-          paymentResult = await processCardPayment(orderData.order, cardData)
+          paymentResult = await processCardPayment(orderData, cardData)
           break
         case 'netbanking':
-          paymentResult = await processNetBankingPayment(orderData.order, selectedBank)
+          paymentResult = await processNetBankingPayment(orderData, selectedBank)
           break
         case 'wallet':
-          paymentResult = await processWalletPayment(orderData.order, selectedWallet)
+          paymentResult = await processWalletPayment(orderData, selectedWallet)
           break
         case 'qr':
-          paymentResult = await processQRPayment(orderData.order)
+          paymentResult = await processQRPayment(orderData)
           break
         default:
           throw new Error('Invalid payment method selected')
@@ -386,9 +397,9 @@ export default function PaymentForm({
       // Verify payment on backend
       console.log('🔍 Verifying payment...')
       const verificationData = await backendApi.payments.verify({
-        razorpay_order_id: paymentResult.orderId,
-        razorpay_payment_id: paymentResult.paymentId,
-        razorpay_signature: paymentResult.signature
+        orderId: paymentResult.orderId,
+        paymentId: paymentResult.paymentId,
+        signature: paymentResult.signature
       })
 
       if (!verificationData.success) {

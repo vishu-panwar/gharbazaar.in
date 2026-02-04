@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   BarChart3,
   TrendingUp,
@@ -25,12 +25,14 @@ import {
   ShoppingCart,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { backendApi } from '@/lib/backendApi'
 
 export default function AnalyticsPage() {
   const [dateRange, setDateRange] = useState('7days')
   const [selectedMetric, setSelectedMetric] = useState('revenue')
+  const [loading, setLoading] = useState(false)
 
-  const overviewStats = {
+  const defaultOverviewStats = {
     totalRevenue: 2456789,
     revenueGrowth: 15.3,
     totalUsers: 12456,
@@ -41,7 +43,7 @@ export default function AnalyticsPage() {
     subscriptionGrowth: 18.9,
   }
 
-  const revenueData = [
+  const defaultRevenueData = [
     { month: 'Jan', revenue: 185000, target: 180000 },
     { month: 'Feb', revenue: 195000, target: 190000 },
     { month: 'Mar', revenue: 210000, target: 200000 },
@@ -50,7 +52,7 @@ export default function AnalyticsPage() {
     { month: 'Jun', revenue: 265000, target: 260000 },
   ]
 
-  const userGrowthData = [
+  const defaultUserGrowthData = [
     { month: 'Jan', users: 8500, active: 7200 },
     { month: 'Feb', users: 9200, active: 7800 },
     { month: 'Mar', users: 9800, active: 8300 },
@@ -59,7 +61,7 @@ export default function AnalyticsPage() {
     { month: 'Jun', users: 12456, active: 10600 },
   ]
 
-  const topCities = [
+  const defaultTopCities = [
     { city: 'Mumbai', users: 3456, listings: 1234, revenue: 567890, growth: 12.5 },
     { city: 'Delhi', users: 2890, listings: 987, revenue: 456789, growth: 10.3 },
     { city: 'Bangalore', users: 2345, listings: 876, revenue: 389012, growth: 15.7 },
@@ -67,13 +69,13 @@ export default function AnalyticsPage() {
     { city: 'Hyderabad', users: 1567, listings: 543, revenue: 234567, growth: 11.2 },
   ]
 
-  const subscriptionBreakdown = [
+  const defaultSubscriptionBreakdown = [
     { plan: 'Basic', subscribers: 567, percentage: 46, revenue: 566433, color: 'blue' },
     { plan: 'Premium', subscribers: 456, percentage: 37, revenue: 1367544, color: 'purple' },
     { plan: 'Enterprise', subscribers: 211, percentage: 17, revenue: 21098889, color: 'orange' },
   ]
 
-  const trafficSources = [
+  const defaultTrafficSources = [
     { source: 'Direct', visitors: 45678, percentage: 38, conversion: 4.5 },
     { source: 'Organic Search', visitors: 34567, percentage: 29, conversion: 5.2 },
     { source: 'Social Media', visitors: 23456, percentage: 19, conversion: 3.8 },
@@ -81,7 +83,7 @@ export default function AnalyticsPage() {
     { source: 'Email', visitors: 4567, percentage: 4, conversion: 7.3 },
   ]
 
-  const recentActivity = [
+  const defaultRecentActivity = [
     {
       type: 'user_signup',
       message: 'New user registration',
@@ -111,6 +113,39 @@ export default function AnalyticsPage() {
       trend: 'up',
     },
   ]
+
+  const [overviewStats, setOverviewStats] = useState(defaultOverviewStats)
+  const [revenueData, setRevenueData] = useState(defaultRevenueData)
+  const [userGrowthData, setUserGrowthData] = useState(defaultUserGrowthData)
+  const [topCities, setTopCities] = useState(defaultTopCities)
+  const [subscriptionBreakdown, setSubscriptionBreakdown] = useState(defaultSubscriptionBreakdown)
+  const [trafficSources, setTrafficSources] = useState(defaultTrafficSources)
+  const [recentActivity, setRecentActivity] = useState(defaultRecentActivity)
+
+  useEffect(() => {
+    const loadAnalytics = async () => {
+      setLoading(true)
+      try {
+        const response = await backendApi.analytics.getAdminDashboard()
+        if (response?.success && response?.data) {
+          const data = response.data
+          setOverviewStats(data.overviewStats || defaultOverviewStats)
+          setRevenueData(data.revenueData || defaultRevenueData)
+          setUserGrowthData(data.userGrowthData || defaultUserGrowthData)
+          setTopCities(data.topCities || defaultTopCities)
+          setSubscriptionBreakdown(data.subscriptionBreakdown || defaultSubscriptionBreakdown)
+          setTrafficSources(data.trafficSources || defaultTrafficSources)
+          setRecentActivity(data.recentActivity || defaultRecentActivity)
+        }
+      } catch (error) {
+        console.error('Failed to load analytics:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadAnalytics()
+  }, [])
 
   const handleExport = () => {
     toast.success('Exporting analytics data...')

@@ -59,7 +59,12 @@ const config: Config = {
     },
     rateLimit: {
         max: parseInt(process.env.RATE_LIMIT_MAX || '100', 10),
-        windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '15', 10) * 60 * 1000,
+        windowMs: (() => {
+            const raw = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10);
+            // If a small number is provided (e.g. 15), treat it as minutes.
+            if (raw > 0 && raw < 1000) return raw * 60 * 1000;
+            return raw;
+        })(),
     },
     logLevel: process.env.LOG_LEVEL || 'info',
     adminEmail: process.env.ADMIN_EMAIL || 'gharbazaarofficial@zohomail.in',

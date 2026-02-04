@@ -30,6 +30,7 @@ import {
   ExternalLink
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { backendApi } from '@/lib/backendApi'
 
 interface DueDiligenceCase {
   id: string
@@ -74,7 +75,6 @@ export default function DueDiligencePage() {
   const [tempOpinion, setTempOpinion] = useState('')
   const [isLoading, setIsLoading] = useState(true)
 
-  // Mock data
   useEffect(() => {
     const mockCases: DueDiligenceCase[] = [
       {
@@ -196,6 +196,43 @@ export default function DueDiligencePage() {
         ]
       }
     ]
+
+    const loadCases = async () => {
+      try {
+        const response = await backendApi.partners.getCases({ type: 'legal' })
+        if (response?.success && Array.isArray(response?.data) && response.data.length > 0) {
+          const mapped = response.data.map((c: any) => ({
+            id: c._id,
+            caseId: c._id?.slice(-6) || c._id,
+            propertyTitle: c.title || 'Legal Case',
+            propertyType: c.metadata?.propertyType || 'Property',
+            clientName: c.metadata?.clientName || 'Client',
+            assignedDate: c.createdAt || new Date().toISOString(),
+            dueDate: c.dueDate || new Date().toISOString(),
+            status: c.status === 'completed' ? 'completed' : c.status === 'in_progress' ? 'in-progress' : 'pending',
+            priority: 'medium',
+            checklist: [],
+            legalOpinion: c.description || '',
+            riskGrade: null,
+            recommendations: [],
+            complianceScore: 0,
+            lastUpdated: c.updatedAt || c.createdAt || new Date().toISOString()
+          }))
+          setCases(mapped)
+          setFilteredCases(mapped)
+          setIsLoading(false)
+          return
+        }
+      } catch (error) {
+        console.error('Failed to load cases:', error)
+      }
+
+      setCases(mockCases)
+      setFilteredCases(mockCases)
+      setIsLoading(false)
+    }
+
+    loadCases()
 
     setTimeout(() => {
       setCases(mockCases)

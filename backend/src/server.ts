@@ -7,6 +7,7 @@ import config, { validateConfig } from './config';
 import { connectDatabase } from './utils/database';
 import { initializeSocket } from './socket';
 import apiRoutes from './routes';
+import { auditMiddleware } from './middleware/audit.middleware';
 
 const startServer = async () => {
     try {
@@ -29,6 +30,10 @@ const startServer = async () => {
             credentials: true,
         }));
 
+        // Razorpay webhook needs raw body for signature verification
+        app.use('/api/v1/payments/webhook', express.raw({ type: 'application/json' }));
+        app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
+
         app.use(express.json());
         app.use(express.urlencoded({ extended: true }));
 
@@ -46,6 +51,8 @@ const startServer = async () => {
             legacyHeaders: false,
         });
         app.use('/api/', limiter);
+
+        app.use('/api/v1', auditMiddleware);
 
         app.use('/api/v1', apiRoutes);
         app.use('/api', apiRoutes);

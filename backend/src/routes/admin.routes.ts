@@ -36,6 +36,7 @@ router.delete('/properties/:id', adminController.deleteProperty);
 
 router.get('/salary', adminController.getSalaryRecords);
 router.post('/salary/process', adminController.processSalary);
+router.post('/payouts/:id/approve', adminController.approvePayout);
 router.post('/announcements', adminController.broadcastAnnouncement);
 
 // Database Administration

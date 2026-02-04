@@ -3,6 +3,7 @@ import User from '../models/user.model';
 import EmployeeProfile from '../models/employeeProfile.model';
 import Salary from '../models/salary.model';
 import Notification from '../models/notification.model';
+import Payout from '../models/payout.model';
 import { getNextEmployeeId } from '../utils/idGenerator';
 import crypto from 'crypto';
 import mongoose from 'mongoose';
@@ -167,6 +168,30 @@ export const processSalary = async (req: Request, res: Response) => {
     } catch (error) {
         console.error('Error processing salary:', error);
         res.status(500).json({ success: false, error: 'Failed to process salary' });
+    }
+};
+
+export const approvePayout = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { reference, status } = req.body;
+
+        const payout = await Payout.findById(id);
+        if (!payout) {
+            return res.status(404).json({ success: false, error: 'Payout not found' });
+        }
+
+        payout.status = status || 'paid';
+        if (reference) {
+            payout.reference = reference;
+        }
+
+        await payout.save();
+
+        res.json({ success: true, data: payout });
+    } catch (error) {
+        console.error('Error approving payout:', error);
+        res.status(500).json({ success: false, error: 'Failed to approve payout' });
     }
 };
 
