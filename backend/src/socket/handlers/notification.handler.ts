@@ -4,8 +4,11 @@ export const registerNotificationHandlers = (io: Server, socket: Socket) => {
     const user = (socket as any).user;
     if (!user) return;
 
+    // Normalize user identifier: accept uid, userId, _id
+    const userIdentity = user.uid || user.userId || user._id || user.email || socket.id;
+
     // Join a private room for personal notifications
-    const notificationRoom = `notifications:${user.uid}`;
+    const notificationRoom = `notifications:${userIdentity}`;
     socket.join(notificationRoom);
 
     // Join role-based rooms for announcements

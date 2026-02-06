@@ -1,4 +1,5 @@
 // Error handling utilities for the entire application
+import { API_CONFIG } from '../config'
 
 export class AppError extends Error {
     constructor(
@@ -73,20 +74,27 @@ export async function logError(error: Error | AppError, additionalInfo?: any): P
         console.error('Error logged:', errorLog)
     }
 
-    // In production, send to error tracking service (e.g., Sentry)
-    if (process.env.NODE_ENV === 'production') {
-        try {
-            // Example: Send to Sentry
-            // Sentry.captureException(error, { extra: additionalInfo })
+    // Send to backend logging endpoint when available (development & production)
+    try {
+        const loggingUrl = `${API_CONFIG.FULL_URL.replace(/\/$/, '')}/logs/error`
 
-            // Or send to custom logging endpoint
-            await fetch('/api/logs/error', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(errorLog),
-            })
-        } catch (loggingError) {
-            console.error('Failed to log error:', loggingError)
+        // Use AbortController to avoid hanging requests
+        const controller = typeof AbortController !== 'undefined' ? new AbortController() : null
+        const timeout = controller ? setTimeout(() => controller.abort(), 8000) : undefined
+
+        await fetch(loggingUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(errorLog),
+            signal: controller ? controller.signal : undefined,
+        })
+
+        if (timeout) clearTimeout(timeout)
+    } catch (loggingError) {
+        // Don't crash the app if logging fails
+        // In dev we still print to console for visibility
+        if (process.env.NODE_ENV === 'development') {
+            console.error('Failed to send error log to backend:', loggingError)
         }
     }
 }

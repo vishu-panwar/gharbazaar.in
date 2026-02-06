@@ -1,4 +1,5 @@
 import express from 'express';
+import logger from '../utils/logger';
 import authRoutes from './auth.routes';
 import adminRoutes from './admin.routes';
 import attendanceRoutes from './attendance.routes';
@@ -46,5 +47,18 @@ router.use('/analytics', analyticsRoutes);
 router.get('/health', (req, res) => {
     res.json({ success: true, message: 'API is healthy', timestamp: new Date().toISOString() });
 });
+
+// Endpoint for receiving frontend error logs
+router.post('/logs/error', (req, res) => {
+    try {
+        const payload = req.body || {}
+        // Log at error level with payload
+        logger.error('Frontend error log received', { payload })
+        return res.status(200).json({ success: true })
+    } catch (err) {
+        logger.error('Failed to process frontend error log', { error: err })
+        return res.status(500).json({ success: false, error: 'Failed to process log' })
+    }
+})
 
 export default router;

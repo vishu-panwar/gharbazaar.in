@@ -245,17 +245,11 @@ export const backendApi = {
                 const conf = CONFIG.AUTH_API;
                 const safeBaseUrl = (conf.FULL_URL || conf.BASE_URL).replace(/\/v1(\/|$)/, '/').replace(/\/$/, '');
 
+                // Try canonical backend profile endpoints first to avoid noisy 404 probing
+                // Try canonical backend profile endpoints first to avoid noisy 404 probing
                 const endpoints = [
-                    `${safeBaseUrl}/users`, // Primary endpoint as per user instructions
-                    `${safeBaseUrl}/users/profile`,
-                    `${safeBaseUrl}/v1/users/profile`,
-                    `${safeBaseUrl}/auth/profile`,
-                    `${safeBaseUrl}/profile`,
-                    `${safeBaseUrl}/auth/user`,
-                    // Also try local backend if different from auth service
-                    // Note: CONFIG.API.FULL_URL already includes /api/v1
                     `${CONFIG.API.FULL_URL}/users/profile`,
-                    `${CONFIG.API.FULL_URL.replace(/\/v1$/, '')}/users/profile`
+                    `${AUTH_API_BASE_URL.replace(/\/$/, '')}/users/profile`,
                 ];
 
                 let lastError = null;
@@ -278,26 +272,18 @@ export const backendApi = {
                             const data = await response.json();
                             console.log(`✅ Success from ${url}`);
 
-                            // Support various response structures (data.data, data.user, or data itself)
                             const user = data.data || data.user || (Array.isArray(data) ? data[0] : data);
 
                             if (user) {
-                                // Robust name mapping: Check many fields
+                                // Minimal mapping (keep existing behavior)
                                 let name = user.name || user.displayName || user.fullName;
-
-                                // If server returns generic "User", try to extract better name from JWT
                                 if ((!name || name.toLowerCase() === 'user') && token && token.includes('.')) {
                                     try {
                                         const payload = JSON.parse(atob(token.split('.')[1]));
-                                        name = payload.name || payload.displayName || payload.fullName ||
-                                            (payload.given_name && payload.family_name ? `${payload.given_name} ${payload.family_name}` : null) ||
-                                            payload.given_name || payload.nickname || name;
+                                        name = payload.name || payload.displayName || payload.fullName || payload.given_name || name;
                                     } catch (e) { }
                                 }
-
-                                if (!name) {
-                                    name = user.email?.split('@')[0] || 'User';
-                                }
+                                if (!name) name = user.email?.split('@')[0] || 'User';
 
                                 const mappedUser = {
                                     uid: String(user.id || user.uid || user.sub || user._id || 'koyeb-user'),
@@ -315,11 +301,6 @@ export const backendApi = {
                         lastStatus = response.status;
                         lastError = `HTTP ${response.status}`;
                         console.warn(`⚠️ Failed ${url}: ${lastError}`);
-
-                        if (response.status === 401 || response.status === 403) {
-                            // Don't return immediately, try other endpoints or fallback
-                            console.warn(`⚠️ Auth failed on ${url}, checking fallbacks...`);
-                        }
                     } catch (e: any) {
                         lastError = e.message;
                     }

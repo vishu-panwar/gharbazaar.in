@@ -1,7 +1,8 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { Socket } from 'socket.io-client';
+import { getOrCreateSocket, disconnectSocket } from '@/lib/socket';
 import { useAuth } from './AuthContext';
 import { CONFIG } from '@/config';
 
@@ -45,7 +46,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         if (!user) {
             // Disconnect if no user
             if (socket) {
-                socket.disconnect();
+                disconnectSocket();
                 setSocket(null);
                 setConnected(false);
             }
@@ -63,13 +64,9 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
                     console.warn('No auth token found, connecting in demo mode');
                 }
 
-                const newSocket = io(CONFIG.API.SOCKET_URL, {
-                    auth: { token: token || undefined },
-                    reconnection: true,
-                    reconnectionDelay: 1000,
-                    reconnectionAttempts: 5,
-                });
+                const newSocket = getOrCreateSocket(token || undefined);
 
+                // Attach client-side listeners just once
                 newSocket.on('connect', () => {
                     console.log('✅ Socket connected');
                     setConnected(true);
@@ -85,9 +82,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
                 });
 
                 newSocket.on('admin:force_logout', async (data: { userId: string }) => {
-                    if (user && data.userId === user.uid) {
+                    if (user && (data.userId === user.uid || data.userId === user.userId)) {
                         console.warn('⚠️ Force logout triggered by admin');
-                        // Use window.location to force full reload and clear state after clearing storage
                         localStorage.removeItem('auth_token');
                         localStorage.removeItem('user');
                         localStorage.removeItem('cached_user');
@@ -104,9 +100,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         initSocket();
 
         return () => {
-            if (socket) {
-                socket.disconnect();
-            }
+            // Do not forcibly disconnect shared socket here — other providers may need it.
+            setSocket((s) => s);
         };
     }, [user]);
 

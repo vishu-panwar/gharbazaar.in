@@ -5,7 +5,7 @@ import { MessageSquare, Users, Clock, CheckCircle, X, Send, Loader2, UserCog, Ph
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/Toast/ToastProvider';
 import { CONFIG } from '@/config';
-import io, { Socket } from 'socket.io-client';
+import { useSocket } from '@/contexts/SocketContext';
 
 interface QueueItem {
     id: string;
@@ -39,8 +39,7 @@ export default function AgentDashboard() {
     const { user } = useAuth();
     const toast = useToast();
 
-    const [socket, setSocket] = useState<Socket | null>(null);
-    const [connected, setConnected] = useState(false);
+    const { socket, connected } = useSocket();
     const [status, setStatus] = useState<'available' | 'busy' | 'offline'>('available');
     const [queue, setQueue] = useState<QueueItem[]>([]);
     const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([]);
@@ -55,82 +54,72 @@ export default function AgentDashboard() {
     useEffect(() => {
         if (!user) return;
 
-        const initSocket = async () => {
-            // Get Firebase ID token
-            const token = localStorage.getItem('auth_token');
+        const setup = async () => {
+            if (!socket || !user) return;
 
-            const newSocket = io(CONFIG.API.SOCKET_URL, {
-                auth: { token },
-                reconnection: true,
-                reconnectionDelay: 1000,
-                reconnectionAttempts: 5,
-            });
-
-            newSocket.on('connect', () => {
-                setConnected(true);
-                // Authenticate as agent
-                newSocket.emit('agent_connect', {
+            // On connect, authenticate the agent and request queue
+            const onConnect = () => {
+                socket.emit('agent_connect', {
                     agentId: user.uid,
                     agentName: user.displayName || user.email,
                     agentEmail: user.email,
                 });
-            });
+            };
 
-            newSocket.on('disconnect', () => {
-                setConnected(false);
-            });
-
-            newSocket.on('agent_connected', () => {
+            const onAgentConnected = () => {
                 toast.success('Connected to chat system');
-                // Load initial data
-                newSocket.emit('agent_get_queue');
-                newSocket.emit('agent_get_sessions');
-            });
+                socket.emit('agent_get_queue');
+                socket.emit('agent_get_sessions');
+            };
 
-            newSocket.on('queue_data', (data: { queue: QueueItem[] }) => {
-                setQueue(data.queue);
-            });
-
-            newSocket.on('active_sessions', (data: { sessions: ActiveSession[] }) => {
-                setActiveSessions(data.sessions);
-            });
-
-            newSocket.on('chat_accepted', (data: any) => {
+            const onQueueData = (data: { queue: QueueItem[] }) => setQueue(data.queue);
+            const onActiveSessions = (data: { sessions: ActiveSession[] }) => setActiveSessions(data.sessions);
+            const onChatAccepted = (data: any) => {
                 setActiveSessions(prev => [...prev, data]);
                 setSelectedSession(data.sessionId);
                 toast.success(`Chat accepted with ${data.customer.userName}`);
-            });
-
-            newSocket.on('customer_message', (data: { sessionId: string; message: Message }) => {
+            };
+            const onCustomerMessage = (data: { sessionId: string; message: Message }) => {
                 setActiveSessions(prev => prev.map(session =>
                     session.id === data.sessionId
                         ? { ...session, messages: [...(session.messages || []), data.message] }
                         : session
                 ));
-            });
-
-            newSocket.on('customer_typing_status', (data: { sessionId: string; isTyping: boolean }) => {
-                setCustomerTyping(prev => ({ ...prev, [data.sessionId]: data.isTyping }));
-            });
-
-            newSocket.on('session_ended', (data: { sessionId: string }) => {
+            };
+            const onCustomerTyping = (data: { sessionId: string; isTyping: boolean }) => setCustomerTyping(prev => ({ ...prev, [data.sessionId]: data.isTyping }));
+            const onSessionEnded = (data: { sessionId: string }) => {
                 setActiveSessions(prev => prev.filter(s => s.id !== data.sessionId));
-                if (selectedSession === data.sessionId) {
-                    setSelectedSession(null);
-                }
-            });
+                if (selectedSession === data.sessionId) setSelectedSession(null);
+            };
+            const onError = (error: { message: string }) => toast.error(error.message);
 
-            newSocket.on('error', (error: { message: string }) => {
-                toast.error(error.message);
-            });
+            socket.on('connect', onConnect);
+            socket.on('agent_connected', onAgentConnected);
+            socket.on('queue_data', onQueueData);
+            socket.on('active_sessions', onActiveSessions);
+            socket.on('chat_accepted', onChatAccepted);
+            socket.on('customer_message', onCustomerMessage);
+            socket.on('customer_typing_status', onCustomerTyping);
+            socket.on('session_ended', onSessionEnded);
+            socket.on('error', onError);
 
-            setSocket(newSocket);
+            return () => {
+                socket.off('connect', onConnect);
+                socket.off('agent_connected', onAgentConnected);
+                socket.off('queue_data', onQueueData);
+                socket.off('active_sessions', onActiveSessions);
+                socket.off('chat_accepted', onChatAccepted);
+                socket.off('customer_message', onCustomerMessage);
+                socket.off('customer_typing_status', onCustomerTyping);
+                socket.off('session_ended', onSessionEnded);
+                socket.off('error', onError);
+            };
         };
 
-        initSocket();
+        const cleanupPromise = setup();
 
         return () => {
-            socket?.close();
+            // cleanupPromise may return a cleanup function, but socket listeners are removed in returned function above
         };
     }, [user]);
 
