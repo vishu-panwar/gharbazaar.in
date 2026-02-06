@@ -126,11 +126,11 @@ export default function PaymentConfirmPage() {
       const paymentId = 'pay_' + Date.now() + Math.random().toString(36).substring(2, 8)
       const signature = 'sig_' + btoa(orderData.order.id + '|' + paymentId).substring(0, 20)
 
-      // Verify payment using backendApi
+      // Verify payment using backendApi — pass keys matching backend type { orderId, paymentId, signature }
       const verifyData = await backendApi.payments.verify({
-        razorpay_order_id: orderData.order.id,
-        razorpay_payment_id: paymentId,
-        razorpay_signature: signature
+        orderId: orderData.order.id,
+        paymentId,
+        signature,
       })
 
       if (verifyData.success) {

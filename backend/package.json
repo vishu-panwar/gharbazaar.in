@@ -8,6 +8,7 @@
         "build": "tsc",
         "start": "node dist/server.js",
         "seed": "ts-node src/scripts/seed.ts",
+        "seed:production": "ts-node src/scripts/seed-production.ts",
         "test": "echo \"No tests yet\" && exit 0"
     },
     "keywords": [

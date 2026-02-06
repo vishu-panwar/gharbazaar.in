@@ -34,6 +34,7 @@ import {
   Filter
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { backendApi } from '@/lib/backendApi'
 
 interface ReferralForm {
   type: 'buyer' | 'seller' | ''
@@ -154,38 +155,53 @@ export default function ReferralsPage() {
 
     setIsSubmitting(true)
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2500))
+    const referralCode = 'REF' + Date.now()
+    const leadContact = formData.phone || formData.email
 
-    // Generate lead ID
-    const leadId = 'REF' + Date.now()
-    setGeneratedLeadId(leadId)
-    
-    setIsSubmitting(false)
-    setShowSuccess(true)
-    toast.success('Referral submitted successfully!')
-
-    // Reset form after 5 seconds
-    setTimeout(() => {
-      setShowSuccess(false)
-      setCurrentStep(1)
-      setFormData({
-        type: '',
-        name: '',
-        phone: '',
-        email: '',
-        city: '',
-        area: '',
-        propertyType: '',
-        budget: '',
-        timeline: '',
-        requirements: '',
-        source: '',
-        notes: '',
-        urgency: 'medium'
+    let success = false
+    try {
+      const response = await backendApi.partners.createReferral({
+        referralCode,
+        leadName: formData.name,
+        leadContact,
+        metadata: { ...formData }
       })
-      setValidationErrors([])
-    }, 5000)
+
+      const leadId = response?.data?._id || referralCode
+      setGeneratedLeadId(leadId)
+      setShowSuccess(true)
+      success = true
+      toast.success('Referral submitted successfully!')
+    } catch (error) {
+      console.error('Referral submit failed:', error)
+      toast.error('Referral submission failed')
+    } finally {
+      setIsSubmitting(false)
+    }
+    
+    if (success) {
+      // Reset form after 5 seconds
+      setTimeout(() => {
+        setShowSuccess(false)
+        setCurrentStep(1)
+        setFormData({
+          type: '',
+          name: '',
+          phone: '',
+          email: '',
+          city: '',
+          area: '',
+          propertyType: '',
+          budget: '',
+          timeline: '',
+          requirements: '',
+          source: '',
+          notes: '',
+          urgency: 'medium'
+        })
+        setValidationErrors([])
+      }, 5000)
+    }
   }
 
   const getCommissionRange = () => {

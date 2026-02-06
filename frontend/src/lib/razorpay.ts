@@ -1,4 +1,5 @@
 // Enhanced Razorpay integration for GharBazaar
+import { CONFIG } from '@/config';
 
 declare global {
   interface Window {
@@ -97,8 +98,37 @@ export const initiateRazorpayPayment = async (
       throw new Error('Payment gateway not configured. Please contact support.');
     }
 
-    // Generate unique order reference
+    // Generate unique order reference (fallback)
     const orderRef = generateTransactionRef();
+
+    // Create payment order on backend (preferred)
+    let backendOrderId: string | undefined;
+    try {
+      const token = localStorage.getItem('auth_token') || 'demo-token';
+      const response = await fetch(`${CONFIG.API.FULL_URL}/payments/create`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          amount: paymentData.amount,
+          currency: 'INR',
+          serviceId: paymentData.serviceId,
+          metadata: {
+            serviceName: paymentData.serviceName,
+            customerEmail: paymentData.userDetails.email
+          }
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        backendOrderId = data?.data?.orderId || data?.orderId;
+      }
+    } catch (e) {
+      console.warn('Backend payment order creation failed, falling back to local order reference.');
+    }
 
     // Prepare enhanced Razorpay options
     const options: RazorpayOptions = {
@@ -108,6 +138,7 @@ export const initiateRazorpayPayment = async (
       name: 'GharBazaar',
       description: paymentData.serviceName,
       image: '/images/gharbazaar-logo.jpg',
+      order_id: backendOrderId,
       prefill: {
         name: paymentData.userDetails.name,
         email: paymentData.userDetails.email,
@@ -131,6 +162,7 @@ export const initiateRazorpayPayment = async (
         service_id: paymentData.serviceId,
         service_name: paymentData.serviceName,
         order_ref: orderRef,
+        backend_order_id: backendOrderId || '',
         customer_name: paymentData.userDetails.name,
         customer_email: paymentData.userDetails.email,
       },
@@ -204,16 +236,25 @@ export const verifyPayment = async (
   signature?: string
 ): Promise<{ success: boolean; message: string }> => {
   try {
-    // In production, this should call your backend API
-    // to verify the payment with Razorpay
+    const token = localStorage.getItem('auth_token') || 'demo-token';
+    const response = await fetch(`${CONFIG.API.FULL_URL}/payments/verify`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        orderId,
+        paymentId,
+        signature
+      })
+    });
 
-    // Mock verification - always return success for demo
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    if (!response.ok) {
+      return { success: false, message: 'Payment verification failed' };
+    }
 
-    return {
-      success: true,
-      message: 'Payment verified successfully'
-    };
+    return { success: true, message: 'Payment verified successfully' };
   } catch (error) {
     return {
       success: false,

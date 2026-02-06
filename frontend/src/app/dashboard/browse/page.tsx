@@ -132,44 +132,55 @@ export default function BrowsePropertiesPage() {
 
   // Fetch properties from backend
   useEffect(() => {
-    async function fetchProperties() {
-      try {
-        setLoading(true)
-        setError(null)
-        const { backendApi } = await import('@/lib/backendApi')
+    let cancelled = false
+    const handler = setTimeout(() => {
+      async function fetchProperties() {
+        try {
+          setLoading(true)
+          setError(null)
+          const { backendApi } = await import('@/lib/backendApi')
 
-        // Build query from filters
-        const query: any = {
-          limit: 20,
-          status: 'active'
-        }
+          // Build query from filters
+          const query: any = {
+            limit: 20,
+            status: 'active'
+          }
 
-        if (filters.listingType !== 'all') query.listingType = filters.listingType
-        if (filters.propertyType !== 'all') query.propertyType = filters.propertyType
-        if (filters.location) query.location = filters.location
+          if (filters.listingType !== 'all') query.listingType = filters.listingType
+          if (filters.propertyType !== 'all') query.propertyType = filters.propertyType
+          if (filters.location) query.location = filters.location
 
-        const response = await backendApi.properties.search(query)
-        const fetchedProperties = response?.properties || response?.data || []
-        
-        // If no properties from backend, use mock data for testing
-        if (fetchedProperties.length === 0) {
-          console.warn('No properties from backend, using mock data')
+          const response = await backendApi.properties.search(query)
+          const fetchedProperties = response?.properties || response?.data || []
+
+          if (cancelled) return
+
+          // If no properties from backend, use mock data for testing
+          if (fetchedProperties.length === 0) {
+            console.warn('No properties from backend, using mock data')
+            setProperties(getMockProperties())
+          } else {
+            setProperties(fetchedProperties)
+          }
+        } catch (err: any) {
+          if (cancelled) return
+          console.error('Fetch properties error:', err)
+          setError(err.message || 'Failed to load properties')
+          // Use mock data as fallback on error
           setProperties(getMockProperties())
-        } else {
-          setProperties(fetchedProperties)
+        } finally {
+          if (!cancelled) setLoading(false)
         }
-      } catch (err: any) {
-        console.error('Fetch properties error:', err)
-        setError(err.message || 'Failed to load properties')
-        // Use mock data as fallback on error
-        setProperties(getMockProperties())
-      } finally {
-        setLoading(false)
       }
-    }
 
-    fetchProperties()
-  }, [filters.listingType, filters.propertyType, filters.sortBy]) // Re-fetch on certain filter changes
+      fetchProperties()
+    }, 350) // debounce 350ms
+
+    return () => {
+      cancelled = true
+      clearTimeout(handler)
+    }
+  }, [filters.listingType, filters.propertyType, filters.sortBy, filters.location]) // Re-fetch on filter changes
 
 
   const filteredProperties = properties
@@ -228,10 +239,20 @@ export default function BrowsePropertiesPage() {
             <input
               type="text"
               placeholder="Search by location, property name..."
-              className="w-full pl-12 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-12 pr-12 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               value={filters.location}
               onChange={(e) => setFilters({ ...filters, location: e.target.value })}
             />
+
+            {filters.location && (
+              <button
+                aria-label="Clear search"
+                onClick={() => setFilters({ ...filters, location: '' })}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              >
+                <X size={18} />
+              </button>
+            )}
           </div>
 
           {/* Quick Filters */}

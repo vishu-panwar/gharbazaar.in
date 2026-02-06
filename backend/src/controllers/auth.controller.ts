@@ -10,7 +10,12 @@ import { getNextEmployeeId } from '../utils/idGenerator';
 import config from '../config';
 import { sendPasswordResetEmail } from '../utils/email.service';
 
-const client = new OAuth2Client(config.google.clientId);
+// Initialize OAuth2 client with client ID and client secret so server-side
+// token exchange (authorization code -> tokens) works reliably.
+const client = new OAuth2Client({
+    clientId: config.google.clientId,
+    clientSecret: config.google.clientSecret,
+});
 
 // Helper to generate random hex string of 7 chars
 const generateRandomHex = (): string => {
@@ -233,6 +238,7 @@ export const googleAuth = async (req: Request, res: Response) => {
             console.log(`🔐 Exchanging Google code for tokens...`);
             // Note: redirect_uri must match EXACTLY what was sent to Google from frontend
             const redirectUri = `${config.frontendUrl}/auth/google/callback`;
+            console.log(`🔁 Using redirectUri for token exchange: ${redirectUri}`);
             const { tokens } = await client.getToken({
                 code: String(code),
                 redirect_uri: redirectUri
@@ -267,37 +273,57 @@ export const googleAuth = async (req: Request, res: Response) => {
         const isAdminEmail = email.toLowerCase() === 'adityaprajapati1234567@gmail.com';
         const finalRole = isAdminEmail ? 'admin' : requestedRole;
 
-        // Find or create user
-        let user = await User.findOne({ email });
-
-        if (!user) {
+            // Find or create user with an atomic upsert to avoid duplicate-key race conditions
             const uid = generateCustomId(finalRole);
             const buyerClientId = `gbclient${generateRandomHex()}`;
             const sellerClientId = `gbclient${generateRandomHex()}`;
 
-            user = new User({
-                uid,
-                email,
-                name: name || email.split('@')[0],
-                googleId,
-                role: finalRole,
-                buyerClientId,
-                sellerClientId,
-                onboardingCompleted: finalRole !== 'employee' // Employees need onboarding
-            });
-            await user.save();
-        } else {
-            let modified = false;
+            const upsertDoc = {
+                $setOnInsert: {
+                    uid,
+                    email,
+                    name: name || email.split('@')[0],
+                    googleId,
+                    role: finalRole,
+                    buyerClientId,
+                    sellerClientId,
+                    onboardingCompleted: finalRole !== 'employee'
+                }
+            } as any;
+
+            let user = await User.findOneAndUpdate(
+                { email },
+                upsertDoc,
+                { upsert: true, new: true, setDefaultsOnInsert: true }
+            );
+
+            // Fail-safe: if user still not found, create explicitly (shouldn't happen)
+            if (!user) {
+                const created = new User({
+                    uid,
+                    email,
+                    name: name || email.split('@')[0],
+                    googleId,
+                    role: finalRole,
+                    buyerClientId,
+                    sellerClientId,
+                    onboardingCompleted: finalRole !== 'employee'
+                });
+                await created.save();
+                user = created;
+            }
+
+            // Ensure googleId and admin role are set for existing records
+            let needSave = false;
             if (!user.googleId) {
                 user.googleId = googleId;
-                modified = true;
+                needSave = true;
             }
             if (isAdminEmail && user.role !== 'admin') {
                 user.role = 'admin';
-                modified = true;
+                needSave = true;
             }
-            if (modified) await user.save();
-        }
+            if (needSave) await user.save();
 
         const token = generateToken({
             userId: user.uid,
@@ -324,7 +350,15 @@ export const googleAuth = async (req: Request, res: Response) => {
         });
 
     } catch (error: any) {
-        console.error('❌ Google OAuth error:', error);
+        // Log full Google response body if available for easier debugging
+        const googleErrorBody = error?.response?.data || error?.errors || null;
+        console.error('❌ Google OAuth error:', googleErrorBody || error?.message || error);
+
+        if (googleErrorBody) {
+            // Return Google's error payload to the client with 400 so it's easier to debug during dev
+            return res.status(400).json({ success: false, error: googleErrorBody });
+        }
+
         res.status(500).json({
             success: false,
             error: error.message || 'Google authentication failed'

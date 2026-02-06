@@ -34,9 +34,12 @@ async function authApiCall(endpoint: string, options: RequestInit = {}) {
         // Dynamic config lookup [auth-v6]
         const conf = CONFIG.AUTH_API;
         const baseUrl = conf.BASE_URL || conf.FULL_URL;
+        const normalizedBase = baseUrl.includes('/api/v1')
+            ? baseUrl.replace(/\/$/, '')
+            : `${baseUrl.replace(/\/$/, '')}/api/v1`;
 
-        // Build full URL - endpoint should include /api/v1/auth prefix
-        const url = `${baseUrl}${endpoint}`;
+        // Build full URL - endpoint should include /auth or /verify paths
+        const url = `${normalizedBase}${endpoint}`;
 
         console.log(`📡 [auth-v6] Calling: ${url}`);
 
@@ -242,17 +245,11 @@ export const backendApi = {
                 const conf = CONFIG.AUTH_API;
                 const safeBaseUrl = (conf.FULL_URL || conf.BASE_URL).replace(/\/v1(\/|$)/, '/').replace(/\/$/, '');
 
+                // Try canonical backend profile endpoints first to avoid noisy 404 probing
+                // Try canonical backend profile endpoints first to avoid noisy 404 probing
                 const endpoints = [
-                    `${safeBaseUrl}/users`, // Primary endpoint as per user instructions
-                    `${safeBaseUrl}/users/profile`,
-                    `${safeBaseUrl}/v1/users/profile`,
-                    `${safeBaseUrl}/auth/profile`,
-                    `${safeBaseUrl}/profile`,
-                    `${safeBaseUrl}/auth/user`,
-                    // Also try local backend if different from auth service
-                    // Note: CONFIG.API.FULL_URL already includes /api/v1
                     `${CONFIG.API.FULL_URL}/users/profile`,
-                    `${CONFIG.API.FULL_URL.replace(/\/v1$/, '')}/users/profile`
+                    `${AUTH_API_BASE_URL.replace(/\/$/, '')}/users/profile`,
                 ];
 
                 let lastError = null;
@@ -275,26 +272,18 @@ export const backendApi = {
                             const data = await response.json();
                             console.log(`✅ Success from ${url}`);
 
-                            // Support various response structures (data.data, data.user, or data itself)
                             const user = data.data || data.user || (Array.isArray(data) ? data[0] : data);
 
                             if (user) {
-                                // Robust name mapping: Check many fields
+                                // Minimal mapping (keep existing behavior)
                                 let name = user.name || user.displayName || user.fullName;
-
-                                // If server returns generic "User", try to extract better name from JWT
                                 if ((!name || name.toLowerCase() === 'user') && token && token.includes('.')) {
                                     try {
                                         const payload = JSON.parse(atob(token.split('.')[1]));
-                                        name = payload.name || payload.displayName || payload.fullName ||
-                                            (payload.given_name && payload.family_name ? `${payload.given_name} ${payload.family_name}` : null) ||
-                                            payload.given_name || payload.nickname || name;
+                                        name = payload.name || payload.displayName || payload.fullName || payload.given_name || name;
                                     } catch (e) { }
                                 }
-
-                                if (!name) {
-                                    name = user.email?.split('@')[0] || 'User';
-                                }
+                                if (!name) name = user.email?.split('@')[0] || 'User';
 
                                 const mappedUser = {
                                     uid: String(user.id || user.uid || user.sub || user._id || 'koyeb-user'),
@@ -312,11 +301,6 @@ export const backendApi = {
                         lastStatus = response.status;
                         lastError = `HTTP ${response.status}`;
                         console.warn(`⚠️ Failed ${url}: ${lastError}`);
-
-                        if (response.status === 401 || response.status === 403) {
-                            // Don't return immediately, try other endpoints or fallback
-                            console.warn(`⚠️ Auth failed on ${url}, checking fallbacks...`);
-                        }
                     } catch (e: any) {
                         lastError = e.message;
                     }
@@ -1001,40 +985,76 @@ export const backendApi = {
         },
     },
 
+    // Partner ecosystem endpoints
+    partners: {
+        createCase: async (data: {
+            type: string;
+            title: string;
+            description?: string;
+            propertyId?: string;
+            buyerId?: string;
+            sellerId?: string;
+            amount?: number;
+            dueDate?: string;
+            metadata?: any;
+        }) => {
+            return backendApiCall('/partners/cases', {
+                method: 'POST',
+                body: JSON.stringify(data),
+            });
+        },
+        getCases: async (params?: { status?: string; type?: string }) => {
+            const query = new URLSearchParams(params as any).toString();
+            return backendApiCall(`/partners/cases${query ? `?${query}` : ''}`);
+        },
+        updateCase: async (id: string, data: any) => {
+            return backendApiCall(`/partners/cases/${id}`, {
+                method: 'PATCH',
+                body: JSON.stringify(data),
+            });
+        },
+        createReferral: async (data: { referralCode: string; leadName: string; leadContact: string; metadata?: any }) => {
+            return backendApiCall('/partners/referrals', {
+                method: 'POST',
+                body: JSON.stringify(data),
+            });
+        },
+        getReferrals: async (status?: string) => {
+            return backendApiCall(`/partners/referrals${status ? `?status=${encodeURIComponent(status)}` : ''}`);
+        },
+        getPayouts: async (status?: string) => {
+            return backendApiCall(`/partners/payouts${status ? `?status=${encodeURIComponent(status)}` : ''}`);
+        },
+        createPayout: async (data: any) => {
+            return backendApiCall('/partners/payouts', {
+                method: 'POST',
+                body: JSON.stringify(data),
+            });
+        },
+    },
+
     // Payments endpoints
     payments: {
-        createOrder: async (amount: number, planType: string, metadata?: any) => {
-            return backendApiCall('/payment/create-order', {
+        createOrder: async (amount: number, paymentMethod: string, metadata?: any) => {
+            return backendApiCall('/payments/create', {
                 method: 'POST',
-                body: JSON.stringify({ amount, planType, metadata }),
+                body: JSON.stringify({ amount, currency: 'INR', serviceId: paymentMethod, metadata }),
             });
         },
 
         verify: async (paymentData: {
-            razorpay_order_id: string;
-            razorpay_payment_id: string;
-            razorpay_signature: string;
+            orderId: string;
+            paymentId: string;
+            signature?: string;
         }) => {
-            return backendApiCall('/payment/verify', {
+            return backendApiCall('/payments/verify', {
                 method: 'POST',
                 body: JSON.stringify(paymentData),
             });
         },
 
-        getTransactionHistory: async () => {
-            return backendApiCall('/payment/transactions');
-        },
-
-        getTransaction: async (transactionId: string) => {
-            return backendApiCall(`/payment/transactions/${transactionId}`);
-        },
-
-        getPaymentStats: async () => {
-            return backendApiCall('/payment/stats');
-        },
-
-        generateInvoice: async (transactionId: string) => {
-            return backendApiCall(`/payment/invoice/${transactionId}`);
+        list: async () => {
+            return backendApiCall('/payments');
         },
     },
 
@@ -1063,6 +1083,117 @@ export const backendApi = {
 
         getPlans: async () => {
             return backendApiCall('/subscriptions/plans');
+        },
+    },
+
+    // Visits endpoints
+    visits: {
+        create: async (data: {
+            propertyId: string;
+            scheduledAt?: string;
+            notes?: string;
+            address?: string;
+            location?: { lat?: number; lng?: number };
+            buyerId?: string;
+            partnerId?: string;
+        }) => {
+            return backendApiCall('/visits', {
+                method: 'POST',
+                body: JSON.stringify(data),
+            });
+        },
+        getBuyer: async (status?: string) => {
+            return backendApiCall(`/visits/buyer${status ? `?status=${encodeURIComponent(status)}` : ''}`);
+        },
+        getSeller: async (status?: string) => {
+            return backendApiCall(`/visits/seller${status ? `?status=${encodeURIComponent(status)}` : ''}`);
+        },
+        getPartner: async (status?: string) => {
+            return backendApiCall(`/visits/partner${status ? `?status=${encodeURIComponent(status)}` : ''}`);
+        },
+        update: async (id: string, data: {
+            status?: string;
+            scheduledAt?: string;
+            notes?: string;
+            partnerId?: string;
+        }) => {
+            return backendApiCall(`/visits/${id}`, {
+                method: 'PATCH',
+                body: JSON.stringify(data),
+            });
+        },
+    },
+
+    // Verification endpoints
+    verification: {
+        createTask: async (data: {
+            propertyId: string;
+            assignedTo?: string;
+            taskType?: string;
+            checklist?: string[];
+            dueDate?: string;
+            notes?: string;
+        }) => {
+            return backendApiCall('/verification/tasks', {
+                method: 'POST',
+                body: JSON.stringify(data),
+            });
+        },
+        getTasks: async (params?: { assignedTo?: string; propertyId?: string; status?: string }) => {
+            const query = new URLSearchParams(params as any).toString();
+            return backendApiCall(`/verification/tasks${query ? `?${query}` : ''}`);
+        },
+        updateTask: async (id: string, data: any) => {
+            return backendApiCall(`/verification/tasks/${id}`, {
+                method: 'PATCH',
+                body: JSON.stringify(data),
+            });
+        },
+        createReport: async (data: {
+            taskId: string;
+            propertyId: string;
+            reportType?: string;
+            findings?: string;
+            recommendation?: string;
+            uploadedFiles?: string[];
+            notes?: string;
+        }) => {
+            return backendApiCall('/verification/reports', {
+                method: 'POST',
+                body: JSON.stringify(data),
+            });
+        },
+        getReports: async (params?: { taskId?: string; propertyId?: string }) => {
+            const query = new URLSearchParams(params as any).toString();
+            return backendApiCall(`/verification/reports${query ? `?${query}` : ''}`);
+        },
+    },
+
+    // Contracts endpoints
+    contracts: {
+        create: async (data: {
+            propertyId: string;
+            bidId?: string;
+            buyerId?: string;
+            sellerId?: string;
+            agreedPrice: number;
+            terms?: string;
+        }) => {
+            return backendApiCall('/contracts', {
+                method: 'POST',
+                body: JSON.stringify(data),
+            });
+        },
+        getBuyer: async (status?: string) => {
+            return backendApiCall(`/contracts/buyer${status ? `?status=${encodeURIComponent(status)}` : ''}`);
+        },
+        getSeller: async (status?: string) => {
+            return backendApiCall(`/contracts/seller${status ? `?status=${encodeURIComponent(status)}` : ''}`);
+        },
+        sign: async (id: string) => {
+            return backendApiCall(`/contracts/${id}/sign`, {
+                method: 'PATCH',
+            });
         },
     },
 

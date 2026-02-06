@@ -3,6 +3,7 @@ import Bid from '../models/bid.model';
 import Property from '../models/property.model';
 import Notification from '../models/notification.model';
 import User from '../models/user.model';
+import Contract from '../models/contract.model';
 import { sendEmail } from '../utils/email.service';
 
 /**
@@ -199,6 +200,19 @@ export const updateBidStatus = async (req: Request, res: Response) => {
             bid.counterMessage = counterMessage;
         }
         await bid.save();
+
+        if (status === 'accepted') {
+            const existing = await Contract.findOne({ bidId: bid._id });
+            if (!existing) {
+                await Contract.create({
+                    propertyId: bid.propertyId,
+                    bidId: bid._id,
+                    buyerId: bid.buyerId,
+                    sellerId: bid.sellerId,
+                    agreedPrice: bid.counterAmount || bid.bidAmount
+                });
+            }
+        }
 
         // Create notification for buyer
         const buyerNotification = {

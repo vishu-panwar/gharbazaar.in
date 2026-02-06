@@ -58,9 +58,19 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
 
             const response = await backendApi.notifications.getAll()
 
-            if (response.success) {
-                setNotifications(response.data.notifications || [])
-                setUnreadCount(response.data.unreadCount || 0)
+            if (response && response.success) {
+                const data = response.data ?? {}
+
+                // defensive checks in case API returns unexpected shape
+                const notificationsFromApi = Array.isArray(data.notifications) ? data.notifications : []
+                const unreadFromApi = typeof data.unreadCount === 'number' ? data.unreadCount : 0
+
+                setNotifications(notificationsFromApi)
+                setUnreadCount(unreadFromApi)
+            } else {
+                // Log unexpected response shape for easier debugging
+                if (!response) console.warn('fetchNotifications: no response from backendApi.notifications.getAll()')
+                else if (!response.success) console.warn('fetchNotifications: response.success is false', response)
             }
         } catch (error) {
             console.error('Error fetching notifications:', error)

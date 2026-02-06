@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   FileText,
   Download,
@@ -30,9 +30,10 @@ import {
   Phone,
   Mail
 } from 'lucide-react'
+import { backendApi } from '@/lib/backendApi'
 
 interface BaseContract {
-  id: number
+  id: string
   contractNumber: string
   contractType: string
   property: string
@@ -75,12 +76,32 @@ interface RenterContract extends BaseContract {
 export default function ContractsPage() {
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'pending' | 'completed' | 'cancelled'>('all')
   const [userRole, setUserRole] = useState<'seller' | 'renter'>('seller')
+  const [sellerContracts, setSellerContracts] = useState<SellerContract[]>([])
+  const [renterContracts, setRenterContracts] = useState<RenterContract[]>([])
+  const [loading, setLoading] = useState(false)
 
-  // No sale agreements for now
-  const sellerContracts: SellerContract[] = []
+  useEffect(() => {
+    const fetchContracts = async () => {
+      setLoading(true)
+      try {
+        if (userRole === 'seller') {
+          const response = await backendApi.contracts.getSeller()
+          const contracts = (response?.data || []).map((contract: any) => mapSellerContract(contract))
+          setSellerContracts(contracts)
+        } else {
+          const response = await backendApi.contracts.getBuyer()
+          const contracts = (response?.data || []).map((contract: any) => mapRenterContract(contract))
+          setRenterContracts(contracts)
+        }
+      } catch (error) {
+        console.error('Failed to load contracts:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
 
-  // No lease agreements for now
-  const renterContracts: RenterContract[] = []
+    fetchContracts()
+  }, [userRole])
 
   const currentContracts = userRole === 'seller' ? sellerContracts : renterContracts
 
@@ -94,6 +115,84 @@ export default function ContractsPage() {
     pending: currentContracts.filter(c => c.status === 'pending').length,
     completed: currentContracts.filter(c => c.status === 'completed').length,
     cancelled: currentContracts.filter(c => c.status === 'cancelled').length
+  }
+
+  const mapStatus = (status: string) => {
+    if (status === 'executed') return 'completed'
+    if (status === 'cancelled') return 'cancelled'
+    if (status === 'signed_buyer' || status === 'signed_seller') return 'active'
+    return 'pending'
+  }
+
+  const getProgress = (status: string) => {
+    switch (status) {
+      case 'signed_buyer':
+        return 50
+      case 'signed_seller':
+        return 75
+      case 'executed':
+        return 100
+      case 'cancelled':
+        return 0
+      default:
+        return 10
+    }
+  }
+
+  const mapSellerContract = (contract: any): SellerContract => {
+    const property = contract.propertyId || {}
+    const status = mapStatus(contract.status)
+    return {
+      id: contract._id,
+      contractNumber: contract._id?.slice(-8) || contract._id,
+      contractType: 'Sale Contract',
+      property: property.title || 'Property',
+      propertyLocation: property.location || '-',
+      propertyType: property.propertyType || '-',
+      area: property.area || '-',
+      status,
+      progress: getProgress(contract.status),
+      documents: [],
+      buyer: contract.buyerId || '-',
+      buyerEmail: '-',
+      buyerPhone: '-',
+      amount: `₹${(contract.agreedPrice || 0).toLocaleString()}`,
+      amountValue: contract.agreedPrice || 0,
+      commission: '1%',
+      commissionValue: Math.round((contract.agreedPrice || 0) * 0.01),
+      startDate: contract.createdAt || new Date().toISOString(),
+      completionDate: contract.signedBuyerAt || contract.createdAt || new Date().toISOString(),
+      registryDate: contract.signedSellerAt || contract.createdAt || new Date().toISOString(),
+      paymentSchedule: []
+    }
+  }
+
+  const mapRenterContract = (contract: any): RenterContract => {
+    const property = contract.propertyId || {}
+    const status = mapStatus(contract.status)
+    return {
+      id: contract._id,
+      contractNumber: contract._id?.slice(-8) || contract._id,
+      contractType: 'Lease Agreement',
+      property: property.title || 'Property',
+      propertyLocation: property.location || '-',
+      propertyType: property.propertyType || '-',
+      area: property.area || '-',
+      status,
+      progress: getProgress(contract.status),
+      documents: [],
+      tenant: contract.buyerId || '-',
+      tenantEmail: '-',
+      tenantPhone: '-',
+      monthlyRent: contract.agreedPrice || 0,
+      securityDeposit: Math.round((contract.agreedPrice || 0) * 2),
+      leaseStart: contract.createdAt || new Date().toISOString(),
+      leaseEnd: contract.signedSellerAt || contract.createdAt || new Date().toISOString(),
+      maintenanceCharges: '₹0',
+      utilities: '-',
+      amenities: [],
+      renewalDate: '-'
+    }
   }
 
   const getStatusBadge = (status: string) => {

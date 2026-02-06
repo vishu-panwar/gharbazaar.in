@@ -28,6 +28,7 @@ import {
   Calculator
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { backendApi } from '@/lib/backendApi'
 
 interface Earning {
   id: string
@@ -73,7 +74,6 @@ export default function EarningsPage() {
   const [dateRange, setDateRange] = useState({ from: '', to: '' })
   const [isLoading, setIsLoading] = useState(true)
 
-  // Mock data
   useEffect(() => {
     const mockEarnings: Earning[] = [
       {
@@ -163,6 +163,45 @@ export default function EarningsPage() {
         notes: 'Payment on hold due to document verification'
       }
     ]
+
+    const loadEarnings = async () => {
+      try {
+        const response = await backendApi.partners.getPayouts()
+        if (response?.success && Array.isArray(response?.data) && response.data.length > 0) {
+          const mapped = response.data.map((p: any) => ({
+            id: p._id,
+            visitId: p.reference || p._id?.slice(-6) || 'PAYOUT',
+            propertyTitle: 'Partner Payout',
+            propertyType: 'Service',
+            address: p.notes || 'GharBazaar',
+            clientName: 'GharBazaar',
+            taskType: 'documentation',
+            baseAmount: p.amount || 0,
+            bonusAmount: 0,
+            totalAmount: p.amount || 0,
+            status: p.status === 'paid' ? 'paid' : p.status === 'processing' ? 'processing' : 'pending',
+            completedDate: p.createdAt || new Date().toISOString(),
+            paidDate: p.status === 'paid' ? p.updatedAt : undefined,
+            paymentMethod: p.method || 'bank-transfer',
+            transactionId: p.reference,
+            rating: undefined,
+            notes: p.notes
+          }))
+          setEarnings(mapped)
+          setFilteredEarnings(mapped)
+          setIsLoading(false)
+          return
+        }
+      } catch (error) {
+        console.error('Failed to load payouts:', error)
+      }
+
+      setEarnings(mockEarnings)
+      setFilteredEarnings(mockEarnings)
+      setIsLoading(false)
+    }
+
+    loadEarnings()
 
     const mockSummary: EarningsSummary = {
       totalEarnings: 2950,

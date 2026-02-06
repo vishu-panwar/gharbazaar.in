@@ -27,7 +27,6 @@ const PresenceSchema = new Schema<IPresence>(
         lastSeen: {
             type: Date,
             default: Date.now,
-            index: true,
         },
         socketId: String,
         deviceInfo: String,

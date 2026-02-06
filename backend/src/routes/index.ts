@@ -1,4 +1,5 @@
 import express from 'express';
+import logger from '../utils/logger';
 import authRoutes from './auth.routes';
 import adminRoutes from './admin.routes';
 import attendanceRoutes from './attendance.routes';
@@ -13,6 +14,12 @@ import planRoutes from './plan.routes';
 import bidRoutes from './bid.routes';
 import verifyRoutes from './verify.routes';
 import favoriteRoutes from './favorite.routes';
+import visitRoutes from './visit.routes';
+import verificationRoutes from './verification.routes';
+import contractRoutes from './contract.routes';
+import paymentRoutes from './payment.routes';
+import partnerRoutes from './partner.routes';
+import analyticsRoutes from './analytics.routes';
 
 const router = express.Router();
 
@@ -30,9 +37,28 @@ router.use('/verify', verifyRoutes);
 router.use('/', planRoutes);
 router.use('/bids', bidRoutes);
 router.use('/favorites', favoriteRoutes);
+router.use('/visits', visitRoutes);
+router.use('/verification', verificationRoutes);
+router.use('/contracts', contractRoutes);
+router.use('/payments', paymentRoutes);
+router.use('/partners', partnerRoutes);
+router.use('/analytics', analyticsRoutes);
 
 router.get('/health', (req, res) => {
     res.json({ success: true, message: 'API is healthy', timestamp: new Date().toISOString() });
 });
+
+// Endpoint for receiving frontend error logs
+router.post('/logs/error', (req, res) => {
+    try {
+        const payload = req.body || {}
+        // Log at error level with payload
+        logger.error('Frontend error log received', { payload })
+        return res.status(200).json({ success: true })
+    } catch (err) {
+        logger.error('Failed to process frontend error log', { error: err })
+        return res.status(500).json({ success: false, error: 'Failed to process log' })
+    }
+})
 
 export default router;

@@ -7,6 +7,7 @@ import config, { validateConfig } from './config';
 import { connectDatabase } from './utils/database';
 import { initializeSocket } from './socket';
 import apiRoutes from './routes';
+import { auditMiddleware } from './middleware/audit.middleware';
 
 const startServer = async () => {
     try {
@@ -29,6 +30,10 @@ const startServer = async () => {
             credentials: true,
         }));
 
+        // Razorpay webhook needs raw body for signature verification
+        app.use('/api/v1/payments/webhook', express.raw({ type: 'application/json' }));
+        app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
+
         app.use(express.json());
         app.use(express.urlencoded({ extended: true }));
 
@@ -46,6 +51,24 @@ const startServer = async () => {
             legacyHeaders: false,
         });
         app.use('/api/', limiter);
+
+        app.use('/api/v1', auditMiddleware);
+
+        // Compatibility middleware:
+        // Some frontend builds (dev) call `/auth/...` (missing the `/api` prefix).
+        // To avoid 404s while clients are being restarted, rewrite those requests
+        // to `/api/v1/auth/...` so they continue to work.
+        app.use((req, res, next) => {
+            try {
+                if (req.path && req.path.startsWith('/auth')) {
+                    // Preserve the original querystring
+                    req.url = `/api/v1${req.url}`;
+                }
+            } catch (err) {
+                // Ignore and continue
+            }
+            next();
+        });
 
         app.use('/api/v1', apiRoutes);
         app.use('/api', apiRoutes);

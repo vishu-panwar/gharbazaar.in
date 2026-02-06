@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { backendApi } from '@/lib/backendApi'
 import { AuthUtils } from '@/lib/firebase'
@@ -14,6 +14,8 @@ import { Loader2 } from 'lucide-react'
 export default function GoogleCallbackPage() {
     const router = useRouter()
     const searchParams = useSearchParams()
+
+    const handledRef = useRef(false)
 
     useEffect(() => {
         const handleGoogleCallback = async () => {
@@ -31,6 +33,13 @@ export default function GoogleCallbackPage() {
                 console.log('No code found in params yet...')
                 return
             }
+
+            // Prevent double execution (React StrictMode / repeated effects)
+            if (handledRef.current) {
+                console.log('Google callback already handled — ignoring duplicate invocation')
+                return
+            }
+            handledRef.current = true
 
             try {
                 console.log('📡 [Step 1] Exchanging OAuth code for token...')

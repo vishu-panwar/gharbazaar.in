@@ -109,6 +109,5 @@ const PlanSchema: Schema = new Schema({
 
 // Index for faster queries
 PlanSchema.index({ type: 1, isActive: 1 });
-PlanSchema.index({ slug: 1 });
 
 export default mongoose.model<IPlan>('Plan', PlanSchema);
