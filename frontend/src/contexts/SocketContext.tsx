@@ -82,7 +82,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
                 });
 
                 newSocket.on('admin:force_logout', async (data: { userId: string }) => {
-                    if (user && (data.userId === user.uid || data.userId === user.userId)) {
+                    if (user && data.userId === user.uid) {
                         console.warn('⚠️ Force logout triggered by admin');
                         localStorage.removeItem('auth_token');
                         localStorage.removeItem('user');
