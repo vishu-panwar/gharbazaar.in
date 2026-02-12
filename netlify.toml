@@ -1,5 +1,5 @@
 [build]
-  command = "npm --workspace @gharbazaar/frontend run build"
+  command = "cd frontend && npm install && npm run build"
   publish = "frontend/.next"
   
 [build.environment]
@@ -13,8 +13,4 @@
 [functions]
   node_bundler = "esbuild"
 
-# Redirects for SPA routing
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+# Removed conflicting SPA redirects to allow Next.js routing to function correctly
