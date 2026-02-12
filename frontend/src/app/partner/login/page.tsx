@@ -25,9 +25,11 @@ import {
   ArrowLeft
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function PartnerLoginPage() {
   const router = useRouter()
+  const { login, loginWithGoogle } = useAuth()
   const [formData, setFormData] = useState({
     phone: '',
     password: ''
@@ -47,59 +49,24 @@ export default function PartnerLoginPage() {
     e.preventDefault()
     setIsLoading(true)
 
-    // Simulate API call
-    setTimeout(() => {
-      // Mock user data
-      const userData = {
-        id: 'P001',
-        name: 'Rajesh Kumar',
-        phone: formData.phone,
-        email: 'rajesh.kumar@email.com',
-        role: 'partner',
-        partnerType: 'influencer',
-        status: 'active',
-        joinedDate: '2024-01-15',
-        referrals: 45,
-        earnings: 185000,
-        city: 'Mumbai',
-        state: 'Maharashtra'
-      }
-
-      localStorage.setItem('user', JSON.stringify(userData))
-      localStorage.setItem('token', 'mock-jwt-token')
-
-      toast.success('Login successful!')
-      router.push('/partner')
+    try {
+      // For partners we currently use email login as the primary real auth
+      // backendApi.auth handles email/password. We treat the 'phone' input field as 'email/phone'.
+      await login(formData.phone, formData.password, 'promoter_partner')
+    } catch (error: any) {
+      toast.error(error.message || 'Login failed')
       setIsLoading(false)
-    }, 1500)
+    }
   }
 
-  const handleGoogleLogin = () => {
+  const handleGoogleLogin = async () => {
     setIsLoading(true)
-    // Simulate Google OAuth
-    setTimeout(() => {
-      const userData = {
-        id: 'P002',
-        name: 'Priya Sharma',
-        phone: '+91 98765 43210',
-        email: 'priya.sharma@gmail.com',
-        role: 'partner',
-        partnerType: 'community',
-        status: 'active',
-        joinedDate: '2024-02-10',
-        referrals: 32,
-        earnings: 125000,
-        city: 'Delhi',
-        state: 'Delhi'
-      }
-
-      localStorage.setItem('user', JSON.stringify(userData))
-      localStorage.setItem('token', 'mock-google-jwt-token')
-
-      toast.success('Google login successful!')
-      router.push('/partner')
+    try {
+      await loginWithGoogle('promoter_partner')
+    } catch (error) {
+      toast.error('Google login failed. Please try again.')
       setIsLoading(false)
-    }, 2000)
+    }
   }
 
   return (
@@ -346,6 +313,26 @@ export default function PartnerLoginPage() {
               )}
             </button>
           </form>
+
+          {/* Demo Login Button */}
+          <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 text-center">
+            <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
+              🎯 Quick Demo Access
+            </p>
+            <button
+              onClick={() => {
+                localStorage.setItem('demo_mode', 'true');
+                const user = { uid: 'demo-partner', email: 'partner@demo.com', displayName: 'Demo Promoter Partner', role: 'partner' };
+                localStorage.setItem('demo_user', JSON.stringify(user));
+                localStorage.setItem('auth_token', `demo-token:${user.role}:${user.uid}`);
+                localStorage.setItem('userRole', user.role);
+                router.push('/partner');
+              }}
+              className="w-full py-4 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-2xl text-sm font-semibold hover:bg-green-100 dark:hover:bg-green-900/30 transition-all border border-green-200 dark:border-green-800 flex items-center justify-center space-x-2"
+            >
+              <span>📢 Enter as Promoter Partner Demo</span>
+            </button>
+          </div>
 
           {/* Sign Up Link */}
           <div className="text-center mt-8">

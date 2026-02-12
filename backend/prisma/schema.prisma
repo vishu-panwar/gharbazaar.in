@@ -7,27 +7,345 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Conversation {
+// ==================== USER MANAGEMENT ====================
+
+model User {
+  id       String  @id @default(uuid())
+  uid      String  @unique
+  email    String  @unique
+  name     String
+  password String?
+  googleId String? @unique
+  role     String  @default("buyer") // buyer, seller, admin, employee, legal_partner, ground_partner, promoter_partner
+
+  // Client IDs
+  buyerClientId  String? @unique
+  sellerClientId String? @unique
+
+  // Profile
+  phone        String?
+  address      String?
+  dateOfBirth  DateTime?
+  gender       String?
+  profilePhoto String?
+
+  // Employee details
+  branch            String?
+  office            String?
+  branchManagerName String?
+
+  // KYC
+  aadhaarNumber String?
+  panNumber     String?
+
+  // Status
+  isVerified          Boolean @default(false)
+  kycStatus           String  @default("pending") // pending, submitted, approved, rejected
+  kycId               String? @unique // Custom ID like gb2110e34
+  isActive            Boolean @default(true)
+  onboardingCompleted Boolean @default(false)
+
+  // Password Reset
+  resetPasswordToken   String?
+  resetPasswordExpires DateTime?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  buyerProfile           BuyerProfile?
+  sellerProfile          SellerProfile?
+  employeeProfile        EmployeeProfile?
+  serviceProviderProfile ServiceProvider?
+  properties             Property[]
+  bids                   Bid[]
+  favorites              Favorite[]
+  messages               Message[]
+  notifications          Notification[]
+  payments               PaymentTransaction[]
+  subscriptions          Subscription[]
+  chatsAsParticipant     ConversationParticipant[]
+  tickets                Ticket[]
+  ticketMessages         TicketMessage[]
+  attendances            Attendance[]
+  salaries               Salary[]
+  kycRequest             KycRequest?
+  locationRequest        LocationRequest?
+  expandRequest           ExpandRequest?
+
+  // Partner case relations
+  partnerCases        PartnerCase[] @relation("PartnerCases")
+  buyerPartnerCases   PartnerCase[] @relation("BuyerPartnerCases")
+  sellerPartnerCases  PartnerCase[] @relation("SellerPartnerCases")
+
+  // Visit relations
+  visitsAsBuyer   Visit[] @relation("BuyerVisits")
+  visitsAsSeller  Visit[] @relation("SellerVisits")
+  visitsAsPartner Visit[] @relation("PartnerVisits")
+
+  // Contract relations
+  buyerContracts  Contract[] @relation("BuyerContracts")
+  sellerContracts Contract[] @relation("SellerContracts")
+
+  @@index([email])
+  @@index([role])
+}
+
+model BuyerProfile {
   id               String   @id @default(uuid())
-  conversationType String   @default("buyer-seller") // 'buyer-seller', 'support-ticket', 'employee-direct'
-  propertyId       String?
-  propertyTitle    String?
-  lastMessage      String?
-  lastMessageAt    DateTime @default(now())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  propertiesViewed Int      @default(0)
+  savedProperties  Int      @default(0)
+  budget           String   @default("₹0")
+  preferredCities  String[]
+  preferredTypes   String[]
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
-  
-  participants     ConversationParticipant[]
-  messages         Message[]
+}
+
+model SellerProfile {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activeListings Int      @default(0)
+  totalViews     Int      @default(0)
+  inquiries      Int      @default(0)
+  revenue        String   @default("₹0")
+  companyName    String?
+  website        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model EmployeeProfile {
+  id             String    @id @default(uuid())
+  userId         String    @unique
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  employeeId     String    @unique
+  department     String?
+  designation    String?
+  joiningDate    DateTime?
+  salary         Decimal?  @db.Decimal(10, 2)
+  commissionRate Decimal?  @db.Decimal(5, 2)
+  totalSales     Int       @default(0)
+  totalEarnings  Decimal?  @db.Decimal(12, 2)
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([employeeId])
+}
+
+model ServiceProvider {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category          String // lawyer, architect, designer, contractor, photographer, consultant
+  specialization    String
+  rating            Float    @default(0)
+  reviews           Int      @default(0)
+  completedProjects Int      @default(0)
+  hourlyRate        Float
+  location          String
+  verified          Boolean  @default(false)
+  available         Boolean  @default(true)
+  description       String   @db.Text
+  skills            String[] @default([])
+  experience        Int
+  portfolio         String[] @default([])
+  profileImage      String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([category])
+  @@index([verified])
+  @@index([available])
+}
+
+// ==================== PROPERTY MANAGEMENT ====================
+
+model Property {
+  id            String   @id @default(uuid())
+  title         String
+  description   String   @db.Text
+  price         Decimal  @db.Decimal(12, 2)
+  originalPrice Decimal? @db.Decimal(12, 2)
+
+  // Property Details
+  propertyType String // apartment, villa, plot, commercial, independent_house
+  listingType  String // sale, rent
+  location     String?
+  address      String
+  city         String
+  state        String?
+  pincode      String?
+  latitude     Float?
+  longitude    Float?
+
+  // Features
+  bedrooms  Int?
+  bathrooms Int?
+  balconies Int?
+  floors    Int?
+  facing    String? // east, west, north, south
+
+  // Area
+  area     String // Match Mongoose type "String"
+  areaUnit String? @default("sqft") // sqft, sqm, acres
+
+  // Amenities stored as JSON array
+  amenities String[] @default([])
+
+  // Media
+  photos          String[] @default([])
+  images          String[] @default([])
+  videos          String[] @default([])
+  virtualTour     Boolean  @default(false)
+  virtualTourUrl  String?
+  view360Url      String?
+  view360ImageUrl String? // New field from some analysis
+
+  // Status
+  status   String  @default("pending") // pending, active, sold, rented, expired, etc.
+  featured Boolean @default(false)
+  verified Boolean @default(false)
+
+  // Owner
+  sellerId       String
+  seller         User    @relation(fields: [sellerId], references: [uid], onDelete: Cascade)
+  sellerClientId String?
+
+  // Stats
+  views     Int      @default(0)
+  likes     Int      @default(0)
+  inquiries Int      @default(0)
+  viewedBy  String[] @default([])
+
+  // Marketing/Search
+  matchScore   Int     @default(85)
+  readyToMove  Boolean @default(true)
+  newListing   Boolean @default(true)
+  priceDropped Boolean @default(false)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  bids                Bid[]
+  favorites           Favorite[]
+  conversations       Conversation[]
+  propertyVisits      Visit[]
+  contracts           Contract[]
+  verificationTasks   VerificationTask[]
+  verificationReports VerificationReport[]
+  partnerCases        PartnerCase[]
+
+  @@index([city])
+  @@index([status])
+  @@index([propertyType])
+  @@index([listingType])
+  @@index([sellerId])
+  @@index([price])
+}
+
+// ==================== BIDDING SYSTEM ====================
+
+model Bid {
+  id         String   @id @default(uuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  buyerId    String
+  buyer      User     @relation(fields: [buyerId], references: [uid], onDelete: Cascade)
+  sellerId   String
+
+  bidAmount Decimal @db.Decimal(12, 2)
+  message   String? @db.Text
+  status    String  @default("pending") // pending, accepted, rejected, countered
+
+  counterAmount  Decimal? @db.Decimal(12, 2)
+  counterMessage String?  @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contract Contract?
+
+  @@index([propertyId])
+  @@index([buyerId])
+  @@index([status])
+}
+
+model Contract {
+  id         String   @id @default(uuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  bidId      String?  @unique
+  bid        Bid?     @relation(fields: [bidId], references: [id])
+  buyerId    String
+  buyer      User     @relation("BuyerContracts", fields: [buyerId], references: [uid])
+  sellerId   String
+  seller     User     @relation("SellerContracts", fields: [sellerId], references: [uid])
+
+  status         String    @default("draft") // draft, signed_buyer, signed_seller, executed, cancelled
+  agreedPrice    Decimal   @db.Decimal(12, 2)
+  signedBuyerAt  DateTime?
+  signedSellerAt DateTime?
+  terms          String?   @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([buyerId])
+  @@index([sellerId])
+  @@index([propertyId])
+}
+
+// ==================== FAVORITES ====================
+
+model Favorite {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, propertyId])
+  @@index([userId])
+  @@index([propertyId])
+}
+
+// ==================== CHAT & MESSAGING ====================
+
+model Conversation {
+  id               String    @id @default(uuid())
+  conversationType String    @default("buyer-seller") // buyer-seller, support-ticket, employee-direct
+  propertyId       String?
+  property         Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  propertyTitle    String?
+  lastMessage      String?
+  lastMessageAt    DateTime  @default(now())
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  participants ConversationParticipant[]
+  messages     Message[]
 
   @@index([lastMessageAt])
+  @@index([propertyId])
 }
 
 model ConversationParticipant {
   id             String       @id @default(uuid())
   conversationId String
-  userId         String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt       DateTime     @default(now())
+  lastReadAt     DateTime     @default(now())
 
   @@unique([conversationId, userId])
   @@index([userId])
@@ -36,65 +354,551 @@ model ConversationParticipant {
 model Message {
   id             String       @id @default(uuid())
   conversationId String
-  senderId       String
-  senderEmail    String
-  content        String
-  type           String       @default("text") // 'text', 'image', 'file'
-  fileUrl        String?
-  thumbnailUrl   String?
-  fileName       String?
-  fileSize       Int?
-  read           Boolean      @default(false)
-  edited         Boolean      @default(false)
-  deleted        Boolean      @default(false)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  content     String  @db.Text
+  messageType String  @default("text") // text, image, file
+  fileUrl     String?
+  fileName    String?
+  fileSize    Int?
+
+  isRead    Boolean @default(false)
+  isEdited  Boolean @default(false)
+  isDeleted Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([conversationId])
+  @@index([senderId])
 }
 
-model User {
-  id              String   @id @default(uuid())
-  email           String   @unique
-  name            String
-  role            String   @default("buyer")
-  buyerClientId   String?  @unique
-  sellerClientId  String?  @unique
-  phone           String?
-  address         String?
-  branch          String?
-  office          String?
-  branchManagerName String?
-  onboardingCompleted Boolean @default(false)
-  createdAt       DateTime @default(now())
+// ==================== NOTIFICATIONS ====================
 
-  updatedAt       DateTime @updatedAt
+model Notification {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type     String // price_drop, new_match, bid_received, etc.
+  title    String
+  message  String  @db.Text
+  link     String?
+  priority String  @default("medium") // low, medium, high
+  metadata String? // JSON data
+
+  isRead Boolean   @default(false)
+  readAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+model NotificationPreference {
+  id     String @id @default(uuid())
+  userId String @unique
+
+  emailEnabled Boolean @default(true)
+  pushEnabled  Boolean @default(true)
+  smsEnabled   Boolean @default(false)
+
+  bidUpdates      Boolean @default(true)
+  messageAlerts   Boolean @default(true)
+  paymentAlerts   Boolean @default(true)
+  marketingEmails Boolean @default(false)
+  propertyAlerts  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==================== PAYMENTS ====================
+
+model PaymentTransaction {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Razorpay fields
+  razorpayOrderId   String? @unique
+  razorpayPaymentId String?
+  razorpaySignature String?
+
+  // Payment details
+  amount   Decimal @db.Decimal(12, 2)
+  currency String  @default("INR")
+
+  // Context
+  type       String // subscription, listing_fee, premium_feature
+  planId     String?
+  propertyId String?
+
+  status  String  @default("pending") // pending, success, failed, refunded
+  receipt String?
+  notes   String?
+
+  // Timestamps
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  paidAt    DateTime?
+
+  // Relations
+  subscriptions Subscription[]
+
+  @@index([userId])
+  @@index([razorpayOrderId])
+  @@index([status])
+}
+
+model Subscription {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  planId String
+  plan   Plan   @relation(fields: [planId], references: [id])
+
+  startDate DateTime
+  endDate   DateTime
+
+  status String @default("active") // active, expired, cancelled, paused
+
+  // Usage tracking (Merged from UserPlan)
+  usageStats Json    @default("{}")
+  autoRenew  Boolean @default(false)
+
+  // Payment reference
+  paymentId String?
+  payment   PaymentTransaction? @relation(fields: [paymentId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([endDate])
+}
+
+model Plan {
+  id          String @id @default(uuid())
+  name        String @unique
+  displayName String
+  description String @db.Text
+  type        String // buyer, seller, combined
+
+  // Pricing
+  price    Decimal @db.Decimal(10, 2)
+  currency String  @default("INR")
+
+  // Duration
+  durationDays Int
+
+  // Features
+  viewLimit         Int @default(10)
+  consultationLimit Int @default(0)
+  listingLimit      Int @default(3)
+  featuredLimit     Int @default(0)
+
+  // Boolean features
+  prioritySupport Boolean @default(false)
+  verifiedBadge   Boolean @default(false)
+  directContact   Boolean @default(false)
+
+  isActive  Boolean @default(true)
+  isPopular Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subscriptions Subscription[]
+
+  @@index([type])
+}
+
+// ==================== TICKETS & SUPPORT ====================
+
+model Ticket {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  subject  String
+  category String // general, technical, billing, listing, dispute
+  priority String @default("medium") // low, medium, high, urgent
+
+  status String @default("open") // open, in_progress, pending, resolved, closed
+
+  assignedTo String?
+  assignedAt DateTime?
+  resolvedAt DateTime?
+  closedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages TicketMessage[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([priority])
+}
+
+model TicketMessage {
+  id       String @id @default(uuid())
+  ticketId String
+  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  senderId String
+  sender   User   @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  content     String   @db.Text
+  attachments String[] @default([])
+
+  isInternal Boolean @default(false) // Only visible to staff
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ticketId])
+}
+
+// ==================== PROPERTY VISITS ====================
+
+model Visit {
+  id         String   @id @default(uuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  buyerId String
+  buyer   User   @relation("BuyerVisits", fields: [buyerId], references: [id], onDelete: Cascade)
+
+  sellerId String
+  seller   User   @relation("SellerVisits", fields: [sellerId], references: [id], onDelete: Cascade)
+
+  partnerId String?
+  partner   User?   @relation("PartnerVisits", fields: [partnerId], references: [id], onDelete: SetNull)
+
+  visitorName  String?
+  visitorPhone String?
+  visitorEmail String?
+
+  scheduledAt   DateTime?
+  preferredDate DateTime  @default(now()) // Keep for backward compatibility if needed
+  preferredTime String?
+  message       String?   @db.Text
+
+  status   String  @default("pending") // requested, scheduled, in_progress, completed, cancelled
+  notes    String? @db.Text
+  feedback String? @db.Text
+  address  String?
+  location Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([propertyId])
+  @@index([buyerId])
+  @@index([sellerId])
+  @@index([partnerId])
+  @@index([status])
+  @@index([preferredDate])
+}
+
+// ==================== EMPLOYEE & PARTNER SYSTEM ====================
+
+model Attendance {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime  @db.Date // Use only date part
+  checkIn   DateTime?
+  checkOut  DateTime?
+  status    String    @default("present") // present, absent, leave, half_day
+  latitude  Float?
+  longitude Float?
+  address   String?
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@index([date])
+}
+
+model Salary {
+  id                   String    @id @default(uuid())
+  userId               String
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  month                String // e.g. "January" or "2024-01"
+  year                 Int
+  baseSalary           Decimal   @db.Decimal(12, 2)
+  allowances           Decimal   @default(0) @db.Decimal(12, 2)
+  deductions           Decimal   @default(0) @db.Decimal(12, 2)
+  netSalary            Decimal   @db.Decimal(12, 2)
+  status               String    @default("pending") // pending, processing, paid, failed
+  paymentDate          DateTime?
+  paymentMethod        String?
+  transactionReference String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@unique([userId, month, year])
+  @@index([userId])
+}
+
+model Payout {
+  id          String    @id @default(uuid())
+  partnerId   String
+  amount      Decimal   @db.Decimal(12, 2)
+  method      String    @default("bank-transfer") // bank-transfer, upi, wallet
+  status      String    @default("pending") // pending, processing, paid, failed
+  reference   String?
+  periodStart DateTime?
+  periodEnd   DateTime?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([partnerId])
+  @@index([status])
+}
+
+model PartnerCase {
+  id          String    @id @default(uuid())
+  partnerId   String
+  partner     User      @relation("PartnerCases", fields: [partnerId], references: [id])
+  type        String // legal, ground, promoter
+  title       String
+  description String?   @db.Text
+  status      String    @default("open") // open, in_progress, completed, cancelled
+  propertyId  String?
+  property    Property? @relation(fields: [propertyId], references: [id])
+  buyerId     String?
+  buyer       User?     @relation("BuyerPartnerCases", fields: [buyerId], references: [id])
+  sellerId    String?
+  seller      User?     @relation("SellerPartnerCases", fields: [sellerId], references: [id])
+  amount      Decimal?  @db.Decimal(12, 2)
+  dueDate     DateTime?
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([partnerId])
+  @@index([status])
+  @@index([type])
+}
+
+model Referral {
+  id               String   @id @default(uuid())
+  promoterId       String
+  referralCode     String
+  leadName         String
+  leadContact      String
+  status           String   @default("new") // new, contacted, converted, closed
+  commissionAmount Decimal? @db.Decimal(12, 2)
+  metadata         Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([promoterId])
+  @@index([status])
+  @@index([referralCode])
+}
+
+model VerificationTask {
+  id         String    @id @default(uuid())
+  propertyId String
+  property   Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  assignedTo String?
+  createdBy  String
+  taskType   String    @default("property") // property, documents, site_visit
+  status     String    @default("assigned") // assigned, in_review, verified, rejected
+  checklist  String[]  @default([])
+  dueDate    DateTime?
+  notes      String?   @db.Text
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([assignedTo])
+  @@index([status])
+  @@index([propertyId])
+}
+
+model VerificationReport {
+  id             String   @id @default(uuid())
+  taskId         String
+  propertyId     String
+  property       Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  reportType     String   @default("verification") // site_visit, verification, inspection, documentation
+  findings       String?  @db.Text
+  recommendation String? // approve, reject, needs_followup
+  uploadedFiles  String[] @default([])
+  notes          String?  @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([taskId])
+  @@index([propertyId])
+}
+
+// ==================== MISC ====================
+
+model Contact {
+  id          String   @id @default(uuid())
+  name        String
+  email       String
+  phone       String?
+  subject     String
+  message     String   @db.Text
+  referenceId String   @unique
+  submittedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Presence {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  status     String   @default("offline") // online, away, offline
+  lastSeen   DateTime @default(now())
+  socketId   String?
+  deviceInfo String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([status])
+  @@index([lastSeen])
+}
+
+model AnalyticsEvent {
+  id        String  @id @default(uuid())
+  eventType String // page_view, property_view, search, click, signup, login
+  userId    String?
+  sessionId String?
+
+  data      Json? // Use Json for structured data
+  path      String?
+  referrer  String?
+  userAgent String?
+  ipAddress String?
+
+  createdAt DateTime @default(now())
+
+  @@index([eventType])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model SiteSetting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String   @db.Text
+  description String?
+  updatedAt   DateTime @updatedAt
+}
+
+model AuditLog {
+  id         String  @id @default(uuid())
+  action     String?
+  method     String
+  path       String
+  status     Int
+  role       String?
+  entityType String?
+  entityId   String?
+  userId     String?
+
+  oldData Json?
+  newData Json?
+
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  @@index([action])
+  @@index([entityType])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model Counter {
+  id  String @id
+  seq Int    @default(1)
+}
+
+model LocationRequest {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  city      String
+  status    String   @default("pending") // pending, sent_to_admin, approved, rejected
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([status])
+  @@index([city])
+}
+
+model KycRequest {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  partnerId String @unique // format gb...
+
+  // Form data
+  fullName      String
+  contactNumber String
+  address       String
+  aadharNumber  String
+
+  // Media URLs
+  profileImage String
+  aadharImage  String
+
+  status         String  @default("pending") // pending, approved, rejected
+  reviewedBy     String?
+  reviewComments String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([partnerId])
+}
+
+model ExpandRequest {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  buyerProfile    BuyerProfile?
-  sellerProfile   SellerProfile?
-}
+  name           String
+  email          String
+  city           String
+  state          String
+  additionalInfo String?  @db.Text
+  
+  ipAddress String?
+  userAgent String?
+  
+  status    String   @default("pending") // pending, approved, rejected, etc.
+  priority  Boolean  @default(false)
+  
+  prioritySetBy String?
+  prioritySetAt DateTime?
 
-model BuyerProfile {
-  id              String   @id @default(uuid())
-  userId          String   @unique
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  propertiesViewed Int     @default(0)
-  savedProperties  Int     @default(0)
-  budget           String  @default("₹0")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-}
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-model SellerProfile {
-  id              String   @id @default(uuid())
-  userId          String   @unique
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  activeListings   Int     @default(0)
-  totalViews       Int     @default(0)
-  revenue          String  @default("₹0")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  @@index([userId])
+  @@index([status])
+  @@index([city])
+  @@index([priority])
 }
-

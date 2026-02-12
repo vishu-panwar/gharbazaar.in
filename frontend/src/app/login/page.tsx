@@ -333,7 +333,10 @@ export default function LoginPage() {
                 <button
                   onClick={() => {
                     localStorage.setItem('demo_mode', 'true');
-                    localStorage.setItem('demo_user', JSON.stringify({ uid: 'demo-buyer', email: 'buyer@demo.com', displayName: 'Demo Buyer', role: 'buyer' }));
+                    const user = { uid: 'demo-buyer', email: 'buyer@demo.com', displayName: 'Demo Buyer', role: 'buyer' };
+                    localStorage.setItem('demo_user', JSON.stringify(user));
+                    localStorage.setItem('auth_token', `demo-token:${user.role}:${user.uid}`);
+                    localStorage.setItem('userRole', user.role);
                     router.push('/dashboard');
                   }}
                   className="px-3 py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-lg text-xs font-medium hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-all border border-blue-200 dark:border-blue-800"
@@ -344,7 +347,10 @@ export default function LoginPage() {
                 <button
                   onClick={() => {
                     localStorage.setItem('demo_mode', 'true');
-                    localStorage.setItem('demo_user', JSON.stringify({ uid: 'demo-admin', email: 'admin@demo.com', displayName: 'Demo Admin', role: 'admin' }));
+                    const user = { uid: 'demo-admin', email: 'admin@demo.com', displayName: 'Demo Admin', role: 'admin' };
+                    localStorage.setItem('demo_user', JSON.stringify(user));
+                    localStorage.setItem('auth_token', `demo-token:${user.role}:${user.uid}`);
+                    localStorage.setItem('userRole', user.role);
                     router.push('/admin');
                   }}
                   className="px-3 py-2 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 rounded-lg text-xs font-medium hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-all border border-purple-200 dark:border-purple-800"
@@ -355,7 +361,10 @@ export default function LoginPage() {
                 <button
                   onClick={() => {
                     localStorage.setItem('demo_mode', 'true');
-                    localStorage.setItem('demo_user', JSON.stringify({ uid: 'demo-employee', email: 'employee@demo.com', displayName: 'Demo Employee', role: 'employee' }));
+                    const user = { uid: 'demo-employee', email: 'employee@demo.com', displayName: 'Demo Employee', role: 'employee' };
+                    localStorage.setItem('demo_user', JSON.stringify(user));
+                    localStorage.setItem('auth_token', `demo-token:${user.role}:${user.uid}`);
+                    localStorage.setItem('userRole', user.role);
                     router.push('/employee');
                   }}
                   className="px-3 py-2 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-lg text-xs font-medium hover:bg-green-100 dark:hover:bg-green-900/30 transition-all border border-green-200 dark:border-green-800"
@@ -366,7 +375,10 @@ export default function LoginPage() {
                 <button
                   onClick={() => {
                     localStorage.setItem('demo_mode', 'true');
-                    localStorage.setItem('demo_user', JSON.stringify({ uid: 'demo-legal', email: 'legal@demo.com', displayName: 'Demo Legal Partner', role: 'legal-partner' }));
+                    const user = { uid: 'demo-legal', email: 'legal@demo.com', displayName: 'Demo Legal Partner', role: 'legal-partner' };
+                    localStorage.setItem('demo_user', JSON.stringify(user));
+                    localStorage.setItem('auth_token', `demo-token:${user.role}:${user.uid}`);
+                    localStorage.setItem('userRole', user.role);
                     router.push('/legal-partner');
                   }}
                   className="px-3 py-2 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 rounded-lg text-xs font-medium hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-all border border-amber-200 dark:border-amber-800"
@@ -377,7 +389,10 @@ export default function LoginPage() {
                 <button
                   onClick={() => {
                     localStorage.setItem('demo_mode', 'true');
-                    localStorage.setItem('demo_user', JSON.stringify({ uid: 'demo-ground', email: 'ground@demo.com', displayName: 'Demo Ground Partner', role: 'ground-partner' }));
+                    const user = { uid: 'demo-ground', email: 'ground@demo.com', displayName: 'Demo Ground Partner', role: 'ground-partner' };
+                    localStorage.setItem('demo_user', JSON.stringify(user));
+                    localStorage.setItem('auth_token', `demo-token:${user.role}:${user.uid}`);
+                    localStorage.setItem('userRole', user.role);
                     router.push('/ground-partner');
                   }}
                   className="px-3 py-2 bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 rounded-lg text-xs font-medium hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-all border border-orange-200 dark:border-orange-800"
@@ -388,7 +403,10 @@ export default function LoginPage() {
                 <button
                   onClick={() => {
                     localStorage.setItem('demo_mode', 'true');
-                    localStorage.setItem('demo_user', JSON.stringify({ uid: 'demo-partner', email: 'partner@demo.com', displayName: 'Demo Promo Partner', role: 'promo-partner' }));
+                    const user = { uid: 'demo-partner', email: 'partner@demo.com', displayName: 'Demo Promo Partner', role: 'promo-partner' };
+                    localStorage.setItem('demo_user', JSON.stringify(user));
+                    localStorage.setItem('auth_token', `demo-token:${user.role}:${user.uid}`);
+                    localStorage.setItem('userRole', user.role);
                     router.push('/partner');
                   }}
                   className="px-3 py-2 bg-pink-50 dark:bg-pink-900/20 text-pink-700 dark:text-pink-300 rounded-lg text-xs font-medium hover:bg-pink-100 dark:hover:bg-pink-900/30 transition-all border border-pink-200 dark:border-pink-800"

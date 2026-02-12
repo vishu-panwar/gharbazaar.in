@@ -1,15 +1,29 @@
+import { prisma } from './database';
+
 export const memoryConversations = new Map();
 export const memoryMessages = new Map();
 export const memoryTickets = new Map();
 export const memoryTicketMessages = new Map();
-import mongoose from 'mongoose';
 
-export const isMongoDBAvailable = (): boolean => {
-    return mongoose.connection.readyState === 1; // 1 = connected
+/**
+ * Check if the database connection is active
+ */
+export const isDatabaseAvailable = async (): Promise<boolean> => {
+    try {
+        await prisma.$connect();
+        return true;
+    } catch {
+        return false;
+    }
 };
-export const logMemoryOnlyMode = () => {
-    if (!isMongoDBAvailable()) {
-        console.warn('⚠️  Using IN-MEMORY storage - Data will not persist!');
+
+// Alias for compatibility with existing code during migration
+export const isMongoDBAvailable = () => true; // Assume true if we reach here and prisma is connected
+
+export const logMemoryOnlyMode = async () => {
+    const available = await isDatabaseAvailable();
+    if (!available) {
+        console.warn('⚠️  Database connection unavailable - Data will not persist!');
     }
 };
 

@@ -17,7 +17,9 @@ import {
   Search,
   Sun,
   Moon,
-  Monitor
+  Monitor,
+  ShieldCheck,
+  MapPin
 } from 'lucide-react'
 import NotificationDropdown from '@/components/NotificationDropdown'
 import { AuthUtils } from '@/lib/firebase'
@@ -49,8 +51,11 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
     const demoUser = AuthUtils.getCachedUser();
     if (demoUser && demoUser.isDemo) {
       // Check if user has permission
-      if (demoUser.role !== 'employee' && demoUser.role !== 'admin' && demoUser.role !== 'ground-partner' && demoUser.role !== 'legal-partner') {
-        router.push('/dashboard')
+      // Check if user is employee
+      const role = demoUser.role?.toLowerCase() || ''
+      if (role !== 'employee' && role !== 'admin') {
+        console.warn('Employee Layout: Role mismatch for demo user, redirecting to login');
+        router.push('/employee/login')
         return
       }
       setUser(demoUser)
@@ -58,16 +63,20 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
     }
 
     // PRIORITY 2: Normal auth check
-    const userData = localStorage.getItem('user')
+    const userData = AuthUtils.getCachedUser()
     if (userData) {
-      const parsed = JSON.parse(userData)
       // Check if user is employee
-      if (parsed.role !== 'employee' && parsed.role !== 'admin') {
+      const role = (userData.role || '').toLowerCase();
+      const isRole = (val: string, targets: string[]) => targets.includes(val);
+      
+      if (!isRole(role, ['employee', 'admin'])) {
+        console.warn('Employee Layout: Role mismatch for user:', role);
         router.push('/dashboard')
         return
       }
-      setUser(parsed)
+      setUser(userData)
     } else {
+      console.log('Employee Layout: No user found, redirecting to login');
       router.push('/employee/login')
     }
   }, [router, pathname, isPublicPage])
@@ -114,11 +123,12 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
 
   const navigation = [
     { name: 'Dashboard', href: '/employee', icon: LayoutDashboard },
-    { name: 'KYC Verification', href: '/employee/kyc', icon: FileCheck },
+    { name: 'KYC Verification', href: '/employee/kyc', icon: ShieldCheck },
     { name: 'Property Verification', href: '/employee/verification', icon: Users },
     { name: 'Support Tickets', href: '/employee/support', icon: MessageSquare },
     { name: 'Issues & Reports', href: '/employee/issues', icon: AlertCircle },
     { name: 'Lead Management', href: '/employee/leads', icon: Phone },
+    { name: 'Expand Requests', href: '/employee/expand-requests', icon: MapPin },
   ]
 
   if (!user) return null

@@ -21,7 +21,7 @@ class OptimizedApiClient {
     private abortControllers: Map<string, AbortController> = new Map();
 
     constructor(baseURL: string | undefined) {
-        this.baseURL = baseURL || 'http://localhost:5000/api/v1';
+        this.baseURL = baseURL || 'http://localhost:5001/api/v1';
     }
 
     /**
@@ -211,7 +211,7 @@ class OptimizedApiClient {
 // Create singleton instance
 const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 export const optimizedApiClient = new OptimizedApiClient(
-    apiUrl ? `${apiUrl}${CONFIG.API.VERSION}` : 'http://localhost:5000/api/v1'
+    apiUrl ? `${apiUrl}${CONFIG.API.VERSION}` : 'http://localhost:5001/api/v1'
 );
 
 // Chatbot-specific methods with optimizations

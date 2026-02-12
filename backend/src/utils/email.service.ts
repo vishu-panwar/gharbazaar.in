@@ -1,19 +1,6 @@
 import nodemailer from 'nodemailer';
 import config from '../config';
-import winston from 'winston';
-
-const logger = winston.createLogger({
-    level: 'info',
-    format: winston.format.json(),
-    transports: [
-        new winston.transports.Console({
-            format: winston.format.combine(
-                winston.format.colorize(),
-                winston.format.simple()
-            )
-        })
-    ]
-});
+import logger from './logger'; // Using centralized logger
 
 export const sendEmail = async (options: {
     email: string;
@@ -45,13 +32,23 @@ export const sendEmail = async (options: {
 
         // Send the email
         const info = await transporter.sendMail(mailOptions);
-        logger.info(`Message sent: ${info.messageId}`);
+        logger.info(`✅ Email successfully delivered: ${info.messageId}`);
         return info;
     } catch (error: any) {
+        // LOG LOUDLY SO USER SEES IT IN DEV
+        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.error('❌ EMAIL SENDING FAILED!');
+        console.error(`Error: ${error.message}`);
+        if (error.code) console.error(`Code: ${error.code}`);
+        if (error.command) console.error(`Command: ${error.command}`);
+        console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        
         logger.error(`Error sending email: ${error.message}`);
-        // In development, don't fail if SMTP is not configured
+        
+        // In development, we still return null to avoid crashing the whole process, 
+        // but we don't throw away the error's visibility.
         if (process.env.NODE_ENV === 'development') {
-            logger.warn('SMTP might not be configured. Check your .env file.');
+            return null;
         } else {
             throw error;
         }
@@ -140,43 +137,54 @@ export const sendContactFormEmails = async (data: any) => {
         pendingCount: '1'
     };
 
-    // 1. Send to Admin (Notification)
+    // Check for placeholder credentials to help user debug
+    if (!process.env.SMTP_PASS || process.env.SMTP_PASS === 'replace_with_app_password') {
+        logger.warn('⚠️ SMTP_PASS is using a placeholder. Emails will likely fail.');
+    }
+
+    // 1. Prepare Admin Email
     const adminEmailContent = adminHtml
         ? replacePlaceholders(adminHtml, commonData)
         : `<h2>New Inquiry from ${data.username}</h2><p>${data.message}</p>`;
 
-    await sendEmail({
+    const adminMailOptions = {
         email: config.adminEmail,
         subject: `New Contact Submission: ${data.subject} [${data.submissionId}]`,
         message: `From: ${data.username} (${data.userEmail})\nPhone: ${data.phone}\nMessage: ${data.message}`,
         html: adminEmailContent,
-        // CRITICAL: Set replyTo so admin can just hit "Reply"
         replyTo: data.userEmail
-    } as any);
+    };
 
-    // 2. Send confirmation to User (Acknowledgment)
-    const adminAddr = (config.adminEmail || '').toLowerCase().trim();
-    const smtpAddr = (process.env.SMTP_USER || '').toLowerCase().trim();
-    const userAddr = (data.userEmail || '').toLowerCase().trim();
+    // 2. Prepare User Email
+    const userEmailContent = userHtml
+        ? replacePlaceholders(userHtml, commonData)
+        : `<h2>Hi ${data.username}</h2><p>We've received your message regarding "${data.subject}".</p>`;
 
-    console.log(`📧 Deduplication Check: Admin[${adminAddr}] | SMTP[${smtpAddr}] | User[${userAddr}]`);
+    const userMailOptions = {
+        email: data.userEmail,
+        subject: `We've received your message - GharBazaar [${data.submissionId}]`,
+        message: `Hi ${data.username},\n\nThank you for reaching out. We have received your message and will get back to you shortly.`,
+        html: userEmailContent
+    };
 
-    // Only send if user email is DIFFERENT from admin addresses to avoid double emails during testing
-    if (userAddr !== adminAddr && userAddr !== smtpAddr) {
-        const userEmailContent = userHtml
-            ? replacePlaceholders(userHtml, commonData)
-            : `<h2>Hi ${data.username}</h2><p>We've received your message regarding "${data.subject}".</p>`;
+    // 3. Send both in parallel (allSettled ensures both are attempted)
+    logger.info(`📧 Attempting to send dual contact emails to: Admin(${config.adminEmail}) and Client(${data.userEmail})`);
+    
+    const results = await Promise.allSettled([
+        sendEmail(adminMailOptions as any),
+        sendEmail(userMailOptions)
+    ]);
 
-        await sendEmail({
-            email: data.userEmail,
-            subject: `We've received your message - GharBazaar [${data.submissionId}]`,
-            message: `Hi ${data.username},\n\nThank you for reaching out. We have received your message and will get back to you shortly.`,
-            html: userEmailContent
-        });
-        console.log(`✅ Confirmation sent to client: ${data.userEmail}`);
-    } else {
-        console.log(`ℹ️  Skipping duplicate confirmation email for admin testing (User: ${userAddr} matches Admin/SMTP)`);
-    }
+    results.forEach((result, index) => {
+        const type = index === 0 ? 'Admin' : 'Client';
+        const target = index === 0 ? config.adminEmail : data.userEmail;
+        
+        if (result.status === 'fulfilled') {
+            logger.info(`✅ ${type} email delivered successfully to ${target}`);
+        } else {
+            logger.error(`❌ ${type} email FAILED for ${target}: ${result.reason?.message || 'Unknown error'}`);
+        }
+    });
 };
 
 // Export as object for backward compatibility with existing controllers

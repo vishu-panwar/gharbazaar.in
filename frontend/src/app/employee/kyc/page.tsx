@@ -26,86 +26,72 @@ import {
   Users,
   Crown,
   Zap,
-  ArrowUpRight
+  ArrowUpRight,
+  ShieldCheck
 } from 'lucide-react'
+import { backendApi } from '@/lib/backendApi'
+import toast from 'react-hot-toast'
+import React, { useEffect } from 'react'
 
 export default function KYCVerificationPage() {
+  const [requests, setRequests] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending')
-  const [selectedKYC, setSelectedKYC] = useState<number | null>(null)
+  const [selectedKYC, setSelectedKYC] = useState<string | null>(null)
+  const [reviewComments, setReviewComments] = useState('')
+  const [reviewLoading, setReviewLoading] = useState(false)
 
-  // Sample KYC data
-  const kycRequests = [
-    {
-      id: 1,
-      userName: 'Rahul Sharma',
-      email: 'rahul.sharma@email.com',
-      phone: '+91 98765 43210',
-      location: 'Mumbai, Maharashtra',
-      status: 'pending',
-      submittedDate: '2024-12-01T10:30:00',
-      documentType: 'Aadhaar + PAN',
-      priority: 'high',
-      documents: ['Aadhaar Card', 'PAN Card', 'Address Proof'],
-      verificationScore: 85
-    },
-    {
-      id: 2,
-      userName: 'Priya Patel',
-      email: 'priya.patel@email.com',
-      phone: '+91 98765 43211',
-      location: 'Bangalore, Karnataka',
-      status: 'pending',
-      submittedDate: '2024-12-01T09:15:00',
-      documentType: 'Aadhaar + Passport',
-      priority: 'medium',
-      documents: ['Aadhaar Card', 'Passport', 'Bank Statement'],
-      verificationScore: 92
-    },
-    {
-      id: 3,
-      userName: 'Amit Kumar',
-      email: 'amit.kumar@email.com',
-      phone: '+91 98765 43212',
-      location: 'Delhi, NCR',
-      status: 'approved',
-      submittedDate: '2024-11-30T14:20:00',
-      documentType: 'Aadhaar + Driving License',
-      priority: 'low',
-      documents: ['Aadhaar Card', 'Driving License'],
-      verificationScore: 95,
-      verifiedBy: 'You',
-      verifiedDate: '2024-11-30T15:00:00'
-    },
-    {
-      id: 4,
-      userName: 'Sneha Reddy',
-      email: 'sneha.reddy@email.com',
-      phone: '+91 98765 43213',
-      location: 'Hyderabad, Telangana',
-      status: 'rejected',
-      submittedDate: '2024-11-29T11:30:00',
-      documentType: 'Aadhaar + PAN',
-      priority: 'medium',
-      documents: ['Aadhaar Card', 'PAN Card'],
-      verificationScore: 45,
-      rejectionReason: 'Documents not clear',
-      verifiedBy: 'You',
-      verifiedDate: '2024-11-29T12:00:00'
+  useEffect(() => {
+    fetchRequests()
+  }, [activeTab])
+
+  const fetchRequests = async () => {
+    setLoading(true)
+    try {
+      const status = activeTab === 'all' ? undefined : activeTab
+      const response = await backendApi.kyc.getRequests(status)
+      if (response.success) {
+        setRequests(response.data)
+      }
+    } catch (error) {
+      toast.error('Failed to fetch KYC requests')
+    } finally {
+      setLoading(false)
     }
-  ]
-
-  const filteredRequests = activeTab === 'all' 
-    ? kycRequests 
-    : kycRequests.filter(req => req.status === activeTab)
-
-  const stats = {
-    all: kycRequests.length,
-    pending: kycRequests.filter(r => r.status === 'pending').length,
-    approved: kycRequests.filter(r => r.status === 'approved').length,
-    rejected: kycRequests.filter(r => r.status === 'rejected').length
   }
 
-  const selectedRequest = kycRequests.find(r => r.id === selectedKYC)
+  const handleReview = async (id: string, status: 'approved' | 'rejected') => {
+    setReviewLoading(true)
+    try {
+      const response = await backendApi.kyc.review(id, { 
+        status, 
+        reviewComments 
+      })
+      if (response.success) {
+        toast.success(`KYC ${status} successfully`)
+        setReviewComments('')
+        setSelectedKYC(null)
+        fetchRequests()
+      } else {
+        toast.error(response.error || 'Failed to process review')
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Something went wrong')
+    } finally {
+      setReviewLoading(false)
+    }
+  }
+
+  const filteredRequests = requests
+
+  const stats = {
+    all: requests.length, // This should ideally come from a stats API or be calculated from all
+    pending: requests.filter(r => r.status === 'pending').length,
+    approved: 0, // Since we delete on approval in the backend implementation, we might need to adjust logic
+    rejected: 0
+  }
+
+  const selectedRequest = requests.find(r => r.id === selectedKYC)
 
   const getStatusBadge = (status: string) => {
     const badges = {
@@ -313,13 +299,13 @@ export default function KYCVerificationPage() {
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center space-x-3">
-                    {getPriorityBadge(request.priority)}
+                    <span className="w-2 h-2 rounded-full bg-blue-500" />
                     <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                      {request.userName.charAt(0)}
+                      {request.fullName.charAt(0)}
                     </div>
                     <div>
-                      <h3 className="font-bold text-gray-900 dark:text-white">{request.userName}</h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">{request.documentType}</p>
+                      <h3 className="font-bold text-gray-900 dark:text-white">{request.fullName}</h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{request.partnerId}</p>
                     </div>
                   </div>
                   {getStatusBadge(request.status)}
@@ -328,17 +314,17 @@ export default function KYCVerificationPage() {
                 <div className="space-y-2 mb-4">
                   <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
                     <Mail size={14} className="mr-2" />
-                    <span className="truncate">{request.email}</span>
+                    <span className="truncate">{request.user?.email}</span>
                   </div>
                   <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
                     <MapPin size={14} className="mr-2" />
-                    <span className="truncate">{request.location}</span>
+                    <span className="truncate">{request.address}</span>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
                   <span className="text-xs text-gray-500">
-                    {new Date(request.submittedDate).toLocaleDateString()}
+                    {new Date(request.createdAt).toLocaleDateString()}
                   </span>
                   <div className="flex items-center space-x-2">
                     <div className="w-16 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -365,18 +351,18 @@ export default function KYCVerificationPage() {
                 <div className="p-8 border-b border-gray-200 dark:border-gray-800 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20">
                   <div className="flex items-start justify-between mb-6">
                     <div className="flex items-center space-x-6">
-                      <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-3xl shadow-xl">
-                        {selectedRequest.userName.charAt(0)}
+                      <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full overflow-hidden shadow-xl">
+                        <img src={selectedRequest.profileImage} alt="Profile" className="w-full h-full object-cover" />
                       </div>
                       <div>
                         <h2 className="text-3xl font-black text-gray-900 dark:text-white leading-[1.2] pb-2">
-                          {selectedRequest.userName}
+                          {selectedRequest.fullName}
                         </h2>
                         <div className="flex items-center space-x-3 mb-2">
                           {getStatusBadge(selectedRequest.status)}
                           <span className="text-sm text-gray-500">•</span>
                           <span className="text-sm text-gray-600 dark:text-gray-400 font-semibold">
-                            {selectedRequest.documentType}
+                            Partner ID: {selectedRequest.partnerId}
                           </span>
                         </div>
                       </div>
@@ -385,27 +371,27 @@ export default function KYCVerificationPage() {
 
                   {/* Contact Info */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="flex items-center space-x-3 p-4 bg-white/50 dark:bg-gray-800/50 rounded-2xl">
-                      <Mail size={20} className="text-blue-500" />
-                      <div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Email</p>
-                        <p className="font-semibold text-gray-900 dark:text-white">{selectedRequest.email}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-3 p-4 bg-white/50 dark:bg-gray-800/50 rounded-2xl">
-                      <Phone size={20} className="text-green-500" />
-                      <div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Phone</p>
-                        <p className="font-semibold text-gray-900 dark:text-white">{selectedRequest.phone}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-3 p-4 bg-white/50 dark:bg-gray-800/50 rounded-2xl">
-                      <MapPin size={20} className="text-purple-500" />
-                      <div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Location</p>
-                        <p className="font-semibold text-gray-900 dark:text-white">{selectedRequest.location}</p>
-                      </div>
-                    </div>
+                      <div className="flex items-center space-x-3 p-4 bg-white/50 dark:bg-gray-800/50 rounded-2xl">
+                       <Mail size={20} className="text-blue-500" />
+                       <div>
+                         <p className="text-xs text-gray-500 dark:text-gray-400">Email</p>
+                         <p className="font-semibold text-gray-900 dark:text-white">{selectedRequest.user?.email}</p>
+                       </div>
+                     </div>
+                     <div className="flex items-center space-x-3 p-4 bg-white/50 dark:bg-gray-800/50 rounded-2xl">
+                       <Phone size={20} className="text-green-500" />
+                       <div>
+                         <p className="text-xs text-gray-500 dark:text-gray-400">Phone</p>
+                         <p className="font-semibold text-gray-900 dark:text-white">{selectedRequest.contactNumber}</p>
+                       </div>
+                     </div>
+                     <div className="flex items-center space-x-3 p-4 bg-white/50 dark:bg-gray-800/50 rounded-2xl">
+                       <MapPin size={20} className="text-purple-500" />
+                       <div>
+                         <p className="text-xs text-gray-500 dark:text-gray-400">Address</p>
+                         <p className="font-semibold text-gray-900 dark:text-white">{selectedRequest.address}</p>
+                       </div>
+                     </div>
                   </div>
                 </div>
 
@@ -416,27 +402,35 @@ export default function KYCVerificationPage() {
                     Submitted Documents
                   </h3>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    {selectedRequest.documents.map((doc, index) => (
-                      <div key={index} className="group border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl p-6 hover:border-blue-500 transition-all cursor-pointer hover:shadow-lg">
-                        <div className="flex flex-col items-center text-center">
-                          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                            <ImageIcon className="text-white" size={24} />
-                          </div>
-                          <p className="text-lg font-bold text-gray-900 dark:text-white mb-4">{doc}</p>
-                          <div className="flex space-x-3">
-                            <button className="flex items-center space-x-2 text-blue-600 hover:text-blue-700 font-semibold">
-                              <Eye size={16} />
-                              <span>View</span>
-                            </button>
-                            <button className="flex items-center space-x-2 text-green-600 hover:text-green-700 font-semibold">
-                              <Download size={16} />
-                              <span>Download</span>
-                            </button>
-                          </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <div className="group border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl p-6 hover:border-blue-500 transition-all cursor-pointer hover:shadow-lg">
+                      <div className="flex flex-col items-center text-center">
+                        <div className="w-full h-48 bg-gray-100 dark:bg-gray-900 rounded-xl overflow-hidden mb-4">
+                          <img src={selectedRequest.aadharImage} alt="Aadhar" className="w-full h-full object-contain" />
+                        </div>
+                        <p className="text-lg font-bold text-gray-900 dark:text-white mb-4">Aadhar Card ({selectedRequest.aadharNumber})</p>
+                        <div className="flex space-x-3">
+                          <a href={selectedRequest.aadharImage} target="_blank" className="flex items-center space-x-2 text-blue-600 hover:text-blue-700 font-semibold">
+                            <Eye size={16} />
+                            <span>View Full</span>
+                          </a>
                         </div>
                       </div>
-                    ))}
+                    </div>
+                    <div className="group border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl p-6 hover:border-blue-500 transition-all cursor-pointer hover:shadow-lg">
+                      <div className="flex flex-col items-center text-center">
+                        <div className="w-full h-48 bg-gray-100 dark:bg-gray-900 rounded-xl overflow-hidden mb-4">
+                          <img src={selectedRequest.profileImage} alt="Profile" className="w-full h-full object-contain" />
+                        </div>
+                        <p className="text-lg font-bold text-gray-900 dark:text-white mb-4">Profile Photo</p>
+                        <div className="flex space-x-3">
+                          <a href={selectedRequest.profileImage} target="_blank" className="flex items-center space-x-2 text-blue-600 hover:text-blue-700 font-semibold">
+                            <Eye size={16} />
+                            <span>View Full</span>
+                          </a>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Verification Score */}
@@ -478,17 +472,27 @@ export default function KYCVerificationPage() {
                         </label>
                         <textarea
                           rows={4}
+                          value={reviewComments}
+                          onChange={(e) => setReviewComments(e.target.value)}
                           placeholder="Add your verification notes and feedback..."
                           className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-blue-500 text-lg"
                         />
                       </div>
                       
                       <div className="flex gap-4">
-                        <button className="flex-1 flex items-center justify-center space-x-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-8 py-4 rounded-2xl font-bold transition-all shadow-lg hover:shadow-xl">
+                        <button 
+                          disabled={reviewLoading}
+                          onClick={() => handleReview(selectedRequest.id, 'approved')}
+                          className="flex-1 flex items-center justify-center space-x-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-8 py-4 rounded-2xl font-bold transition-all shadow-lg hover:shadow-xl disabled:opacity-50"
+                        >
                           <ThumbsUp size={24} />
                           <span>Approve KYC</span>
                         </button>
-                        <button className="flex-1 flex items-center justify-center space-x-3 bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white px-8 py-4 rounded-2xl font-bold transition-all shadow-lg hover:shadow-xl">
+                        <button 
+                          disabled={reviewLoading}
+                          onClick={() => handleReview(selectedRequest.id, 'rejected')}
+                          className="flex-1 flex items-center justify-center space-x-3 bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white px-8 py-4 rounded-2xl font-bold transition-all shadow-lg hover:shadow-xl disabled:opacity-50"
+                        >
                           <ThumbsDown size={24} />
                           <span>Reject KYC</span>
                         </button>

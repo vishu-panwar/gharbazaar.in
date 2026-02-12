@@ -11,7 +11,7 @@ import NotificationDropdown from './NotificationDropdown'
 export default function FloatingNavbar() {
     const pathname = usePathname()
     const { theme, setTheme } = useTheme()
-    const { user, loading } = useAuth()
+    const { user, loading, logout } = useAuth()
     const [mounted, setMounted] = useState(false)
     const [isPortalsOpen, setIsPortalsOpen] = useState(false)
     const [isPartnerOpen, setIsPartnerOpen] = useState(false)
@@ -111,15 +111,15 @@ export default function FloatingNavbar() {
 
                     {/* Partner Portal Dropdown */}
                     <div className="relative" ref={partnerRef}>
-                        <button onClick={() => setIsPartnerOpen(!isPartnerOpen)} className={`nav-link ${pathname.startsWith('/partner') || pathname.startsWith('/ground-partner') || pathname.startsWith('/legal-partner') ? 'active' : ''} flex items-center space-x-1`}>
+                        <button onClick={() => setIsPartnerOpen(!isPartnerOpen)} className={`nav-link ${pathname.startsWith('/partner') || pathname.startsWith('/ground-partner') || pathname.startsWith('/legal-partner') || pathname.startsWith('/service-partners') ? 'active' : ''} flex items-center space-x-1`}>
                             <span>Partner Portal</span>
                             <ChevronDown size={14} className={`transition-transform ${isPartnerOpen ? 'rotate-180' : ''}`} />
                         </button>
                         {isPartnerOpen && (
                             <div className="absolute top-full left-0 mt-2 w-48 bg-gray-900/95 backdrop-blur-xl rounded-xl border border-emerald-500/20 py-2 z-50">
-                                <Link href="/ground-partner" onClick={() => setIsPartnerOpen(false)} className="block px-4 py-2 text-sm text-white hover:bg-emerald-500/10 hover:text-emerald-400">Ground Partners</Link>
-                                <Link href="/legal-partner" onClick={() => setIsPartnerOpen(false)} className="block px-4 py-2 text-sm text-white hover:bg-emerald-500/10 hover:text-emerald-400">Legal Partners</Link>
-                                <Link href="/partner" onClick={() => setIsPartnerOpen(false)} className="block px-4 py-2 text-sm text-white hover:bg-emerald-500/10 hover:text-emerald-400">Promoter Partners</Link>
+                                <Link href="/ground-partner/login" onClick={() => setIsPartnerOpen(false)} className="block px-4 py-2 text-sm text-white hover:bg-emerald-500/10 hover:text-emerald-400">Ground Partners</Link>
+                                <Link href="/service-partners/login" onClick={() => setIsPartnerOpen(false)} className="block px-4 py-2 text-sm text-white hover:bg-emerald-500/10 hover:text-emerald-400">Service Partners</Link>
+                                <Link href="/partner/login" onClick={() => setIsPartnerOpen(false)} className="block px-4 py-2 text-sm text-white hover:bg-emerald-500/10 hover:text-emerald-400">Promoter Partners</Link>
                             </div>
                         )}
                     </div>
@@ -158,7 +158,28 @@ export default function FloatingNavbar() {
                     {/* Desktop Auth Buttons */}
                     <div className="hidden lg:flex items-center space-x-2">
                         {user ? (
-                            <Link href="/dashboard" className="btn-emerald text-sm">Dashboard</Link>
+                            <div className="flex items-center space-x-3">
+                                <Link 
+                                    href={
+                                        user.role === 'admin' ? '/admin' :
+                                        user.role === 'employee' ? '/employee' :
+                                        user.role === 'ground-partner' || user.role === 'ground_partner' ? '/ground-partner' :
+                                        user.role === 'legal-partner' || user.role === 'legal_partner' ? '/legal-partner' :
+                                        user.role === 'service-partners' || user.role === 'service_partner' ? '/service-partners' :
+                                        user.role === 'promoter-partner' || user.role === 'promoter_partner' || user.role === 'partner' ? '/partner' :
+                                        '/dashboard'
+                                    } 
+                                    className="btn-emerald text-sm"
+                                >
+                                    Dashboard
+                                </Link>
+                                <button 
+                                    onClick={logout}
+                                    className="btn-emerald-outline text-sm"
+                                >
+                                    Logout
+                                </button>
+                            </div>
                         ) : (
                             <>
                                 <Link href="/login" className="btn-emerald-outline text-sm">Login</Link>
@@ -230,9 +251,9 @@ export default function FloatingNavbar() {
                             </button>
                             {isMobilePartnerOpen && (
                                 <div className="ml-4 mt-1 space-y-1">
-                                    <Link href="/ground-partner" onClick={() => setIsMobileMenuOpen(false)} className="block px-4 py-2 rounded-lg text-sm text-gray-300 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">Ground Partners</Link>
-                                    <Link href="/legal-partner" onClick={() => setIsMobileMenuOpen(false)} className="block px-4 py-2 rounded-lg text-sm text-gray-300 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">Legal Partners</Link>
-                                    <Link href="/partner" onClick={() => setIsMobileMenuOpen(false)} className="block px-4 py-2 rounded-lg text-sm text-gray-300 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">Promoter Partners</Link>
+                                    <Link href="/ground-partner/login" onClick={() => setIsMobileMenuOpen(false)} className="block px-4 py-2 rounded-lg text-sm text-gray-300 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">Ground Partners</Link>
+                                    <Link href="/service-partners/login" onClick={() => setIsMobileMenuOpen(false)} className="block px-4 py-2 rounded-lg text-sm text-gray-300 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">Service Partners</Link>
+                                    <Link href="/partner/login" onClick={() => setIsMobileMenuOpen(false)} className="block px-4 py-2 rounded-lg text-sm text-gray-300 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">Promoter Partners</Link>
                                 </div>
                             )}
                         </div>
@@ -245,7 +266,32 @@ export default function FloatingNavbar() {
                     {/* Mobile Auth Buttons */}
                     <div className="border-t border-gray-800 pt-6 space-y-3">
                         {user ? (
-                            <Link href="/dashboard" className="btn-emerald w-full text-center block">Dashboard</Link>
+                            <>
+                                <Link 
+                                    href={
+                                        user.role === 'admin' ? '/admin' :
+                                        user.role === 'employee' ? '/employee' :
+                                        user.role === 'ground-partner' || user.role === 'ground_partner' ? '/ground-partner' :
+                                        user.role === 'legal-partner' || user.role === 'legal_partner' ? '/legal-partner' :
+                                        user.role === 'service-partners' || user.role === 'service_partner' ? '/service-partners' :
+                                        user.role === 'promoter-partner' || user.role === 'promoter_partner' || user.role === 'partner' ? '/partner' :
+                                        '/dashboard'
+                                    } 
+                                    className="btn-emerald w-full text-center block"
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                >
+                                    Dashboard
+                                </Link>
+                                <button 
+                                    onClick={() => {
+                                        logout();
+                                        setIsMobileMenuOpen(false);
+                                    }}
+                                    className="btn-emerald-outline w-full text-center block"
+                                >
+                                    Logout
+                                </button>
+                            </>
                         ) : (
                             <>
                                 <Link href="/login" className="btn-emerald-outline w-full text-center block">Login</Link>

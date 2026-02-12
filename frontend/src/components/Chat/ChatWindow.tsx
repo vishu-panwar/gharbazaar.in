@@ -53,6 +53,7 @@ export default function ChatWindow({ conversationId, otherUser, onClose }: ChatW
         leaveConversation,
         onNewMessage,
         onTyping,
+        onMessagesRead,
         onMessageEdited,
         onMessageDeleted
     } = useSocket();
@@ -128,8 +129,15 @@ export default function ChatWindow({ conversationId, otherUser, onClose }: ChatW
             ));
         };
 
+        const handleMessagesRead = (data: { conversationId: string; userId: string }) => {
+            if (data.conversationId === conversationId && data.userId !== user?.uid) {
+                setMessages(prev => prev.map(msg => ({ ...msg, read: true })));
+            }
+        };
+
         const unsubMessage = onNewMessage(handleNewMessage);
         const unsubTyping = onTyping(handleTyping);
+        const unsubRead = onMessagesRead?.(handleMessagesRead);
         const unsubEdited = onMessageEdited?.(handleMessageEdited);
         const unsubDeleted = onMessageDeleted?.(handleMessageDeleted);
 
@@ -137,10 +145,11 @@ export default function ChatWindow({ conversationId, otherUser, onClose }: ChatW
             leaveConversation(conversationId);
             if (unsubMessage) unsubMessage();
             if (unsubTyping) unsubTyping();
+            if (unsubRead) unsubRead();
             if (unsubEdited) unsubEdited();
             if (unsubDeleted) unsubDeleted();
         };
-    }, [conversationId, user, joinConversation, leaveConversation, onNewMessage, onTyping, onMessageEdited, onMessageDeleted, markAsRead]);
+    }, [conversationId, user, joinConversation, leaveConversation, onNewMessage, onTyping, onMessagesRead, onMessageEdited, onMessageDeleted, markAsRead]);
 
     // Auto-scroll to bottom
     useEffect(() => {
@@ -210,10 +219,8 @@ export default function ChatWindow({ conversationId, otherUser, onClose }: ChatW
             ) as any;
 
             if (response.success) {
-                // Send message with file attachment
-                const fileMessage = {
-                    conversationId,
-                    content: `📎 ${response.data.metadata.fileName}`,
+                // Send message with file attachment via Socket for real-time
+                const fileData = {
                     type: response.data.metadata.fileType === 'image' ? 'image' : 'file',
                     fileUrl: response.data.url,
                     thumbnailUrl: response.data.thumbnailUrl,
@@ -221,8 +228,7 @@ export default function ChatWindow({ conversationId, otherUser, onClose }: ChatW
                     fileSize: response.data.metadata.fileSize,
                 };
 
-                // Use REST API for file messages
-                await backendApi.chat.sendMessage(conversationId, JSON.stringify(fileMessage));
+                sendMessage(conversationId, `📎 ${response.data.metadata.fileName}`, fileData);
                 toast.success('File uploaded successfully');
             }
         } catch (error) {
@@ -301,6 +307,26 @@ export default function ChatWindow({ conversationId, otherUser, onClose }: ChatW
         if (bytes < 1024) return bytes + ' B';
         if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
         return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    };
+
+    const linkify = (text: string) => {
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        return text.split(urlRegex).map((part, i) => {
+            if (part.match(urlRegex)) {
+                return (
+                    <a 
+                        key={i} 
+                        href={part} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="underline hover:no-underline break-all"
+                    >
+                        {part}
+                    </a>
+                );
+            }
+            return part;
+        });
     };
 
     return (
@@ -402,7 +428,7 @@ export default function ChatWindow({ conversationId, otherUser, onClose }: ChatW
                                                 ) : null}
 
                                                 <p className={`break-words ${msg.deleted ? 'italic text-gray-500' : ''}`}>
-                                                    {msg.content}
+                                                    {linkify(msg.content)}
                                                     {msg.edited && !msg.deleted && (
                                                         <span className="text-xs ml-2 opacity-70">(edited)</span>
                                                     )}

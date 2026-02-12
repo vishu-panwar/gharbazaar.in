@@ -1,55 +1,85 @@
-
 import { Request, Response } from 'express';
-import Conversation from '../models/conversation.model';
-import Message from '../models/message.model';
-import { isMongoDBAvailable, memoryConversations, memoryMessages } from '../utils/memoryStore';
-import { v4 as uuidv4 } from 'uuid';
+import { prisma } from '../utils/database';
 import { sanitizeMessage, isSpam } from '../utils/sanitization';
+
+// Helper to sanitize HTML content for snippets
+const getSnippet = (text: string) => text.replace(/<[^>]*>?/gm, '').substring(0, 100);
+
 export const getConversations = async (req: Request, res: Response) => {
     try {
-        const userId = (req as any).user.userId;
-
-        let conversations = [];
-        if (isMongoDBAvailable()) {
-            conversations = await Conversation.find({
-                participants: userId
-            })
-                .sort({ lastMessageAt: -1 })  // Most recent first
-                .limit(50);  // Limit to last 50 conversations
-        } else {
-            conversations = Array.from(memoryConversations.values())
-                .filter((c: any) => c.participants.includes(userId))
-                .sort((a: any, b: any) => b.lastMessageAt - a.lastMessageAt)
-                .slice(0, 50);
+        const userId = (req as any).user?.userId || (req as any).user?.id;
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
         }
 
-        console.log(`📋 Fetched ${conversations.length} conversations for user ${userId}${!isMongoDBAvailable() ? ' (Memory Mode)' : ''}`);
+        const conversations = await prisma.conversation.findMany({
+            where: {
+                participants: {
+                    some: {
+                        user: {
+                            OR: [
+                                { id: userId },
+                                { uid: userId }
+                            ]
+                        }
+                    }
+                }
+            },
+            include: {
+                participants: {
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                uid: true,
+                                name: true,
+                                email: true,
+                                profilePhoto: true
+                            }
+                        }
+                    }
+                }
+            },
+            orderBy: {
+                lastMessageAt: 'desc'
+            },
+            take: 50
+        });
+
+        console.log(`📋 Fetched ${conversations.length} conversations for user ${userId}`);
 
         res.json({
             success: true,
             data: { conversations }
         });
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('❌ Error fetching conversations:', error);
         res.status(500).json({
             success: false,
-            error: 'Failed to fetch conversations'
+            error: 'Failed to fetch conversations',
+            details: error.message
         });
     }
 };
+
 export const getMessages = async (req: Request, res: Response) => {
     try {
         const { id: conversationId } = req.params;
         const limit = parseInt(req.query.limit as string) || 50;
         const skip = parseInt(req.query.skip as string) || 0;
-        const userId = (req as any).user.userId;
-        let conversation;
-        if (isMongoDBAvailable()) {
-            conversation = await Conversation.findById(conversationId);
-        } else {
-            conversation = memoryConversations.get(conversationId);
-        }
+        const userId = (req as any).user?.userId || (req as any).user?.id;
+
+        const conversation = await prisma.conversation.findUnique({
+            where: { id: conversationId },
+            include: {
+                participants: {
+                    include: {
+                        user: { select: { id: true, uid: true } }
+                    }
+                }
+            }
+        });
 
         if (!conversation) {
             return res.status(404).json({
@@ -58,115 +88,142 @@ export const getMessages = async (req: Request, res: Response) => {
             });
         }
 
-        if (!conversation.participants.includes(userId)) {
+        const isParticipant = conversation.participants.some((p: any) => p.user.id === userId || p.user.uid === userId);
+        if (!isParticipant) {
             return res.status(403).json({
                 success: false,
                 error: 'Not authorized to view this conversation'
             });
         }
-        let messages = [];
-        if (isMongoDBAvailable()) {
-            messages = await Message.find({
-                conversationId,
-                deleted: false  // Don't include deleted messages
-            })
-                .sort({ createdAt: 1 })  // Oldest first (chronological order)
-                .skip(skip)
-                .limit(limit);
-        } else {
-            messages = (memoryMessages.get(conversationId) || [])
-                .filter((m: any) => !m.deleted)
-                .sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-                .slice(skip, skip + limit);
-        }
 
-        console.log(`💬 Fetched ${messages.length} messages from conversation ${conversationId}${!isMongoDBAvailable() ? ' (Memory Mode)' : ''}`);
+        const messages = await prisma.message.findMany({
+            where: {
+                conversationId,
+                isDeleted: false
+            },
+            include: {
+                sender: {
+                    select: {
+                        id: true,
+                        name: true,
+                        profilePhoto: true
+                    }
+                }
+            },
+            orderBy: {
+                createdAt: 'asc'
+            },
+            skip: skip,
+            take: limit
+        });
+
+        console.log(`💬 Fetched ${messages.length} messages from conversation ${conversationId}`);
 
         res.json({
             success: true,
             data: { messages }
         });
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('❌ Error fetching messages:', error);
         res.status(500).json({
             success: false,
-            error: 'Failed to fetch messages'
+            error: 'Failed to fetch messages',
+            details: error.message
         });
     }
 };
+
 export const createConversation = async (req: Request, res: Response) => {
     try {
         const { otherUserId, propertyId, propertyTitle, initialMessage } = req.body;
-        const userId = (req as any).user.userId;
-        const userEmail = (req as any).user.email;
+        const userId = (req as any).user?.userId || (req as any).user?.id;
+
+        if (!otherUserId) {
+            return res.status(400).json({ success: false, error: 'Recipient ID is required' });
+        }
 
         // Sanitize initial message if provided
         const sanitizedMessage = initialMessage ? sanitizeMessage(initialMessage) : undefined;
-        let conversation;
-        if (isMongoDBAvailable()) {
-            conversation = await Conversation.findOne({
-                participants: { $all: [userId, otherUserId] },
-                propertyId
-            });
-        } else {
-            conversation = Array.from(memoryConversations.values()).find((c: any) =>
-                c.participants.includes(userId) &&
-                c.participants.includes(otherUserId) &&
-                c.propertyId === propertyId
-            );
-        }
+
+        // Check for existing conversation with these participants and property
+        let conversation = await prisma.conversation.findFirst({
+            where: {
+                AND: [
+                    { participants: { some: { user: { OR: [{ id: userId }, { uid: userId }] } } } },
+                    { participants: { some: { user: { OR: [{ id: otherUserId }, { uid: otherUserId }] } } } },
+                    { propertyId: propertyId || null }
+                ]
+            },
+            include: {
+                participants: {
+                    include: { user: true }
+                }
+            }
+        });
+
         if (!conversation) {
-            if (isMongoDBAvailable()) {
-                conversation = await Conversation.create({
-                    participants: [userId, otherUserId],
-                    propertyId,
-                    propertyTitle,
-                    lastMessage: sanitizedMessage || '',
-                    lastMessageAt: new Date(),
-                });
-            } else {
-                const conversationId = uuidv4();
-                conversation = {
-                    _id: conversationId,
-                    participants: [userId, otherUserId],
-                    propertyId,
-                    propertyTitle,
-                    lastMessage: sanitizedMessage || '',
-                    lastMessageAt: new Date(),
-                };
-                memoryConversations.set(conversationId, conversation);
+            // Find both users in DB
+            const users = await prisma.user.findMany({
+                where: {
+                    OR: [
+                        { id: userId }, { uid: userId },
+                        { id: otherUserId }, { uid: otherUserId }
+                    ]
+                }
+            });
+
+            if (users.length < 2 && userId !== otherUserId) {
+                return res.status(404).json({ success: false, error: 'One or more users not found' });
             }
 
-            console.log(`✅ New conversation created: ${isMongoDBAvailable() ? conversation._id : conversation._id}${!isMongoDBAvailable() ? ' (Memory Mode)' : ''}`);
-        }
-        if (sanitizedMessage) {
-            if (isMongoDBAvailable()) {
-                await Message.create({
-                    conversationId: conversation._id,
-                    senderId: userId,
-                    senderEmail: userEmail,
-                    content: sanitizedMessage,
-                    type: 'text',
-                    read: false,
-                });
-            } else {
-                const messageId = uuidv4();
-                const createdAt = new Date();
-                const message = {
-                    _id: messageId,
-                    conversationId: conversation._id,
-                    senderId: userId,
-                    senderEmail: userEmail,
-                    content: sanitizedMessage,
-                    type: 'text',
-                    read: false,
-                    createdAt: createdAt.toISOString()
-                };
-                if (!memoryMessages.has(conversation._id)) {
-                    memoryMessages.set(conversation._id, []);
+            conversation = await prisma.conversation.create({
+                data: {
+                    propertyId: propertyId || null,
+                    propertyTitle: propertyTitle || null,
+                    lastMessage: sanitizedMessage || '',
+                    lastMessageAt: new Date(),
+                    participants: {
+                        create: users.map(u => ({
+                            user: { connect: { id: u.id } }
+                        }))
+                    }
+                },
+                include: {
+                    participants: {
+                        include: { user: true }
+                    }
                 }
-                memoryMessages.get(conversation._id).push(message);
+            });
+
+            console.log(`✅ New conversation created: ${conversation.id}`);
+        }
+
+        if (sanitizedMessage) {
+            // Get actual user record for foreign key
+            const currentUser = await prisma.user.findFirst({
+                where: { OR: [{ id: userId }, { uid: userId }] }
+            });
+
+            if (currentUser) {
+                await prisma.message.create({
+                    data: {
+                        conversationId: conversation.id,
+                        senderId: currentUser.id,
+                        content: sanitizedMessage,
+                        messageType: 'text',
+                        isRead: false
+                    }
+                });
+                
+                // Update last message in conversation
+                await prisma.conversation.update({
+                    where: { id: conversation.id },
+                    data: {
+                        lastMessage: getSnippet(sanitizedMessage),
+                        lastMessageAt: new Date()
+                    }
+                });
             }
         }
 
@@ -175,37 +232,41 @@ export const createConversation = async (req: Request, res: Response) => {
             data: { conversation }
         });
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('❌ Error creating conversation:', error);
         res.status(500).json({
             success: false,
-            error: 'Failed to create conversation'
+            error: 'Failed to create conversation',
+            details: error.message
         });
     }
 };
+
 export const sendMessage = async (req: Request, res: Response) => {
     try {
         const { id: conversationId } = req.params;
-        const { content, type = 'text' } = req.body;
-        const userId = (req as any).user.userId;
-        const userEmail = (req as any).user.email;
+        const { content, type = 'text', fileUrl, fileName, fileSize } = req.body;
+        const userId = (req as any).user?.userId || (req as any).user?.id;
 
         // Sanitize message content
-        const sanitizedContent = sanitizeMessage(content);
+        const sanitizedData = sanitizeMessage(content || '');
 
         // Check for spam
-        if (isSpam(sanitizedContent)) {
+        if (type === 'text' && isSpam(sanitizedData)) {
             return res.status(400).json({
                 success: false,
                 error: 'Message appears to be spam'
             });
         }
-        let conversation;
-        if (isMongoDBAvailable()) {
-            conversation = await Conversation.findById(conversationId);
-        } else {
-            conversation = memoryConversations.get(conversationId);
-        }
+
+        const conversation = await prisma.conversation.findUnique({
+            where: { id: conversationId },
+            include: {
+                participants: {
+                    include: { user: { select: { id: true, uid: true } } }
+                }
+            }
+        });
 
         if (!conversation) {
             return res.status(404).json({
@@ -214,59 +275,55 @@ export const sendMessage = async (req: Request, res: Response) => {
             });
         }
 
-        if (!conversation.participants.includes(userId)) {
+        const isParticipant = conversation.participants.some((p: any) => p.user.id === userId || p.user.uid === userId);
+        if (!isParticipant) {
             return res.status(403).json({
                 success: false,
                 error: 'Not authorized'
             });
         }
 
-        let message;
-        if (isMongoDBAvailable()) {
-            message = await Message.create({
-                conversationId,
-                senderId: userId,
-                senderEmail: userEmail,
-                content: sanitizedContent,
-                type,
-                read: false,
-            });
-            await Conversation.findByIdAndUpdate(conversationId, {
-                lastMessage: sanitizedContent.substring(0, 100),
-                lastMessageAt: new Date(),
-            });
-        } else {
-            const messageId = uuidv4();
-            const createdAt = new Date();
-            message = {
-                _id: messageId,
-                conversationId,
-                senderId: userId,
-                senderEmail: userEmail,
-                content: sanitizedContent,
-                type,
-                read: false,
-                createdAt: createdAt.toISOString()
-            };
+        // Get actual user record for foreign key
+        const user = await prisma.user.findFirst({
+            where: { OR: [{ id: userId }, { uid: userId }] }
+        });
 
-            if (!memoryMessages.has(conversationId)) {
-                memoryMessages.set(conversationId, []);
-            }
-            memoryMessages.get(conversationId).push(message);
-            conversation.lastMessage = sanitizedContent.substring(0, 100);
-            conversation.lastMessageAt = createdAt;
+        if (!user) {
+            return res.status(404).json({ success: false, error: 'User not found' });
         }
+
+        const message = await prisma.message.create({
+            data: {
+                conversationId,
+                senderId: user.id,
+                content: sanitizedData,
+                messageType: type,
+                fileUrl,
+                fileName,
+                fileSize: fileSize ? parseInt(fileSize) : undefined,
+                isRead: false
+            }
+        });
+
+        await prisma.conversation.update({
+            where: { id: conversationId },
+            data: {
+                lastMessage: type === 'text' ? getSnippet(sanitizedData) : `[${type}]`,
+                lastMessageAt: new Date()
+            }
+        });
 
         res.status(201).json({
             success: true,
             data: { message }
         });
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('❌ Error sending message:', error);
         res.status(500).json({
             success: false,
-            error: 'Failed to send message'
+            error: 'Failed to send message',
+            details: error.message
         });
     }
 };
@@ -275,7 +332,7 @@ export const editMessage = async (req: Request, res: Response) => {
     try {
         const { id: messageId } = req.params;
         const { content } = req.body;
-        const userId = (req as any).user.userId;
+        const userId = (req as any).user?.userId || (req as any).user?.id;
 
         if (!content || !content.trim()) {
             return res.status(400).json({
@@ -284,30 +341,19 @@ export const editMessage = async (req: Request, res: Response) => {
             });
         }
 
-        // Sanitize edited content
-        const sanitizedContent = sanitizeMessage(content);
+        const sanitizedData = sanitizeMessage(content);
 
-        // Check for spam
-        if (isSpam(sanitizedContent)) {
+        if (isSpam(sanitizedData)) {
             return res.status(400).json({
                 success: false,
                 error: 'Message appears to be spam'
             });
         }
 
-        let message;
-        if (isMongoDBAvailable()) {
-            message = await Message.findById(messageId);
-        } else {
-            // Find message in memory store
-            for (const [convId, messages] of memoryMessages.entries()) {
-                const found = messages.find((m: any) => m._id === messageId);
-                if (found) {
-                    message = found;
-                    break;
-                }
-            }
-        }
+        const message = await prisma.message.findUnique({
+            where: { id: messageId },
+            include: { sender: { select: { id: true, uid: true } } }
+        });
 
         if (!message) {
             return res.status(404).json({
@@ -316,34 +362,34 @@ export const editMessage = async (req: Request, res: Response) => {
             });
         }
 
-        if (message.senderId !== userId) {
+        if (message.sender.id !== userId && message.sender.uid !== userId) {
             return res.status(403).json({
                 success: false,
                 error: 'Not authorized to edit this message'
             });
         }
 
-        if (isMongoDBAvailable()) {
-            message.content = sanitizedContent;
-            message.edited = true;
-            await message.save();
-        } else {
-            message.content = sanitizedContent;
-            message.edited = true;
-        }
+        const updatedMessage = await prisma.message.update({
+            where: { id: messageId },
+            data: {
+                content: sanitizedData,
+                isEdited: true
+            }
+        });
 
         console.log(`✏️ Message edited: ${messageId} by ${userId}`);
 
         res.json({
             success: true,
-            data: { message }
+            data: { message: updatedMessage }
         });
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('❌ Error editing message:', error);
         res.status(500).json({
             success: false,
-            error: 'Failed to edit message'
+            error: 'Failed to edit message',
+            details: error.message
         });
     }
 };
@@ -351,21 +397,12 @@ export const editMessage = async (req: Request, res: Response) => {
 export const deleteMessage = async (req: Request, res: Response) => {
     try {
         const { id: messageId } = req.params;
-        const userId = (req as any).user.userId;
+        const userId = (req as any).user?.userId || (req as any).user?.id;
 
-        let message;
-        if (isMongoDBAvailable()) {
-            message = await Message.findById(messageId);
-        } else {
-            // Find message in memory store
-            for (const [convId, messages] of memoryMessages.entries()) {
-                const found = messages.find((m: any) => m._id === messageId);
-                if (found) {
-                    message = found;
-                    break;
-                }
-            }
-        }
+        const message = await prisma.message.findUnique({
+            where: { id: messageId },
+            include: { sender: { select: { id: true, uid: true } } }
+        });
 
         if (!message) {
             return res.status(404).json({
@@ -374,34 +411,34 @@ export const deleteMessage = async (req: Request, res: Response) => {
             });
         }
 
-        if (message.senderId !== userId) {
+        if (message.sender.id !== userId && message.sender.uid !== userId) {
             return res.status(403).json({
                 success: false,
                 error: 'Not authorized to delete this message'
             });
         }
 
-        if (isMongoDBAvailable()) {
-            message.deleted = true;
-            message.content = '[Message deleted]';
-            await message.save();
-        } else {
-            message.deleted = true;
-            message.content = '[Message deleted]';
-        }
+        const updatedMessage = await prisma.message.update({
+            where: { id: messageId },
+            data: {
+                isDeleted: true,
+                content: '[Message deleted]'
+            }
+        });
 
         console.log(`🗑️ Message deleted: ${messageId} by ${userId}`);
 
         res.json({
             success: true,
-            data: { message }
+            data: { message: updatedMessage }
         });
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('❌ Error deleting message:', error);
         res.status(500).json({
             success: false,
-            error: 'Failed to delete message'
+            error: 'Failed to delete message',
+            details: error.message
         });
     }
 };
@@ -409,14 +446,16 @@ export const deleteMessage = async (req: Request, res: Response) => {
 export const deleteConversation = async (req: Request, res: Response) => {
     try {
         const { id: conversationId } = req.params;
-        const userId = (req as any).user.userId;
+        const userId = (req as any).user?.userId || (req as any).user?.id;
 
-        let conversation;
-        if (isMongoDBAvailable()) {
-            conversation = await Conversation.findById(conversationId);
-        } else {
-            conversation = memoryConversations.get(conversationId);
-        }
+        const conversation = await prisma.conversation.findUnique({
+            where: { id: conversationId },
+            include: {
+                participants: {
+                    include: { user: { select: { id: true, uid: true } } }
+                }
+            }
+        });
 
         if (!conversation) {
             return res.status(404).json({
@@ -425,23 +464,18 @@ export const deleteConversation = async (req: Request, res: Response) => {
             });
         }
 
-        if (!conversation.participants.includes(userId)) {
+        const isParticipant = conversation.participants.some((p: any) => p.user.id === userId || p.user.uid === userId);
+        if (!isParticipant) {
             return res.status(403).json({
                 success: false,
                 error: 'Not authorized to delete this conversation'
             });
         }
 
-        if (isMongoDBAvailable()) {
-            // Delete all messages in the conversation
-            await Message.deleteMany({ conversationId });
-            // Delete the conversation
-            await Conversation.findByIdAndDelete(conversationId);
-        } else {
-            // Delete from memory stores
-            memoryMessages.delete(conversationId);
-            memoryConversations.delete(conversationId);
-        }
+        // Delete conversation (cascade will handle messages)
+        await prisma.conversation.delete({
+            where: { id: conversationId }
+        });
 
         console.log(`🗑️ Conversation deleted: ${conversationId} by ${userId}`);
 
@@ -450,11 +484,12 @@ export const deleteConversation = async (req: Request, res: Response) => {
             message: 'Conversation deleted successfully'
         });
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('❌ Error deleting conversation:', error);
         res.status(500).json({
             success: false,
-            error: 'Failed to delete conversation'
+            error: 'Failed to delete conversation',
+            details: error.message
         });
     }
 };

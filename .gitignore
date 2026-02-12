@@ -46,6 +46,17 @@ Thumbs.db
 # Logs
 logs
 *.log
+*.txt
+!README.md
+!LICENSE
+!package-lock.json
+
+# Temporary files
+tsc_output_*.txt
+auth_resp*.txt
+fix_ending.txt
+error_log.txt
+debug.txt
 
 # Runtime data
 pids

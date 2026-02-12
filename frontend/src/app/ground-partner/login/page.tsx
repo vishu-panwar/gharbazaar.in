@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Eye, EyeOff, Mail, Lock, MapPin, Shield, CheckCircle, Users, ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function GroundPartnerLoginPage() {
   const router = useRouter()
+  const { login, loginWithGoogle } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
@@ -20,30 +22,10 @@ export default function GroundPartnerLoginPage() {
     setIsLoading(true)
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500))
-
-      // Mock successful login
-      const userData = {
-        id: '1',
-        name: 'Rajesh Kumar',
-        email: formData.email || 'rajesh@groundpartner.com',
-        phone: '+91 98765 43210',
-        role: 'ground-partner',
-        city: 'Mumbai',
-        zone: 'Western Suburbs',
-        verificationStatus: 'verified',
-        partnerType: 'Ground Partner'
-      }
-
-      localStorage.setItem('token', 'mock-ground-partner-token')
-      localStorage.setItem('user', JSON.stringify(userData))
-
-      toast.success('Welcome to Ground Partner Portal!')
-      router.push('/ground-partner')
-    } catch (error) {
-      toast.error('Login failed. Please try again.')
-    } finally {
+      await login(formData.email, formData.password, 'ground_partner')
+      // AuthContext handles redirection
+    } catch (error: any) {
+      toast.error(error.message || 'Login failed')
       setIsLoading(false)
     }
   }
@@ -51,29 +33,9 @@ export default function GroundPartnerLoginPage() {
   const handleGoogleLogin = async () => {
     setIsLoading(true)
     try {
-      // Simulate Google OAuth
-      await new Promise(resolve => setTimeout(resolve, 2000))
-
-      const userData = {
-        id: '1',
-        name: 'Rajesh Kumar',
-        email: 'rajesh@gmail.com',
-        phone: '+91 98765 43210',
-        role: 'ground-partner',
-        city: 'Mumbai',
-        zone: 'Western Suburbs',
-        verificationStatus: 'verified',
-        partnerType: 'Ground Partner'
-      }
-
-      localStorage.setItem('token', 'mock-ground-partner-token')
-      localStorage.setItem('user', JSON.stringify(userData))
-
-      toast.success('Welcome to Ground Partner Portal!')
-      router.push('/ground-partner')
+      await loginWithGoogle('ground_partner')
     } catch (error) {
       toast.error('Google login failed. Please try again.')
-    } finally {
       setIsLoading(false)
     }
   }
@@ -293,6 +255,26 @@ export default function GroundPartnerLoginPage() {
                 )}
               </button>
             </form>
+
+            {/* Demo Login Button */}
+            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800">
+              <p className="text-center text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
+                🎯 Quick Demo Access
+              </p>
+              <button
+                onClick={() => {
+                  localStorage.setItem('demo_mode', 'true');
+                  const user = { uid: 'demo-ground', email: 'ground@demo.com', displayName: 'Demo Ground Partner', role: 'ground-partner' };
+                  localStorage.setItem('demo_user', JSON.stringify(user));
+                  localStorage.setItem('auth_token', `demo-token:${user.role}:${user.uid}`);
+                  localStorage.setItem('userRole', user.role);
+                  router.push('/ground-partner');
+                }}
+                className="w-full py-3 bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 rounded-xl text-sm font-semibold hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-all border border-orange-200 dark:border-orange-800 flex items-center justify-center space-x-2"
+              >
+                <span>🏗️ Enter as Ground Partner Demo</span>
+              </button>
+            </div>
 
             <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800">
               <p className="text-center text-sm text-gray-600 dark:text-gray-400">

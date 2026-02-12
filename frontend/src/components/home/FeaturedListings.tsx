@@ -1,7 +1,7 @@
 import { MapPin, Home, Eye } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { listingsAPI } from '@/lib/api'
+import { propertyApi } from '@/lib/api'
 import PropertyCard from '@/components/PropertyCard'
 
 export function FeaturedListings() {
@@ -11,8 +11,8 @@ export function FeaturedListings() {
   useEffect(() => {
     const fetchListings = async () => {
       try {
-        const response = await listingsAPI.search({ limit: 6 })
-        setListings(response.data || response.properties || [])
+        const response = await propertyApi.list({ limit: 6 })
+        setListings(response.data || [])
       } catch (error) {
         console.error('Failed to fetch listings:', error)
       } finally {

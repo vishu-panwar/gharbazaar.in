@@ -17,7 +17,8 @@ import {
   X,
   Search,
   Megaphone,
-  Shield
+  Shield,
+  MapPin
 } from 'lucide-react'
 import NotificationDropdown from '@/components/NotificationDropdown'
 
@@ -104,6 +105,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: 'Subscriptions', href: '/admin/subscriptions', icon: CreditCard },
     { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
     { name: 'Announcements', href: '/admin/announcements', icon: Megaphone },
+    { name: 'Expansion Requests', href: '/admin/expand-req', icon: MapPin },
     { name: 'Admin Tools', href: '/admin/tools', icon: Settings },
   ]
 

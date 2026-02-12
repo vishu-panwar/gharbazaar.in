@@ -1,26 +1,30 @@
-
 import { Request, Response } from 'express';
-import Notification from '../models/notification.model';
+import { prisma } from '../utils/database';
 
 export const getNotifications = async (req: Request, res: Response) => {
     try {
-        const userId = (req as any).user?.userId;
+        const userId = (req as any).user?.userId || (req as any).user?.id;
         if (!userId) {
             return res.status(401).json({ success: false, error: 'Unauthorized' });
         }
 
         const { limit = 20, unreadOnly = false } = req.query;
-        const query: any = { userId };
+        
+        // Use Prisma to find notifications
+        const notifications = await prisma.notification.findMany({
+            where: {
+                userId,
+                ...(unreadOnly === 'true' ? { isRead: false } : {})
+            },
+            orderBy: {
+                createdAt: 'desc'
+            },
+            take: Number(limit)
+        });
 
-        if (unreadOnly === 'true') {
-            query.isRead = false;
-        }
-
-        const notifications = await Notification.find(query)
-            .sort({ createdAt: -1 })
-            .limit(Number(limit));
-
-        const unreadCount = await Notification.countDocuments({ userId, isRead: false });
+        const unreadCount = await prisma.notification.count({
+            where: { userId, isRead: false }
+        });
 
         res.json({
             success: true,
@@ -36,20 +40,27 @@ export const getNotifications = async (req: Request, res: Response) => {
 
 export const markAsRead = async (req: Request, res: Response) => {
     try {
-        const userId = (req as any).user?.userId;
+        const userId = (req as any).user?.userId || (req as any).user?.id;
         const { id } = req.params;
 
-        const notification = await Notification.findOneAndUpdate(
-            { _id: id, userId },
-            { isRead: true },
-            { new: true }
-        );
+        const notification = await prisma.notification.updateMany({
+            where: { id, userId },
+            data: { 
+                isRead: true,
+                readAt: new Date()
+            }
+        });
 
-        if (!notification) {
+        if (notification.count === 0) {
             return res.status(404).json({ success: false, error: 'Notification not found' });
         }
 
-        res.json({ success: true, data: notification });
+        // Get the updated record
+        const updated = await prisma.notification.findUnique({
+            where: { id }
+        });
+
+        res.json({ success: true, data: updated });
     } catch (error) {
         console.error('markAsRead error:', error);
         res.status(500).json({ success: false, error: 'Failed to mark notification as read' });
@@ -58,8 +69,14 @@ export const markAsRead = async (req: Request, res: Response) => {
 
 export const markAllAsRead = async (req: Request, res: Response) => {
     try {
-        const userId = (req as any).user?.userId;
-        await Notification.updateMany({ userId, isRead: false }, { isRead: true });
+        const userId = (req as any).user?.userId || (req as any).user?.id;
+        await prisma.notification.updateMany({
+            where: { userId, isRead: false },
+            data: { 
+                isRead: true,
+                readAt: new Date()
+            }
+        });
         res.json({ success: true, message: 'All notifications marked as read' });
     } catch (error) {
         console.error('markAllAsRead error:', error);
@@ -69,11 +86,14 @@ export const markAllAsRead = async (req: Request, res: Response) => {
 
 export const deleteNotification = async (req: Request, res: Response) => {
     try {
-        const userId = (req as any).user?.userId;
+        const userId = (req as any).user?.userId || (req as any).user?.id;
         const { id } = req.params;
 
-        const result = await Notification.deleteOne({ _id: id, userId });
-        if (result.deletedCount === 0) {
+        const result = await prisma.notification.deleteMany({
+            where: { id, userId }
+        });
+        
+        if (result.count === 0) {
             return res.status(404).json({ success: false, error: 'Notification not found' });
         }
 

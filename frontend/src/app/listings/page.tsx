@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { listingsAPI } from '@/lib/api'
+import { propertyApi } from '@/lib/api'
 import Link from 'next/link'
 import { MapPin, Home, Search, Lock } from 'lucide-react'
 import { usePayment } from '@/contexts/PaymentContext'
@@ -34,8 +34,8 @@ export default function ListingsPage() {
       if (filters.maxPrice) params.maxPrice = filters.maxPrice
       if (filters.city) params.city = filters.city
 
-      const response = await listingsAPI.search(params)
-      setListings(response.data || response.properties || [])
+      const response = await propertyApi.list(params)
+      setListings(response.data || [])
     } catch (error) {
       console.error('Failed to fetch listings:', error)
     } finally {

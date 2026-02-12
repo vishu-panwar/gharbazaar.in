@@ -1,9 +1,5 @@
 import { Request, Response } from 'express';
-import Plan from '../models/plan.model';
-import UserPlan from '../models/userPlan.model';
-import User from '../models/user.model';
-import Notification from '../models/notification.model';
-import mongoose from 'mongoose';
+import { prisma } from '../utils/prisma';
 
 /**
  * Get all available plans
@@ -12,7 +8,10 @@ import mongoose from 'mongoose';
  */
 export const getAllPlans = async (req: Request, res: Response) => {
   try {
-    const plans = await Plan.find({ isActive: true }).sort({ price: 1 });
+    const plans = await prisma.plan.findMany({
+      where: { isActive: true },
+      orderBy: { price: 'asc' }
+    });
 
     res.status(200).json({
       success: true,
@@ -44,14 +43,23 @@ export const getUserPlan = async (req: Request, res: Response) => {
       });
     }
 
-    // Find active plan using direct query instead of static method
-    const userPlan = await UserPlan.findOne({
-      userId,
-      status: 'active',
-      expiryDate: { $gt: new Date() }
+    // Find active subscription using user ID (uid in User model matches userId here)
+    // We need to find the user first to get their ID if userId is the UID
+    const user = await prisma.user.findUnique({ where: { uid: userId } });
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    const subscription = await prisma.subscription.findFirst({
+      where: {
+        userId: user.id, // Use internal UUID
+        status: 'active',
+        endDate: { gt: new Date() }
+      },
+      include: {
+        plan: true
+      }
     });
 
-    if (!userPlan) {
+    if (!subscription) {
       return res.status(200).json({
         success: true,
         data: null,
@@ -59,30 +67,21 @@ export const getUserPlan = async (req: Request, res: Response) => {
       });
     }
 
-    const plan = await Plan.findById(userPlan.planId);
-
-    if (!plan) {
-      // If plan is missing but UserPlan exists, we should probably handle it gracefully
-      // For now, return a 404-like response or generic error
-      console.error(`Active userPlan ${userPlan._id} refers to missing plan ${userPlan.planId}`);
-      return res.status(404).json({
-        success: false,
-        message: 'Plan details not found',
-      });
-    }
+    // Map stats safely
+    const stats: any = subscription.usageStats || {};
 
     res.status(200).json({
       success: true,
       data: {
-        plan,
+        plan: subscription.plan,
         userPlan: {
-          startDate: userPlan.startDate,
-          endDate: userPlan.expiryDate,
-          isValid: userPlan.isValid ? userPlan.isValid() : (userPlan.status === 'active' && new Date(userPlan.expiryDate) > new Date()),
+          startDate: subscription.startDate,
+          endDate: subscription.endDate,
+          isValid: true,
           usage: {
-            viewsUsed: userPlan.usageStats?.viewsUsed || 0,
-            contactsUsed: userPlan.usageStats?.consultationsUsed || 0,
-            listingsUsed: userPlan.usageStats?.listingsUsed || 0,
+            viewsUsed: stats.viewsUsed || 0,
+            contactsUsed: stats.consultationsUsed || 0,
+            listingsUsed: stats.listingsUsed || 0,
           },
         },
       },
@@ -114,7 +113,11 @@ export const purchasePlan = async (req: Request, res: Response) => {
       });
     }
 
-    const plan = await Plan.findById(planId);
+    // Get internal user ID
+    const user = await prisma.user.findUnique({ where: { uid: userId } });
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    const plan = await prisma.plan.findUnique({ where: { id: planId } });
     if (!plan) {
       return res.status(404).json({
         success: false,
@@ -123,7 +126,6 @@ export const purchasePlan = async (req: Request, res: Response) => {
     }
 
     // --- Mock Payment Verification ---
-    // In production, use Razorpay/Stripe SDK to verify paymentId
     console.log(`🏦 Verifying payment ${paymentId} for plan ${plan.name}`);
     const isPaymentValid = paymentId.startsWith('pay_') || paymentId === 'demo-payment';
 
@@ -134,49 +136,67 @@ export const purchasePlan = async (req: Request, res: Response) => {
       });
     }
 
-    // Calculate expiry date (default 30 days if not specified)
+    // Calculate expiry date
+    const startDate = new Date();
     const expiryDate = new Date();
-    expiryDate.setDate(expiryDate.getDate() + 30);
+    expiryDate.setDate(expiryDate.getDate() + plan.durationDays);
 
-    // Deactivate existing plans
-    await UserPlan.updateMany({ userId, status: 'active' }, { status: 'expired' });
+    // Deactivate existing active subscriptions
+    await prisma.subscription.updateMany({
+      where: { userId: user.id, status: 'active' },
+      data: { status: 'expired' }
+    });
 
-    // Create new UserPlan
-    const userPlan = await UserPlan.create({
-      userId,
-      planId,
-      status: 'active',
-      paymentId,
-      startDate: new Date(),
-      expiryDate,
-      usageStats: {
-        viewsUsed: 0,
-        consultationsUsed: 0,
-        listingsUsed: 0,
+    // Create new Subscription
+    const subscription = await prisma.subscription.create({
+      data: {
+        userId: user.id,
+        planId: plan.id,
+        status: 'active',
+        paymentId: paymentId !== 'demo-payment' ? paymentId : undefined, // Assuming paymentId links to Transaction ID if exists
+        startDate,
+        endDate: expiryDate,
+        usageStats: {
+            viewsUsed: 0,
+            consultationsUsed: 0,
+            listingsUsed: 0,
+        }
+      },
+      include: {
+        plan: true
       }
     });
 
-    // Update User model with plan details for faster access
-    await User.findOneAndUpdate({ uid: userId }, {
-      planType: plan.name,
-      listingLimit: plan.features.listingLimit || 3,
-      viewLimit: plan.features.viewLimit || 10,
-      consultationLimit: plan.features.consultationLimit || 0
+    // Update User model limits (keeping some denormalized data if schema supports it, strictly speaking strict relationships are better but this aligns with logic)
+    // Note: Plan limits are in the Plan model, User model fields like viewLimit are overrides or caches
+    // Prisma User model DOES NOT have viewLimit, etc. in the current schema.
+    // Limits should be derived from the active subscription.
+    /*
+    await prisma.user.update({
+        where: { id: user.id },
+        data: {
+            // viewLimit: plan.viewLimit,
+            // consultationLimit: plan.consultationLimit,
+            // listingLimit: plan.listingLimit
+        }
     });
+    */
 
     // Send Notification
-    await Notification.create({
-      userId,
-      type: 'system',
-      title: 'Subscription Activated',
-      message: `Your ${plan.name} plan is now active until ${expiryDate.toLocaleDateString()}`,
-      priority: 'high'
+    await prisma.notification.create({
+      data: {
+        userId: user.id,
+        type: 'system',
+        title: 'Subscription Activated',
+        message: `Your ${plan.name} plan is now active until ${expiryDate.toLocaleDateString()}`,
+        priority: 'high'
+      }
     });
 
     res.status(200).json({
       success: true,
       data: {
-        userPlan,
+        userPlan: subscription,
         plan
       },
       message: 'Plan purchased successfully',

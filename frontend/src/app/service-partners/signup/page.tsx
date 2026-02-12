@@ -21,11 +21,14 @@ import {
   Calendar,
   Award,
   ArrowRight,
-  Check
+  Check,
+  Wrench,
+  Hammer,
+  ShieldCheck
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-export default function LegalPartnerSignupPage() {
+export default function ServicePartnerSignupPage() {
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -39,11 +42,11 @@ export default function LegalPartnerSignupPage() {
     confirmPassword: '',
 
     // Professional Information
-    barCouncilId: '',
-    barCouncilState: '',
-    practiceAreas: [] as string[],
+    businessId: '',
+    businessState: '',
+    serviceCategories: [] as string[],
     experience: '',
-    currentFirm: '',
+    businessName: '',
 
     // Location & Preferences
     city: '',
@@ -59,19 +62,19 @@ export default function LegalPartnerSignupPage() {
   const [otpSent, setOtpSent] = useState(false)
   const [otpCode, setOtpCode] = useState('')
 
-  const practiceAreaOptions = [
-    'Property Law',
-    'RERA Compliance',
-    'Real Estate Litigation',
-    'Documentation & Registration',
-    'Due Diligence',
-    'Title Verification',
-    'Commercial Real Estate',
-    'Residential Property',
-    'Land Acquisition',
-    'Property Disputes',
-    'Conveyancing',
-    'Mortgage & Loans'
+  const serviceCategoryOptions = [
+    'Plumbing',
+    'Electrical Works',
+    'Home Cleaning',
+    'Pest Control',
+    'Carpentry',
+    'Painting',
+    'Appliance Repair',
+    'Interior Design',
+    'Solar Installation',
+    'Security Systems',
+    'Landscaping',
+    'Packers & Movers'
   ]
 
   const languageOptions = [
@@ -100,7 +103,7 @@ export default function LegalPartnerSignupPage() {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
-  const handleArrayToggle = (field: 'practiceAreas' | 'preferredLanguages', value: string) => {
+  const handleArrayToggle = (field: 'serviceCategories' | 'preferredLanguages', value: string) => {
     setFormData(prev => ({
       ...prev,
       [field]: prev[field].includes(value)
@@ -116,8 +119,8 @@ export default function LegalPartnerSignupPage() {
           formData.password && formData.confirmPassword &&
           formData.password === formData.confirmPassword
       case 2:
-        return formData.barCouncilId && formData.barCouncilState &&
-          formData.practiceAreas.length > 0 && formData.experience
+        return formData.businessId && formData.businessState &&
+          formData.serviceCategories.length > 0 && formData.experience
       case 3:
         return formData.city && formData.state && formData.preferredLanguages.length > 0
       case 4:
@@ -178,7 +181,7 @@ export default function LegalPartnerSignupPage() {
       await new Promise(resolve => setTimeout(resolve, 2000))
 
       toast.success('Registration successful! Please wait for verification.')
-      router.push('/legal-partner/login?message=registration-success')
+      router.push('/service-partners/login?message=registration-success')
     } catch (error) {
       toast.error('Registration failed. Please try again.')
     } finally {
@@ -192,7 +195,7 @@ export default function LegalPartnerSignupPage() {
       // Simulate Google OAuth
       await new Promise(resolve => setTimeout(resolve, 2000))
       toast.success('Google signup successful! Please complete your profile.')
-      router.push('/legal-partner/registration')
+      router.push('/service-partners/registration')
     } catch (error) {
       toast.error('Google signup failed. Please try again.')
     } finally {
@@ -202,29 +205,29 @@ export default function LegalPartnerSignupPage() {
 
   const features = [
     {
-      icon: Scale,
-      title: 'Legal Due Diligence',
-      description: 'Comprehensive property legal verification and compliance checks'
+      icon: Wrench,
+      title: 'Professional Growth',
+      description: 'Get hired for verified property service leads and grow your business'
     },
     {
-      icon: FileCheck,
-      title: 'Document Review',
-      description: 'Secure document management with version control and audit trails'
+      icon: Hammer,
+      title: 'Business Dashboard',
+      description: 'Centralized management for tracking service requests and payments'
     },
     {
-      icon: Shield,
-      title: 'Confidential & Secure',
-      description: 'Bank-grade security with end-to-end encryption for all legal data'
+      icon: ShieldCheck,
+      title: 'Secure Environment',
+      description: 'GharBazaar ensures safe communication and verified transactions'
     }
   ]
 
   const benefits = [
-    'Earn ₹15,000 - ₹75,000 per case',
-    'Flexible working hours',
-    'Professional growth opportunities',
-    'Secure payment processing',
-    'Comprehensive legal resources',
-    'Dedicated support team'
+    'Direct leads from property owners',
+    'Flexible schedule management',
+    'Marketing boost for your services',
+    'Secure and timely payments',
+    'Professional network access',
+    'Dedicated partner support'
   ]
 
   return (
@@ -248,14 +251,14 @@ export default function LegalPartnerSignupPage() {
               />
               <div>
                 <h1 className="text-3xl font-bold">GharBazaar</h1>
-                <p className="text-blue-200">Legal Partner Portal</p>
+                <p className="text-blue-200">Service Partner Portal</p>
               </div>
             </div>
             <h2 className="text-4xl font-bold mb-4">
-              Join India's Premier Legal Network
+              Join India's Top Service Professionals
             </h2>
             <p className="text-xl text-blue-100 leading-relaxed mb-6">
-              Partner with us to provide expert legal services for real estate transactions across India.
+              Partner with us to provide quality property services to homeowners across India.
             </p>
           </div>
 
@@ -300,10 +303,10 @@ export default function LegalPartnerSignupPage() {
               />
             </div>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Legal Partner Portal
+              Service Partner Portal
             </h1>
             <p className="text-gray-600 dark:text-gray-400 mt-2">
-              Join India's premier legal network
+              Join India's premier property services network
             </p>
           </div>
 
@@ -313,7 +316,7 @@ export default function LegalPartnerSignupPage() {
                 Apply for Partnership
               </h2>
               <p className="text-gray-600 dark:text-gray-400">
-                Create your legal partner account
+                Create your service partner account
               </p>
             </div>
 
@@ -493,32 +496,32 @@ export default function LegalPartnerSignupPage() {
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Bar Council Registration ID *
+                      Business Registration/GST ID *
                     </label>
                     <div className="relative">
                       <Award className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                       <input
                         type="text"
                         required
-                        value={formData.barCouncilId}
-                        onChange={(e) => handleInputChange('barCouncilId', e.target.value)}
+                        value={formData.businessId}
+                        onChange={(e) => handleInputChange('businessId', e.target.value)}
                         className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                        placeholder="e.g., MH/2015/123456"
+                        placeholder="e.g., 27AAAAA0000A1Z5"
                       />
                     </div>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Bar Council State *
+                      Business Registration State *
                     </label>
                     <select
                       required
-                      value={formData.barCouncilState}
-                      onChange={(e) => handleInputChange('barCouncilState', e.target.value)}
+                      value={formData.businessState}
+                      onChange={(e) => handleInputChange('businessState', e.target.value)}
                       className="w-full py-3 px-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     >
-                      <option value="">Select Bar Council State</option>
+                      <option value="">Select State</option>
                       {indianStates.map(state => (
                         <option key={state} value={state}>{state}</option>
                       ))}
@@ -527,7 +530,7 @@ export default function LegalPartnerSignupPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Years of Experience *
+                      Years of Professional Experience *
                     </label>
                     <div className="relative">
                       <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
@@ -550,31 +553,31 @@ export default function LegalPartnerSignupPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Current Law Firm/Practice
+                      Business Name / Enterprise Title
                     </label>
                     <div className="relative">
                       <Building className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                       <input
                         type="text"
-                        value={formData.currentFirm}
-                        onChange={(e) => handleInputChange('currentFirm', e.target.value)}
+                        value={formData.businessName}
+                        onChange={(e) => handleInputChange('businessName', e.target.value)}
                         className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                        placeholder="Enter your current firm name"
+                        placeholder="Enter your business name"
                       />
                     </div>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                      Practice Areas * (Select at least one)
+                      Service Categories * (Select at least one)
                     </label>
                     <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
-                      {practiceAreaOptions.map(area => (
+                      {serviceCategoryOptions.map(area => (
                         <label key={area} className="flex items-center space-x-2 p-2 hover:bg-gray-50 dark:hover:bg-gray-900 rounded-lg cursor-pointer">
                           <input
                             type="checkbox"
-                            checked={formData.practiceAreas.includes(area)}
-                            onChange={() => handleArrayToggle('practiceAreas', area)}
+                            checked={formData.serviceCategories.includes(area)}
+                            onChange={() => handleArrayToggle('serviceCategories', area)}
                             className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                           />
                           <span className="text-sm text-gray-700 dark:text-gray-300">{area}</span>
@@ -763,7 +766,7 @@ export default function LegalPartnerSignupPage() {
             <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800">
               <p className="text-center text-sm text-gray-600 dark:text-gray-400">
                 Already have an account?{' '}
-                <Link href="/legal-partner/login" className="text-blue-600 hover:text-blue-700 font-medium">
+                <Link href="/service-partners/login" className="text-blue-600 hover:text-blue-700 font-medium">
                   Sign in here
                 </Link>
               </p>
@@ -786,7 +789,7 @@ export default function LegalPartnerSignupPage() {
               </Link>
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              Join 500+ verified legal partners across India
+              Join 2000+ verified service partners across India
             </p>
           </div>
         </div>

@@ -1,23 +1,39 @@
 import { Request, Response } from 'express';
-import Favorite from '../models/favorite.model';
-import Property from '../models/property.model';
+import { prisma } from '../utils/database';
 
 export const toggleFavorite = async (req: Request, res: Response) => {
     try {
-        const userId = (req as any).user.userId;
+        const userId = (req as any).user?.userId || (req as any).user?.id;
         const { propertyId } = req.body;
 
         if (!propertyId) {
             return res.status(400).json({ success: false, error: 'Property ID is required' });
         }
 
-        const existingFavorite = await Favorite.findOne({ userId, propertyId });
+        // Check if favorite exists
+        const existingFavorite = await prisma.favorite.findUnique({
+            where: {
+                userId_propertyId: {
+                    userId,
+                    propertyId
+                }
+            }
+        });
 
         if (existingFavorite) {
-            await Favorite.deleteOne({ _id: existingFavorite._id });
+            await prisma.favorite.delete({
+                where: {
+                    id: existingFavorite.id
+                }
+            });
             return res.json({ success: true, message: 'Removed from favorites', action: 'removed' });
         } else {
-            await Favorite.create({ userId, propertyId });
+            await prisma.favorite.create({
+                data: {
+                    userId,
+                    propertyId
+                }
+            });
             return res.json({ success: true, message: 'Added to favorites', action: 'added' });
         }
     } catch (error) {
@@ -28,13 +44,18 @@ export const toggleFavorite = async (req: Request, res: Response) => {
 
 export const getFavorites = async (req: Request, res: Response) => {
     try {
-        const userId = (req as any).user.userId;
-        const favorites = await Favorite.find({ userId }).populate('propertyId');
+        const userId = (req as any).user?.userId || (req as any).user?.id;
+        const favorites = await prisma.favorite.findMany({
+            where: { userId },
+            include: {
+                property: true
+            }
+        });
         
         // Map to return cleaner property data
         const properties = favorites
-            .filter(f => f.propertyId) // Ensure property still exists
-            .map(f => f.propertyId);
+            .filter(f => f.property) // Ensure property still exists
+            .map(f => f.property);
 
         res.json({ success: true, properties });
     } catch (error) {
@@ -45,7 +66,7 @@ export const getFavorites = async (req: Request, res: Response) => {
 
 export const syncFavorites = async (req: Request, res: Response) => {
     try {
-        const userId = (req as any).user.userId;
+        const userId = (req as any).user?.userId || (req as any).user?.id;
         const { propertyIds } = req.body; // Array of IDs from localStorage
 
         if (!Array.isArray(propertyIds)) {
@@ -55,20 +76,34 @@ export const syncFavorites = async (req: Request, res: Response) => {
         // Add favorites that don't already exist in the DB
         for (const pid of propertyIds) {
             try {
-                // We use try/catch inside to continue even if one fails (e.g. duplicate or invalid ID)
-                const exists = await Favorite.findOne({ userId, propertyId: pid });
-                if (!exists) {
-                    await Favorite.create({ userId, propertyId: pid });
-                }
+                await prisma.favorite.upsert({
+                    where: {
+                        userId_propertyId: {
+                            userId,
+                            propertyId: pid
+                        }
+                    },
+                    create: {
+                        userId,
+                        propertyId: pid
+                    },
+                    update: {} // Do nothing if exists
+                });
             } catch (e) {
                 // Silently skip errors for individual properties
             }
         }
 
-        const updatedFavorites = await Favorite.find({ userId }).populate('propertyId');
+        const updatedFavorites = await prisma.favorite.findMany({
+            where: { userId },
+            include: {
+                property: true
+            }
+        });
+        
         const properties = updatedFavorites
-            .filter(f => f.propertyId)
-            .map(f => f.propertyId);
+            .filter(f => f.property)
+            .map(f => f.property);
 
         res.json({ success: true, properties, message: 'Favorites synced successfully' });
     } catch (error) {

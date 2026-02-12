@@ -26,7 +26,8 @@ import {
   CheckSquare,
   Upload,
   Award,
-  Settings
+  Settings,
+  ShieldCheck
 } from 'lucide-react'
 import NotificationDropdown from '@/components/NotificationDropdown'
 import { AuthUtils } from '@/lib/firebase'
@@ -58,7 +59,9 @@ export default function GroundPartnerLayout({ children }: { children: React.Reac
     const demoUser = AuthUtils.getCachedUser();
     if (demoUser && demoUser.isDemo) {
       // Check if user is ground partner
-      if (demoUser.role !== 'ground-partner' && demoUser.role !== 'admin') {
+      const role = demoUser.role?.toLowerCase() || ''
+      if (role !== 'ground-partner' && role !== 'ground_partner' && role !== 'admin') {
+        console.warn('Ground Partner Layout: Role mismatch for demo user, redirecting to dashboard');
         router.push('/dashboard')
         return
       }
@@ -67,15 +70,25 @@ export default function GroundPartnerLayout({ children }: { children: React.Reac
     }
 
     // PRIORITY 2: Normal auth check
-    const userData = localStorage.getItem('user')
+    const userData = AuthUtils.getCachedUser()
     if (userData) {
-      const parsed = JSON.parse(userData)
-      // Check if user is ground partner
-      if (parsed.role !== 'ground-partner' && parsed.role !== 'admin') {
-        router.push('/dashboard')
-        return
+      try {
+        // Check if user is ground partner
+        const role = (userData.role || '').toLowerCase();
+        const isRole = (val: string, targets: string[]) => targets.includes(val);
+        
+        if (!isRole(role, ['ground-partner', 'ground_partner', 'admin'])) {
+          console.warn('Ground Partner Layout: Role mismatch for user:', role);
+          if (!isPublicPage) {
+            router.push('/dashboard')
+          }
+          return
+        }
+        setUser(userData)
+      } catch (e) {
+        console.error('Ground Partner Layout: Error in auth check:', e);
+        router.push('/ground-partner/login')
       }
-      setUser(parsed)
     } else {
       router.push('/ground-partner/login')
     }
@@ -123,6 +136,7 @@ export default function GroundPartnerLayout({ children }: { children: React.Reac
 
   const navigation = [
     { name: 'Dashboard', href: '/ground-partner', icon: LayoutDashboard },
+    { name: 'KYC Verification', href: '/ground-partner/kyc', icon: ShieldCheck },
     { name: 'My Tasks', href: '/ground-partner/tasks', icon: CheckSquare },
     { name: 'Site Visits', href: '/ground-partner/visits', icon: MapPin },
     { name: 'Reports', href: '/ground-partner/reports', icon: FileCheck },

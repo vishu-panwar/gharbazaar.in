@@ -1,8 +1,5 @@
 import { Request, Response } from 'express';
-import mongoose from 'mongoose';
-import Property from '../models/property.model';
-import User from '../models/user.model';
-import Notification from '../models/notification.model';
+import { prisma } from '../utils/prisma';
 import { uploadFile } from '../utils/fileStorage';
 
 export const createProperty = async (req: Request, res: Response) => {
@@ -10,17 +7,25 @@ export const createProperty = async (req: Request, res: Response) => {
         const userId = (req as any).user?.userId || 'demo-seller';
 
         // Find user to get sellerClientId
-        const user = await User.findOne({ uid: userId });
+        const user = await prisma.user.findUnique({ where: { uid: userId } });
         const sellerClientId = user?.sellerClientId;
 
-        const propertyData = {
-            ...req.body,
-            sellerId: userId,
-            sellerClientId,
-            status: 'pending' // Ensure it's pending initially
-        };
+        // Ensure numeric types are handled correctly for PostgreSQL/Prisma
+        const { price, bedrooms, bathrooms, area, ...rest } = req.body;
 
-        const property = await Property.create(propertyData);
+        const property = await prisma.property.create({
+            data: {
+                ...rest,
+                price: Number(price),
+                bedrooms: Number(bedrooms),
+                bathrooms: Number(bathrooms),
+                area: String(area),
+                sellerId: user?.id || userId, // Use DB internal ID if possible
+                sellerClientId,
+                status: 'pending'
+            }
+        });
+        
         res.status(201).json({ success: true, data: property });
     } catch (error) {
         console.error('createProperty error:', error);
@@ -33,27 +38,30 @@ export const searchProperties = async (req: Request, res: Response) => {
         const { limit = 10, city, propertyType, listingType, recommendedFor } = req.query;
         console.log(`🔍 Searching properties:`, { city, propertyType, listingType, recommendedFor });
 
-        // Check DB connection
-        if (mongoose.connection.readyState !== 1) {
-            console.warn('⚠️  Database not connected (readyState: ' + mongoose.connection.readyState + '). Returning empty results.');
-            return res.json({
-                success: true,
-                properties: [],
-                count: 0,
-                message: 'Database not ready - returned fallback data'
-            });
+        const where: any = { status: 'active' };
+        
+        if (city) {
+            where.city = {
+                contains: String(city),
+                mode: 'insensitive'
+            };
+        }
+        
+        if (propertyType && propertyType !== 'all') {
+            where.propertyType = String(propertyType);
+        }
+        
+        if (listingType && listingType !== 'all') {
+            where.listingType = String(listingType);
         }
 
-        const query: any = { status: 'active' };
-        if (city) query.city = new RegExp(city as string, 'i');
-        if (propertyType && propertyType !== 'all') query.propertyType = propertyType;
-        if (listingType && listingType !== 'all') query.listingType = listingType;
-
         const limitNum = Math.min(Number(limit) || 10, 50);
-        const properties = await Property.find(query)
-            .limit(limitNum)
-            .sort({ createdAt: -1 })
-            .lean(); // Use lean for better performance and to avoid toObject issues
+        
+        const properties = await prisma.property.findMany({
+            where,
+            take: limitNum,
+            orderBy: { createdAt: 'desc' }
+        });
 
         res.json({
             success: true,
@@ -72,7 +80,10 @@ export const searchProperties = async (req: Request, res: Response) => {
 
 export const getPropertyById = async (req: Request, res: Response) => {
     try {
-        const property = await Property.findById(req.params.id);
+        const property = await prisma.property.findUnique({
+            where: { id: req.params.id }
+        });
+        
         if (!property) {
             return res.status(404).json({ success: false, error: 'Property not found' });
         }
@@ -86,7 +97,9 @@ export const getPropertyById = async (req: Request, res: Response) => {
 export const getUserProperties = async (req: Request, res: Response) => {
     try {
         const userId = req.params.userId || (req as any).user?.userId;
-        const properties = await Property.find({ sellerId: userId });
+        const properties = await prisma.property.findMany({
+            where: { sellerId: userId }
+        });
         res.json({ success: true, properties });
     } catch (error) {
         console.error('getUserProperties error:', error);
@@ -100,7 +113,6 @@ export const trackPropertyView = async (req: Request, res: Response) => {
         const authHeader = req.headers.authorization;
         let userId = 'guest-' + (req.ip || 'unknown');
 
-        // If user is logged in, use their real userId
         if (authHeader && authHeader.startsWith('Bearer ')) {
             try {
                 const token = authHeader.substring(7);
@@ -114,28 +126,28 @@ export const trackPropertyView = async (req: Request, res: Response) => {
                     userId = 'demo-buyer';
                 }
             } catch (e) {
-                // Ignore invalid tokens for view tracking
+                // Ignore invalid tokens
             }
         }
 
-        // Find property to check if user already viewed it
-        const property = await Property.findById(id);
+        const property = await prisma.property.findUnique({
+            where: { id },
+            select: { viewedBy: true, views: true }
+        });
+
         if (!property) {
             return res.status(404).json({ success: false, error: 'Property not found' });
         }
 
-        // Only increment if user hasn't viewed it yet
         if (!property.viewedBy.includes(userId)) {
-            const updatedProperty = await Property.findByIdAndUpdate(
-                id,
-                {
-                    $inc: { views: 1 },
-                    $push: { viewedBy: userId }
-                },
-                { new: true }
-            );
+            const updatedProperty = await prisma.property.update({
+                where: { id },
+                data: {
+                    views: { increment: 1 },
+                    viewedBy: { push: userId }
+                }
+            });
 
-            // Emit real-time update via Socket.IO
             const io = req.app.get('io');
             if (io) {
                 io.emit('property:view_update', {
@@ -156,18 +168,7 @@ export const trackPropertyView = async (req: Request, res: Response) => {
 
 export const uploadPropertyImage = async (req: Request, res: Response) => {
     try {
-        console.log('📸 uploadPropertyImage called');
-        console.log('File present:', !!req.file);
-        if (req.file) {
-            console.log('File details:', {
-                originalname: req.file.originalname,
-                mimetype: req.file.mimetype,
-                size: req.file.size
-            });
-        }
-
         if (!req.file) {
-            console.error('❌ No file in request');
             return res.status(400).json({ success: false, error: 'No image file provided' });
         }
 
@@ -190,24 +191,26 @@ export const uploadPropertyImage = async (req: Request, res: Response) => {
 
 export const getMarketInsights = async (req: Request, res: Response) => {
     try {
-        // Simple market insights logic
-        const totalProperties = await Property.countDocuments({ status: 'active' });
+        const totalProperties = await prisma.property.count({
+            where: { status: 'active' }
+        });
 
-        // Average price by city
-        const cityStats = await Property.aggregate([
-            { $match: { status: 'active' } },
-            {
-                $group: {
-                    _id: '$city',
-                    avgPrice: { $avg: '$price' },
-                    count: { $sum: 1 }
-                }
-            },
-            { $sort: { count: -1 } },
-            { $limit: 5 }
-        ]);
+        // Group by city using Prisma aggregate
+        const cityStatsSummary = await prisma.property.groupBy({
+            by: ['city'],
+            where: { status: 'active' },
+            _avg: { price: true },
+            _count: { _all: true },
+            orderBy: { _count: { city: 'desc' } },
+            take: 5
+        });
 
-        // Monthly trends (mocked until we have more historical data)
+        const cityStats = cityStatsSummary.map((s: any) => ({
+            _id: s.city,
+            avgPrice: s._avg.price,
+            count: s._count._all
+        }));
+
         const trends = [
             { month: 'Jan', count: Math.floor(totalProperties * 0.8) },
             { month: 'Feb', count: Math.floor(totalProperties * 0.9) },

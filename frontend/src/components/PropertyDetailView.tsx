@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter, usePathname } from 'next/navigation'
-import { listingsAPI, bidsAPI } from '@/lib/api'
+import { propertyApi, bidApi } from '@/lib/api'
 import { MapPin, Home, Bed, Bath, Maximize, Calendar, Eye, ArrowLeft, Lock, Star, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
 import { usePayment } from '@/contexts/PaymentContext'
@@ -40,7 +40,7 @@ export default function PropertyDetailView({ isDashboard = false, backPath = '/l
     const fetchListing = async () => {
         try {
             setLoading(true)
-            const response = await listingsAPI.getById(params.id as string)
+            const response = await propertyApi.getById(params.id as string)
             const data = response?.data || response
             setListing(data)
             setLiveViews(data?.views || 0)
@@ -51,7 +51,7 @@ export default function PropertyDetailView({ isDashboard = false, backPath = '/l
             // Track real-time view (Deduplicated)
             if (params.id && trackedRef.current !== params.id) {
                 trackedRef.current = params.id as string
-                listingsAPI.trackView(params.id as string).catch(console.error)
+                propertyApi.trackView(params.id as string).catch(console.error)
             }
         } catch (error) {
             console.error('Failed to fetch listing:', error)
@@ -79,11 +79,11 @@ export default function PropertyDetailView({ isDashboard = false, backPath = '/l
         e.preventDefault()
         try {
             setSubmitting(true)
-            await bidsAPI.create(
-                listing.id || listing._id,
-                Number(bidAmount),
-                bidMessage
-            )
+            await bidApi.placeBid({
+                propertyId: listing.id || listing._id,
+                amount: Number(bidAmount),
+                message: bidMessage
+            })
             showAlert({
                 title: 'Inquiry Sent',
                 message: 'Your inquiry has been sent to the owner successfully!',

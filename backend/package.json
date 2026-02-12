@@ -23,6 +23,7 @@
     "dependencies": {
         "@prisma/client": "^6.19.2",
         "@types/uuid": "^10.0.0",
+        "axios": "^1.13.5",
         "bcryptjs": "^2.4.3",
         "cloudinary": "^2.9.0",
         "cors": "^2.8.5",

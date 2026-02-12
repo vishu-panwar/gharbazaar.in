@@ -22,7 +22,7 @@ interface SocketContextType {
     connected: boolean;
     joinConversation: (conversationId: string) => void;
     leaveConversation: (conversationId: string) => void;
-    sendMessage: (conversationId: string, content: string) => void;
+    sendMessage: (conversationId: string, content: string, data?: any) => void;
     sendTyping: (conversationId: string, isTyping: boolean) => void;
     markAsRead: (conversationId: string) => void;
     editMessage: (messageId: string, content: string) => void;
@@ -119,12 +119,13 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         }
     }, [socket, connected]);
 
-    const sendMessage = useCallback((conversationId: string, content: string) => {
+    const sendMessage = useCallback((conversationId: string, content: string, data: any = {}) => {
         if (socket && connected) {
             socket.emit('send_message', {
                 conversationId,
                 content,
-                type: 'text',
+                type: data.type || 'text',
+                ...data
             });
         }
     }, [socket, connected]);
