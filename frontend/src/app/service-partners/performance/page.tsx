@@ -89,6 +89,8 @@ interface CasePerformance {
   earnings: number
 }
 
+import { backendApi } from '@/lib/backendApi'
+
 export default function PerformancePage() {
   const [metrics, setMetrics] = useState<PerformanceMetric[]>([])
   const [achievements, setAchievements] = useState<Achievement[]>([])
@@ -98,224 +100,75 @@ export default function PerformancePage() {
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [isLoading, setIsLoading] = useState(true)
 
-  // Mock data
   useEffect(() => {
-    const mockMetrics: PerformanceMetric[] = [
-      {
-        id: 'M001',
-        name: 'Case Completion Rate',
-        value: 95,
-        target: 90,
-        unit: '%',
-        trend: 'up',
-        trendValue: 5,
-        category: 'efficiency',
-        description: 'Percentage of cases completed on time',
-        lastUpdated: '2024-12-31T15:30:00Z'
-      },
-      {
-        id: 'M002',
-        name: 'Average Quality Score',
-        value: 4.8,
-        target: 4.5,
-        unit: '/5',
-        trend: 'up',
-        trendValue: 0.3,
-        category: 'quality',
-        description: 'Average quality rating from admin reviews',
-        lastUpdated: '2024-12-31T15:30:00Z'
-      },
-      {
-        id: 'M003',
-        name: 'Client Satisfaction',
-        value: 4.9,
-        target: 4.0,
-        unit: '/5',
-        trend: 'up',
-        trendValue: 0.2,
-        category: 'client-satisfaction',
-        description: 'Average client rating and feedback',
-        lastUpdated: '2024-12-31T15:30:00Z'
-      },
-      {
-        id: 'M004',
-        name: 'Response Time',
-        value: 2.5,
-        target: 4.0,
-        unit: 'hrs',
-        trend: 'down',
-        trendValue: -1.5,
-        category: 'efficiency',
-        description: 'Average response time to queries',
-        lastUpdated: '2024-12-31T15:30:00Z'
-      },
-      {
-        id: 'M005',
-        name: 'Compliance Score',
-        value: 98,
-        target: 95,
-        unit: '%',
-        trend: 'up',
-        trendValue: 3,
-        category: 'compliance',
-        description: 'Adherence to legal and regulatory standards',
-        lastUpdated: '2024-12-31T15:30:00Z'
-      },
-      {
-        id: 'M006',
-        name: 'Document Accuracy',
-        value: 99.2,
-        target: 98.0,
-        unit: '%',
-        trend: 'up',
-        trendValue: 1.2,
-        category: 'quality',
-        description: 'Accuracy rate in document reviews',
-        lastUpdated: '2024-12-31T15:30:00Z'
-      }
-    ]
+    async function fetchData() {
+      try {
+        setIsLoading(true)
+        const [casesRes, profileRes] = await Promise.all([
+          backendApi.partners.getCases(),
+          backendApi.serviceProvider.getMyProfile()
+        ])
 
-    const mockAchievements: Achievement[] = [
-      {
-        id: 'A001',
-        title: 'Speed Demon',
-        description: 'Complete 10 cases ahead of schedule',
-        icon: Zap,
-        category: 'speed',
-        earnedDate: '2024-12-30T10:00:00Z',
-        points: 500,
-        rarity: 'rare',
-        progress: 10,
-        maxProgress: 10
-      },
-      {
-        id: 'A002',
-        title: 'Quality Champion',
-        description: 'Maintain 4.8+ quality score for 3 months',
-        icon: Trophy,
-        category: 'quality',
-        earnedDate: '2024-12-31T15:30:00Z',
-        points: 1000,
-        rarity: 'epic',
-        progress: 3,
-        maxProgress: 3
-      },
-      {
-        id: 'A003',
-        title: 'Client Favorite',
-        description: 'Receive 5-star rating from 20 clients',
-        icon: Heart,
-        category: 'client',
-        earnedDate: '2024-12-25T12:00:00Z',
-        points: 750,
-        rarity: 'rare',
-        progress: 20,
-        maxProgress: 20
-      },
-      {
-        id: 'A004',
-        title: 'Compliance Master',
-        description: 'Perfect compliance score for 6 months',
-        icon: Shield,
-        category: 'compliance',
-        earnedDate: '2024-12-31T16:00:00Z',
-        points: 1500,
-        rarity: 'legendary',
-        progress: 6,
-        maxProgress: 6
-      },
-      {
-        id: 'A005',
-        title: 'Century Club',
-        description: 'Complete 100 cases successfully',
-        icon: Crown,
-        category: 'milestone',
-        earnedDate: '2024-12-28T14:20:00Z',
-        points: 2000,
-        rarity: 'legendary',
-        progress: 100,
-        maxProgress: 100
-      },
-      {
-        id: 'A006',
-        title: 'Rising Star',
-        description: 'Achieve top 10% ranking in first year',
-        icon: Star,
-        category: 'milestone',
-        earnedDate: '2024-12-20T09:30:00Z',
-        points: 1200,
-        rarity: 'epic',
-        progress: 1,
-        maxProgress: 1
-      }
-    ]
+        if (casesRes?.success) {
+          const cases = casesRes.data || []
+          const mappedCases: CasePerformance[] = cases.map((c: any) => ({
+            caseId: c.id,
+            caseName: c.propertyName || 'Property Service',
+            clientName: c.clientName || 'N/A',
+            completionTime: 0,
+            targetTime: 48,
+            qualityScore: 0,
+            clientRating: 0,
+            complexity: 'medium',
+            completedDate: c.updatedAt,
+            earnings: c.amount || 0
+          }))
+          setCasePerformance(mappedCases)
 
-    const mockRanking: Ranking = {
-      rank: 8,
-      totalPartners: 150,
-      category: 'Overall Performance',
-      percentile: 95,
-      improvement: 3
+          // Derive basic metrics
+          const completedCount = cases.filter((c: any) => c.status === 'completed').length
+          const totalCount = cases.length
+          const completionRate = totalCount > 0 ? (completedCount / totalCount) * 100 : 0
+
+          setMetrics([
+            {
+              id: 'M001',
+              name: 'Case Completion Rate',
+              value: Math.round(completionRate),
+              target: 90,
+              unit: '%',
+              trend: 'stable',
+              trendValue: 0,
+              category: 'efficiency',
+              description: 'Percentage of cases completed',
+              lastUpdated: new Date().toISOString()
+            },
+            {
+              id: 'M002',
+              name: 'Average Rating',
+              value: profileRes.data?.rating || 0,
+              target: 4.5,
+              unit: '/5',
+              trend: 'stable',
+              trendValue: 0,
+              category: 'quality',
+              description: 'Your current platform rating',
+              lastUpdated: new Date().toISOString()
+            }
+          ])
+        }
+
+        // Achievements and Ranking are currently demo/static placeholders in UI
+        // until backend support is added. We'll set them to empty or minimal for now.
+        setAchievements([])
+        setRanking(null)
+      } catch (error) {
+        console.error('Error fetching performance data:', error)
+      } finally {
+        setIsLoading(false)
+      }
     }
-
-    const mockCasePerformance: CasePerformance[] = [
-      {
-        caseId: 'LC001',
-        caseName: 'Luxury Apartment - Worli',
-        clientName: 'Mr. Arjun Mehta',
-        completionTime: 48,
-        targetTime: 72,
-        qualityScore: 4.9,
-        clientRating: 5.0,
-        complexity: 'high',
-        completedDate: '2024-12-31T15:30:00Z',
-        earnings: 25000
-      },
-      {
-        caseId: 'LC002',
-        caseName: 'Commercial Complex - Andheri',
-        clientName: 'Prestige Constructions',
-        completionTime: 60,
-        targetTime: 96,
-        qualityScore: 4.8,
-        clientRating: 4.8,
-        complexity: 'high',
-        completedDate: '2024-12-30T14:20:00Z',
-        earnings: 35000
-      },
-      {
-        caseId: 'LC003',
-        caseName: 'Residential Plot - Pune',
-        clientName: 'Ms. Priya Sharma',
-        completionTime: 24,
-        targetTime: 48,
-        qualityScore: 4.7,
-        clientRating: 4.9,
-        complexity: 'medium',
-        completedDate: '2024-12-29T11:45:00Z',
-        earnings: 15000
-      },
-      {
-        caseId: 'LC004',
-        caseName: 'Villa Project - Goa',
-        clientName: 'Coastal Developers',
-        completionTime: 120,
-        targetTime: 144,
-        qualityScore: 4.9,
-        clientRating: 5.0,
-        complexity: 'high',
-        completedDate: '2024-12-28T16:30:00Z',
-        earnings: 50000
-      }
-    ]
-
-    setTimeout(() => {
-      setMetrics(mockMetrics)
-      setAchievements(mockAchievements)
-      setRanking(mockRanking)
-      setCasePerformance(mockCasePerformance)
-      setIsLoading(false)
-    }, 1000)
+    fetchData()
   }, [])
 
   const getCategoryColor = (category: string) => {

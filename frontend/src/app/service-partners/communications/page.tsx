@@ -94,6 +94,8 @@ interface Attachment {
   url: string
 }
 
+import { backendApi } from '@/lib/backendApi'
+
 export default function CommunicationsPage() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
@@ -106,201 +108,102 @@ export default function CommunicationsPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Mock data
   useEffect(() => {
-    const mockConversations: Conversation[] = [
-      {
-        id: 'CONV001',
-        title: 'Case LC001 - Worli Property Discussion',
-        participants: [
-          { id: 'ADM001', name: 'Admin Team', role: 'Admin', isOnline: true },
-          { id: 'LEG001', name: 'Advocate Rajesh Kumar', role: 'Legal Partner', isOnline: true },
-          { id: 'CLI001', name: 'Mr. Arjun Mehta', role: 'Client', isOnline: false, lastSeen: '2024-12-31T10:30:00Z' }
-        ],
-        lastMessage: {
-          id: 'MSG001',
-          conversationId: 'CONV001',
-          senderId: 'ADM001',
-          senderName: 'Admin Team',
-          senderRole: 'admin',
-          content: 'Legal opinion has been submitted for review. Please check the due diligence report.',
-          timestamp: '2024-12-31T15:30:00Z',
-          type: 'case-update',
-          status: 'read',
-          isStarred: false,
-          isImportant: true,
-          caseId: 'LC001',
-          isEncrypted: true
-        },
-        unreadCount: 0,
-        isPinned: true,
-        isArchived: false,
-        isMuted: false,
-        caseId: 'LC001',
-        type: 'case-discussion',
-        priority: 'high',
-        isEncrypted: true,
-        createdAt: '2024-12-30T10:00:00Z',
-        updatedAt: '2024-12-31T15:30:00Z'
-      },
-      {
-        id: 'CONV002',
-        title: 'Compliance Team',
-        participants: [
-          { id: 'COMP001', name: 'Compliance Officer', role: 'Compliance', isOnline: true },
-          { id: 'LEG001', name: 'Advocate Rajesh Kumar', role: 'Legal Partner', isOnline: true }
-        ],
-        lastMessage: {
-          id: 'MSG002',
-          conversationId: 'CONV002',
-          senderId: 'COMP001',
-          senderName: 'Compliance Officer',
-          senderRole: 'compliance',
-          content: 'New RERA guidelines have been updated. Please review the attached document.',
-          timestamp: '2024-12-31T14:15:00Z',
-          type: 'text',
-          status: 'delivered',
-          attachments: [
-            {
-              id: 'ATT001',
-              name: 'RERA_Guidelines_2024.pdf',
-              type: 'pdf',
-              size: 1024000,
-              url: '/documents/rera-guidelines.pdf'
-            }
-          ],
-          isStarred: true,
-          isImportant: true,
-          isEncrypted: true
-        },
-        unreadCount: 2,
-        isPinned: false,
-        isArchived: false,
-        isMuted: false,
-        type: 'direct',
-        priority: 'normal',
-        isEncrypted: true,
-        createdAt: '2024-12-28T09:00:00Z',
-        updatedAt: '2024-12-31T14:15:00Z'
-      },
-      {
-        id: 'CONV003',
-        title: 'Support Ticket #ST001',
-        participants: [
-          { id: 'SUP001', name: 'Support Team', role: 'Support', isOnline: false, lastSeen: '2024-12-31T12:00:00Z' },
-          { id: 'LEG001', name: 'Advocate Rajesh Kumar', role: 'Legal Partner', isOnline: true }
-        ],
-        lastMessage: {
-          id: 'MSG003',
-          conversationId: 'CONV003',
-          senderId: 'LEG001',
-          senderName: 'Advocate Rajesh Kumar',
+    async function fetchConversations() {
+      try {
+        setIsLoading(true)
+        const response = await backendApi.chat.getConversations()
+        if (response?.success) {
+          const mappedConversations: Conversation[] = (response.data?.conversations || []).map((conv: any) => ({
+            id: conv.id,
+            title: conv.title || 'Chat',
+            participants: conv.participants || [],
+            lastMessage: conv.lastMessage || { content: 'No messages yet' },
+            unreadCount: conv.unreadCount || 0,
+            isPinned: false,
+            isArchived: false,
+            isMuted: false,
+            type: conv.type || 'direct',
+            priority: 'normal',
+            isEncrypted: false,
+            createdAt: conv.createdAt,
+            updatedAt: conv.updatedAt
+          }))
+          setConversations(mappedConversations)
+          if (mappedConversations.length > 0) {
+            setSelectedConversation(mappedConversations[0])
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching conversations:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchConversations()
+  }, [])
+
+  useEffect(() => {
+    if (!selectedConversation) return
+
+    async function fetchMessages() {
+      try {
+        const response = await backendApi.chat.getMessages(selectedConversation!.id)
+        if (response?.success) {
+          const mappedMessages: Message[] = (response.data?.messages || []).map((msg: any) => ({
+            id: msg.id,
+            conversationId: selectedConversation!.id,
+            senderId: msg.senderId,
+            senderName: msg.sender?.name || 'User',
+            senderRole: (msg.sender?.role?.toLowerCase() as any) || 'client',
+            content: msg.content,
+            timestamp: msg.createdAt,
+            type: 'text',
+            status: 'read',
+            isStarred: false,
+            isImportant: false,
+            isEncrypted: false
+          }))
+          setMessages(mappedMessages)
+        }
+      } catch (error) {
+        console.error('Error fetching messages:', error)
+      }
+    }
+    fetchMessages()
+
+    // Poll for new messages every 5 seconds (simplistic real-time fallback)
+    const interval = setInterval(fetchMessages, 5000)
+    return () => clearInterval(interval)
+  }, [selectedConversation])
+
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !selectedConversation) return
+
+    try {
+      const response = await backendApi.chat.sendMessage(selectedConversation.id, newMessage)
+      if (response?.success) {
+        setNewMessage('')
+        // fetchMessages will trigger via polling or we can manually append
+        setMessages(prev => [...prev, {
+          id: response.data.message.id,
+          conversationId: selectedConversation.id,
+          senderId: 'me', // Generic
+          senderName: 'Me',
           senderRole: 'legal-partner',
-          content: 'Thank you for resolving the document upload issue. Everything is working fine now.',
-          timestamp: '2024-12-31T13:45:00Z',
+          content: newMessage,
+          timestamp: new Date().toISOString(),
           type: 'text',
           status: 'sent',
           isStarred: false,
           isImportant: false,
           isEncrypted: false
-        },
-        unreadCount: 0,
-        isPinned: false,
-        isArchived: false,
-        isMuted: false,
-        type: 'support',
-        priority: 'low',
-        isEncrypted: false,
-        createdAt: '2024-12-30T16:30:00Z',
-        updatedAt: '2024-12-31T13:45:00Z'
+        }])
       }
-    ]
-
-    const mockMessages: Message[] = [
-      {
-        id: 'MSG001',
-        conversationId: 'CONV001',
-        senderId: 'ADM001',
-        senderName: 'Admin Team',
-        senderRole: 'admin',
-        content: 'Welcome to the case discussion for LC001. All case-related communications will happen here.',
-        timestamp: '2024-12-30T10:00:00Z',
-        type: 'system',
-        status: 'read',
-        isStarred: false,
-        isImportant: false,
-        caseId: 'LC001',
-        isEncrypted: true
-      },
-      {
-        id: 'MSG002',
-        conversationId: 'CONV001',
-        senderId: 'LEG001',
-        senderName: 'Advocate Rajesh Kumar',
-        senderRole: 'legal-partner',
-        content: 'I have completed the initial document review. The title deed appears to be clear, but I need to verify the encumbrance certificate.',
-        timestamp: '2024-12-30T14:30:00Z',
-        type: 'text',
-        status: 'read',
-        isStarred: false,
-        isImportant: false,
-        caseId: 'LC001',
-        isEncrypted: true
-      },
-      {
-        id: 'MSG003',
-        conversationId: 'CONV001',
-        senderId: 'CLI001',
-        senderName: 'Mr. Arjun Mehta',
-        senderRole: 'client',
-        content: 'Thank you for the update. I have the original encumbrance certificate. Should I upload it to the portal?',
-        timestamp: '2024-12-30T15:15:00Z',
-        type: 'text',
-        status: 'read',
-        isStarred: false,
-        isImportant: false,
-        caseId: 'LC001',
-        isEncrypted: true
-      },
-      {
-        id: 'MSG004',
-        conversationId: 'CONV001',
-        senderId: 'LEG001',
-        senderName: 'Advocate Rajesh Kumar',
-        senderRole: 'legal-partner',
-        content: 'Yes, please upload it in the documents section. I will review it and provide my legal opinion by tomorrow.',
-        timestamp: '2024-12-30T15:45:00Z',
-        type: 'text',
-        status: 'read',
-        isStarred: false,
-        isImportant: false,
-        caseId: 'LC001',
-        isEncrypted: true
-      },
-      {
-        id: 'MSG005',
-        conversationId: 'CONV001',
-        senderId: 'ADM001',
-        senderName: 'Admin Team',
-        senderRole: 'admin',
-        content: 'Legal opinion has been submitted for review. Please check the due diligence report.',
-        timestamp: '2024-12-31T15:30:00Z',
-        type: 'case-update',
-        status: 'read',
-        isStarred: false,
-        isImportant: true,
-        caseId: 'LC001',
-        isEncrypted: true
-      }
-    ]
-
-    setTimeout(() => {
-      setConversations(mockConversations)
-      setMessages(mockMessages)
-      setSelectedConversation(mockConversations[0])
-      setIsLoading(false)
-    }, 1000)
-  }, [])
+    } catch (error) {
+      toast.error('Failed to send message')
+    }
+  }
 
   // Auto scroll to bottom
   useEffect(() => {
@@ -320,30 +223,6 @@ export default function CommunicationsPage() {
 
     return true
   })
-
-  const sendMessage = () => {
-    if (!newMessage.trim() || !selectedConversation) return
-
-    const message: Message = {
-      id: `MSG${Date.now()}`,
-      conversationId: selectedConversation.id,
-      senderId: 'LEG001',
-      senderName: 'Advocate Rajesh Kumar',
-      senderRole: 'legal-partner',
-      content: newMessage,
-      timestamp: new Date().toISOString(),
-      type: 'text',
-      status: 'sent',
-      isStarred: false,
-      isImportant: false,
-      caseId: selectedConversation.caseId,
-      isEncrypted: true
-    }
-
-    setMessages(prev => [...prev, message])
-    setNewMessage('')
-    toast.success('Message sent!')
-  }
 
   const getRoleColor = (role: string) => {
     switch (role) {

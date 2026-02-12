@@ -68,6 +68,8 @@ interface LegalCase {
   feedback?: string
 }
 
+import { backendApi } from '@/lib/backendApi'
+
 export default function LegalCasesPage() {
   const [cases, setCases] = useState<LegalCase[]>([])
   const [filteredCases, setFilteredCases] = useState<LegalCase[]>([])
@@ -80,200 +82,57 @@ export default function LegalCasesPage() {
   const [filterPropertyType, setFilterPropertyType] = useState('all')
   const [isLoading, setIsLoading] = useState(true)
 
-  // Mock data
   useEffect(() => {
-    const mockCases: LegalCase[] = [
-      {
-        id: 'LC001',
-        title: 'Property Title Verification - Luxury Apartment',
-        description: 'Complete legal due diligence for a 3BHK luxury apartment purchase including title verification, encumbrance check, and RERA compliance.',
-        propertyType: 'residential',
-        propertyDetails: {
-          address: 'Tower A, Lodha Park, Worli, Mumbai',
-          area: '1,250 sq ft',
-          value: 45000000,
-          registrationNumber: 'MH/RERA/2019/P52100012345'
-        },
-        clientType: 'individual-buyer',
-        clientName: 'Mr. Arjun Mehta',
-        clientContact: '+91 98765 43210',
-        scopeOfWork: [
-          'Title verification and chain of ownership',
-          'Encumbrance certificate review',
-          'RERA compliance check',
-          'Government approvals verification',
-          'Legal opinion and risk assessment'
-        ],
-        priority: 'high',
-        status: 'assigned',
-        assignedDate: '2024-12-30T10:00:00Z',
-        dueDate: '2025-01-05T18:00:00Z',
-        fee: 25000,
-        documents: [
-          'Sale Deed',
-          'Agreement to Sell',
-          'Encumbrance Certificate',
-          'RERA Certificate',
-          'Approved Building Plan'
-        ],
-        complianceStatus: {
-          titleVerification: false,
-          encumbranceCheck: false,
-          reraCompliance: false,
-          governmentApprovals: false
-        },
-        timeline: {
-          assigned: '2024-12-30T10:00:00Z'
-        }
-      },
-      {
-        id: 'LC002',
-        title: 'RERA Compliance Audit - Commercial Complex',
-        description: 'Comprehensive RERA compliance audit for a commercial complex development project.',
-        propertyType: 'commercial',
-        propertyDetails: {
-          address: 'Andheri Kurla Road, Andheri East, Mumbai',
-          area: '50,000 sq ft',
-          value: 150000000,
-          registrationNumber: 'MH/RERA/2020/P52100067890'
-        },
-        clientType: 'developer',
-        clientName: 'Prestige Constructions Pvt Ltd',
-        clientContact: '+91 87654 32109',
-        scopeOfWork: [
-          'RERA registration verification',
-          'Project approval status check',
-          'Compliance with RERA guidelines',
-          'Escrow account verification',
-          'Marketing material compliance'
-        ],
-        priority: 'urgent',
-        status: 'under-review',
-        assignedDate: '2024-12-28T14:30:00Z',
-        dueDate: '2025-01-02T18:00:00Z',
-        fee: 45000,
-        documents: [
-          'RERA Registration Certificate',
-          'Project Approval Letter',
-          'Sanctioned Building Plan',
-          'Environmental Clearance',
-          'Marketing Brochures'
-        ],
-        legalOpinion: 'Initial review shows compliance with major RERA requirements. Minor documentation gaps identified.',
-        riskGrade: 'medium',
-        complianceStatus: {
-          titleVerification: true,
-          encumbranceCheck: true,
-          reraCompliance: false,
-          governmentApprovals: true
-        },
-        timeline: {
-          assigned: '2024-12-28T14:30:00Z',
-          started: '2024-12-28T16:00:00Z',
-          reviewed: '2024-12-29T11:30:00Z'
-        }
-      },
-      {
-        id: 'LC003',
-        title: 'Legal Due Diligence - Villa Purchase',
-        description: 'Complete legal verification for an independent villa purchase in Juhu.',
-        propertyType: 'residential',
-        propertyDetails: {
-          address: 'Juhu Tara Road, Juhu, Mumbai',
-          area: '3,500 sq ft',
-          value: 85000000
-        },
-        clientType: 'individual-buyer',
-        clientName: 'Mrs. Kavita Sharma',
-        clientContact: '+91 76543 21098',
-        scopeOfWork: [
-          'Title verification',
-          'Encumbrance check (30 years)',
-          'Municipal approvals verification',
-          'Coastal regulation zone clearance',
-          'Property tax verification'
-        ],
-        priority: 'medium',
-        status: 'clarification-needed',
-        assignedDate: '2024-12-25T09:15:00Z',
-        dueDate: '2025-01-08T18:00:00Z',
-        fee: 35000,
-        documents: [
-          'Original Sale Deed',
-          'Property Card',
-          'Mutation Documents',
-          'Property Tax Receipts',
-          'CRZ Clearance'
-        ],
-        legalOpinion: 'Property has clear title. Clarification needed on CRZ compliance for recent renovations.',
-        riskGrade: 'low',
-        complianceStatus: {
-          titleVerification: true,
-          encumbranceCheck: true,
-          reraCompliance: true,
-          governmentApprovals: false
-        },
-        timeline: {
-          assigned: '2024-12-25T09:15:00Z',
-          started: '2024-12-25T14:00:00Z',
-          reviewed: '2024-12-27T16:30:00Z'
-        }
-      },
-      {
-        id: 'LC004',
-        title: 'Property Documentation Review - Completed',
-        description: 'Legal review of property documents for a residential flat purchase.',
-        propertyType: 'residential',
-        propertyDetails: {
-          address: 'Hiranandani Gardens, Powai, Mumbai',
-          area: '1,100 sq ft',
-          value: 32000000
-        },
-        clientType: 'individual-buyer',
-        clientName: 'Mr. Rohit Patel',
-        clientContact: '+91 65432 10987',
-        scopeOfWork: [
-          'Document verification',
-          'Title clearance',
-          'Society NOC verification',
-          'Legal opinion'
-        ],
-        priority: 'medium',
-        status: 'completed',
-        assignedDate: '2024-12-20T11:00:00Z',
-        dueDate: '2024-12-28T18:00:00Z',
-        completedDate: '2024-12-27T15:30:00Z',
-        fee: 18000,
-        documents: [
-          'Sale Agreement',
-          'Society Share Certificate',
-          'NOC from Society',
-          'Property Tax Receipts'
-        ],
-        legalOpinion: 'All documents are in order. Property has clear and marketable title. Recommended for purchase.',
-        riskGrade: 'low',
-        complianceStatus: {
-          titleVerification: true,
-          encumbranceCheck: true,
-          reraCompliance: true,
-          governmentApprovals: true
-        },
-        timeline: {
-          assigned: '2024-12-20T11:00:00Z',
-          started: '2024-12-20T14:00:00Z',
-          reviewed: '2024-12-25T10:00:00Z',
-          completed: '2024-12-27T15:30:00Z'
-        },
-        rating: 5,
-        feedback: 'Excellent work. Very thorough analysis and clear recommendations.'
-      }
-    ]
+    async function fetchData() {
+      try {
+        setIsLoading(true)
+        const response = await backendApi.partners.getCases()
+        if (response?.success) {
+          const caseData = response.data || []
+          
+          const mappedCases: LegalCase[] = caseData.map((c: any) => ({
+            id: c.id,
+            title: c.description || 'Property Service Case',
+            description: c.details || c.description || 'No detailed description provided.',
+            propertyType: (c.propertyType?.toLowerCase() as any) || 'residential',
+            propertyDetails: {
+              address: c.propertyName || 'N/A',
+              area: 'N/A',
+              value: c.amount || 0,
+              registrationNumber: c.id
+            },
+            clientType: 'individual-buyer',
+            clientName: c.clientName || 'GharBazaar Client',
+            clientContact: c.clientPhone || 'N/A',
+            scopeOfWork: ['Legal Due Diligence', 'Verification'],
+            priority: (c.priority?.toLowerCase() as any) || 'medium',
+            status: (c.status?.toLowerCase() as any) || 'assigned',
+            assignedDate: c.createdAt,
+            dueDate: c.updatedAt,
+            fee: c.amount || 0,
+            documents: [],
+            complianceStatus: {
+              titleVerification: false,
+              encumbranceCheck: false,
+              reraCompliance: false,
+              governmentApprovals: false
+            },
+            timeline: {
+              assigned: c.createdAt
+            }
+          }))
 
-    setTimeout(() => {
-      setCases(mockCases)
-      setFilteredCases(mockCases)
-      setIsLoading(false)
-    }, 1000)
+          setCases(mappedCases)
+          setFilteredCases(mappedCases)
+        }
+      } catch (error) {
+        console.error('Error fetching cases:', error)
+        toast.error('Failed to load cases')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchData()
   }, [])
 
   // Filter cases

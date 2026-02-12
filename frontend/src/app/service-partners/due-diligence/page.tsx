@@ -74,134 +74,23 @@ export default function DueDiligencePage() {
   const [tempOpinion, setTempOpinion] = useState('')
   const [isLoading, setIsLoading] = useState(true)
 
-  // Mock data
+  // Fetch cases
   useEffect(() => {
-    const mockCases: DueDiligenceCase[] = [
-      {
-        id: 'DD001',
-        caseId: 'LC001',
-        propertyTitle: 'Luxury Apartment - Worli',
-        propertyType: 'Residential',
-        clientName: 'Mr. Arjun Mehta',
-        assignedDate: '2024-12-30T10:00:00Z',
-        dueDate: '2025-01-05T18:00:00Z',
-        status: 'in-progress',
-        priority: 'high',
-        legalOpinion: '',
-        riskGrade: null,
-        recommendations: [],
-        complianceScore: 65,
-        lastUpdated: '2024-12-31T14:30:00Z',
-        checklist: [
-          {
-            id: 'C001',
-            category: 'title',
-            item: 'Title Deed Verification',
-            description: 'Verify the authenticity and validity of the title deed',
-            status: 'verified',
-            notes: 'Title deed is clear and authentic. No encumbrances found.',
-            documents: ['title_deed.pdf', 'survey_settlement.pdf'],
-            verifiedDate: '2024-12-31T10:00:00Z',
-            verifiedBy: 'Advocate Rajesh Kumar',
-            priority: 'critical'
-          },
-          {
-            id: 'C002',
-            category: 'title',
-            item: 'Chain of Ownership',
-            description: 'Verify the complete chain of ownership for the past 30 years',
-            status: 'verified',
-            notes: 'Complete chain verified. All transfers are legitimate.',
-            documents: ['ownership_chain.pdf'],
-            verifiedDate: '2024-12-31T11:30:00Z',
-            verifiedBy: 'Advocate Rajesh Kumar',
-            priority: 'critical'
-          },
-          {
-            id: 'C003',
-            category: 'encumbrance',
-            item: 'Encumbrance Certificate',
-            description: 'Check for any encumbrances, mortgages, or liens',
-            status: 'verified',
-            notes: 'No encumbrances found in the past 30 years.',
-            documents: ['encumbrance_cert.pdf'],
-            verifiedDate: '2024-12-31T12:00:00Z',
-            verifiedBy: 'Advocate Rajesh Kumar',
-            priority: 'critical'
-          },
-          {
-            id: 'C004',
-            category: 'rera',
-            item: 'RERA Registration',
-            description: 'Verify RERA registration and compliance',
-            status: 'pending',
-            notes: '',
-            documents: [],
-            priority: 'important'
-          },
-          {
-            id: 'C005',
-            category: 'approvals',
-            item: 'Building Approvals',
-            description: 'Verify municipal building approvals and NOCs',
-            status: 'issues-found',
-            notes: 'Minor discrepancy in approved vs actual construction. Seeking clarification.',
-            documents: ['building_approval.pdf'],
-            priority: 'important'
-          }
-        ]
-      },
-      {
-        id: 'DD002',
-        caseId: 'LC002',
-        propertyTitle: 'Commercial Complex - Andheri',
-        propertyType: 'Commercial',
-        clientName: 'Prestige Constructions',
-        assignedDate: '2024-12-28T14:30:00Z',
-        dueDate: '2025-01-02T18:00:00Z',
-        status: 'requires-clarification',
-        priority: 'urgent',
-        legalOpinion: 'Property shows good compliance with RERA requirements. Minor documentation gaps identified that need developer clarification.',
-        riskGrade: 'medium',
-        recommendations: [
-          'Obtain updated RERA compliance certificate',
-          'Clarify environmental clearance status',
-          'Update project completion timeline'
-        ],
-        complianceScore: 78,
-        lastUpdated: '2024-12-30T16:45:00Z',
-        checklist: [
-          {
-            id: 'C006',
-            category: 'rera',
-            item: 'RERA Project Registration',
-            description: 'Verify project registration with RERA authority',
-            status: 'verified',
-            notes: 'Project properly registered with MahaRERA.',
-            documents: ['rera_registration.pdf'],
-            verifiedDate: '2024-12-29T09:00:00Z',
-            verifiedBy: 'Advocate Rajesh Kumar',
-            priority: 'critical'
-          },
-          {
-            id: 'C007',
-            category: 'approvals',
-            item: 'Environmental Clearance',
-            description: 'Check environmental clearance and compliance',
-            status: 'issues-found',
-            notes: 'Environmental clearance expires soon. Need updated certificate.',
-            documents: ['env_clearance.pdf'],
-            priority: 'critical'
-          }
-        ]
+    async function fetchCases() {
+      try {
+        setIsLoading(true)
+        // If there's a due diligence API, we can use it here
+        // For now, we'll keep it as an empty state
+        
+        setCases([])
+        setFilteredCases([])
+        setIsLoading(false)
+      } catch (error) {
+        console.error('Error fetching due diligence cases:', error)
+        setIsLoading(false)
       }
-    ]
-
-    setTimeout(() => {
-      setCases(mockCases)
-      setFilteredCases(mockCases)
-      setIsLoading(false)
-    }, 1000)
+    }
+    fetchCases()
   }, [])
 
   // Filter cases

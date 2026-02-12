@@ -89,6 +89,10 @@ interface ServiceProvider {
   verified: boolean
   available: boolean
   image: string
+  user?: {
+    name: string
+    email: string
+  }
 }
 
 export default function ServicePartnersDashboard() {
@@ -134,6 +138,12 @@ export default function ServicePartnersDashboard() {
             completionRate: tasks.length > 0 ? Math.round((tasks.filter((t: any) => t.status === 'completed').length / tasks.length) * 100) : 0,
             responseTime: 2 // Mock response time
           })
+        }
+
+        // Fetch real service providers for the "Professional Services" section
+        const providersResponse = await backendApi.serviceProvider.list({ limit: 6 } as any)
+        if (providersResponse?.success) {
+          setServiceProviders(providersResponse.providers || [])
         }
 
         // Setup Socket
@@ -348,60 +358,67 @@ export default function ServicePartnersDashboard() {
         {/* Service Providers Grid */}
         <div className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {filteredProviders.slice(0, 6).map(provider => (
-              <div key={provider.id} className="group bg-gray-50 dark:bg-gray-900 rounded-lg p-3 border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-all hover:-translate-y-0.5">
-                <div className="flex items-start gap-3 mb-3">
-                  <div className="relative">
-                    <img 
-                      src={provider.image} 
-                      alt={provider.name}
-                      className="w-12 h-12 rounded-lg object-cover"
-                    />
-                    {provider.verified && (
-                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center">
-                        <CheckCircle size={10} className="text-white" />
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-bold text-sm text-gray-900 dark:text-white truncate">{provider.name}</h4>
-                    <p className="text-xs text-gray-600 dark:text-gray-400 truncate">{provider.specialization}</p>
-                    
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className="flex items-center gap-0.5">
-                        <Star size={10} className="fill-yellow-500 text-yellow-500" />
-                        <span className="text-xs font-bold text-gray-900 dark:text-white">{provider.rating}</span>
-                        <span className="text-xs text-gray-500">({provider.reviews})</span>
-                      </div>
-                      {provider.available ? (
-                        <span className="px-1.5 py-0.5 bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 rounded text-xs font-semibold">
-                          Available
-                        </span>
-                      ) : (
-                        <span className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-900/20 text-gray-700 dark:text-gray-400 rounded text-xs font-semibold">
-                          Busy
-                        </span>
+            {filteredProviders.length > 0 ? (
+              filteredProviders.slice(0, 6).map(provider => (
+                <div key={provider.id} className="group bg-gray-50 dark:bg-gray-900 rounded-lg p-3 border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-all hover:-translate-y-0.5">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="relative">
+                      <img 
+                        src={provider.image || 'https://via.placeholder.com/150'} 
+                        alt={provider.name}
+                        className="w-12 h-12 rounded-lg object-cover"
+                      />
+                      {provider.verified && (
+                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center">
+                          <CheckCircle size={10} className="text-white" />
+                        </div>
                       )}
                     </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-sm text-gray-900 dark:text-white truncate">{provider.name || provider.user?.name}</h4>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 truncate">{provider.specialization}</p>
+                      
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center gap-0.5">
+                          <Star size={10} className="fill-yellow-500 text-yellow-500" />
+                          <span className="text-xs font-bold text-gray-900 dark:text-white">{provider.rating || 0}</span>
+                          <span className="text-xs text-gray-500">({provider.reviews || 0})</span>
+                        </div>
+                        {provider.available ? (
+                          <span className="px-1.5 py-0.5 bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 rounded text-xs font-semibold">
+                            Available
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-900/20 text-gray-700 dark:text-gray-400 rounded text-xs font-semibold">
+                            Busy
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
-                  <div>
-                    <div className="text-xs text-gray-600 dark:text-gray-400">Rate</div>
-                    <div className="text-sm font-bold text-gray-900 dark:text-white">₹{provider.hourlyRate}/hr</div>
+                  <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
+                    <div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400">Rate</div>
+                      <div className="text-sm font-bold text-gray-900 dark:text-white">₹{provider.hourlyRate || 0}/hr</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400">Projects</div>
+                      <div className="text-sm font-bold text-gray-900 dark:text-white">{provider.completedProjects || 0}</div>
+                    </div>
+                    <button className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-all">
+                      Contact
+                    </button>
                   </div>
-                  <div>
-                    <div className="text-xs text-gray-600 dark:text-gray-400">Projects</div>
-                    <div className="text-sm font-bold text-gray-900 dark:text-white">{provider.completedProjects}</div>
-                  </div>
-                  <button className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-all">
-                    Contact
-                  </button>
                 </div>
+              ))
+            ) : (
+              <div className="col-span-full py-10 text-center bg-gray-50 dark:bg-gray-900 rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
+                <Users size={40} className="mx-auto text-gray-400 mb-3 opacity-20" />
+                <p className="text-gray-500 dark:text-gray-400 text-sm">No service providers available in this category.</p>
               </div>
-            ))}
+            )}
           </div>
 
           {filteredProviders.length > 6 && (

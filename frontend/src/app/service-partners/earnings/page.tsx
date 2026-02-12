@@ -79,6 +79,8 @@ interface MonthlyData {
   hours: number
 }
 
+import { backendApi } from '@/lib/backendApi'
+
 export default function EarningsPage() {
   const [payments, setPayments] = useState<Payment[]>([])
   const [filteredPayments, setFilteredPayments] = useState<Payment[]>([])
@@ -91,131 +93,83 @@ export default function EarningsPage() {
   const [showInvoiceModal, setShowInvoiceModal] = useState(false)
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null)
 
-  // Mock data
   useEffect(() => {
-    const mockPayments: Payment[] = [
-      {
-        id: 'PAY001',
-        caseId: 'LC001',
-        caseName: 'Luxury Apartment - Worli',
-        clientName: 'Mr. Arjun Mehta',
-        amount: 25000,
-        type: 'due-diligence',
-        status: 'paid',
-        invoiceDate: '2024-12-30T00:00:00Z',
-        dueDate: '2025-01-05T00:00:00Z',
-        paidDate: '2024-12-31T14:30:00Z',
-        paymentMethod: 'bank-transfer',
-        transactionId: 'TXN001234567',
-        invoiceNumber: 'INV-2024-001',
-        taxAmount: 4500,
-        netAmount: 20500,
-        description: 'Legal due diligence for property verification',
-        workHours: 12,
-        hourlyRate: 2083
-      },
-      {
-        id: 'PAY002',
-        caseId: 'LC002',
-        caseName: 'Commercial Complex - Andheri',
-        clientName: 'Prestige Constructions',
-        amount: 35000,
-        type: 'legal-opinion',
-        status: 'processing',
-        invoiceDate: '2024-12-28T00:00:00Z',
-        dueDate: '2025-01-02T00:00:00Z',
-        paymentMethod: 'bank-transfer',
-        invoiceNumber: 'INV-2024-002',
-        taxAmount: 6300,
-        netAmount: 28700,
-        description: 'Comprehensive legal opinion and compliance review',
-        workHours: 18,
-        hourlyRate: 1944
-      },
-      {
-        id: 'PAY003',
-        caseId: 'LC003',
-        caseName: 'Residential Plot - Pune',
-        clientName: 'Ms. Priya Sharma',
-        amount: 15000,
-        type: 'document-review',
-        status: 'pending',
-        invoiceDate: '2024-12-29T00:00:00Z',
-        dueDate: '2025-01-03T00:00:00Z',
-        invoiceNumber: 'INV-2024-003',
-        taxAmount: 2700,
-        netAmount: 12300,
-        description: 'Document verification and title clearance',
-        workHours: 8,
-        hourlyRate: 1875
-      },
-      {
-        id: 'PAY004',
-        caseId: 'LC004',
-        caseName: 'Villa Project - Goa',
-        clientName: 'Coastal Developers',
-        amount: 50000,
-        type: 'consultation',
-        status: 'paid',
-        invoiceDate: '2024-12-25T00:00:00Z',
-        dueDate: '2024-12-30T00:00:00Z',
-        paidDate: '2024-12-29T10:15:00Z',
-        paymentMethod: 'upi',
-        transactionId: 'UPI987654321',
-        invoiceNumber: 'INV-2024-004',
-        taxAmount: 9000,
-        netAmount: 41000,
-        description: 'Legal consultation for RERA compliance',
-        workHours: 25,
-        hourlyRate: 2000
-      },
-      {
-        id: 'PAY005',
-        caseId: 'BONUS001',
-        caseName: 'Performance Bonus',
-        clientName: 'GharBazaar Admin',
-        amount: 10000,
-        type: 'bonus',
-        status: 'paid',
-        invoiceDate: '2024-12-31T00:00:00Z',
-        dueDate: '2024-12-31T00:00:00Z',
-        paidDate: '2024-12-31T16:00:00Z',
-        paymentMethod: 'bank-transfer',
-        transactionId: 'BONUS123456',
-        invoiceNumber: 'BONUS-2024-001',
-        taxAmount: 1800,
-        netAmount: 8200,
-        description: 'Monthly performance bonus for excellent service'
+    async function fetchData() {
+      try {
+        setIsLoading(true)
+        const response = await backendApi.partners.getPayouts()
+        if (response?.success) {
+          const payoutData = response.data || []
+          
+          // Map backend payouts to frontend Payment interface
+          const mappedPayments: Payment[] = payoutData.map((p: any) => ({
+            id: p.id,
+            caseId: p.targetId || 'N/A',
+            caseName: p.description || 'Service Payment',
+            clientName: 'Admin', // Placeholder or fetch if available
+            amount: p.amount,
+            type: p.type || 'consultation',
+            status: p.status,
+            invoiceDate: p.createdAt,
+            dueDate: p.createdAt,
+            paidDate: p.paidAt,
+            paymentMethod: p.method,
+            transactionId: p.transactionId,
+            invoiceNumber: `INV-${p.id.slice(0, 8).toUpperCase()}`,
+            taxAmount: 0, // Not available in model yet
+            netAmount: p.amount,
+            description: p.notes || p.description,
+          }))
+
+          setPayments(mappedPayments)
+          setFilteredPayments(mappedPayments)
+
+          // Calculate stats
+          const totalEarnings = mappedPayments.reduce((acc, p) => acc + p.amount, 0)
+          const monthlyEarnings = mappedPayments
+            .filter(p => new Date(p.invoiceDate).getMonth() === new Date().getMonth())
+            .reduce((acc, p) => acc + p.amount, 0)
+          const pendingAmount = mappedPayments
+            .filter(p => p.status === 'pending')
+            .reduce((acc, p) => acc + p.amount, 0)
+          const paidPayments = mappedPayments.filter(p => p.status === 'paid')
+
+          setStats({
+            totalEarnings,
+            monthlyEarnings,
+            pendingAmount,
+            completedCases: paidPayments.length,
+            averagePerCase: paidPayments.length > 0 ? totalEarnings / paidPayments.length : 0,
+            taxDeducted: 0,
+            netReceived: totalEarnings - pendingAmount,
+            growthRate: 0
+          })
+
+          // Calculate monthly distribution
+          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+          const currentYear = new Date().getFullYear()
+          const dist = months.map((m, i) => {
+            const monthPayments = mappedPayments.filter(p => {
+              const d = new Date(p.invoiceDate)
+              return d.getMonth() === i && d.getFullYear() === currentYear
+            })
+            return {
+              month: m,
+              earnings: monthPayments.reduce((acc, p) => acc + p.amount, 0),
+              cases: monthPayments.length,
+              hours: 0
+            }
+          })
+          setMonthlyData(dist.slice(-6)) // Show last 6 months
+        }
+      } catch (error) {
+        console.error('Error fetching payouts:', error)
+        toast.error('Failed to load earnings data')
+      } finally {
+        setIsLoading(false)
       }
-    ]
-
-    const mockStats: EarningsStats = {
-      totalEarnings: 135000,
-      monthlyEarnings: 85000,
-      pendingAmount: 15000,
-      completedCases: 4,
-      averagePerCase: 33750,
-      taxDeducted: 24300,
-      netReceived: 110700,
-      growthRate: 15.5
     }
-
-    const mockMonthlyData: MonthlyData[] = [
-      { month: 'Jul', earnings: 45000, cases: 2, hours: 35 },
-      { month: 'Aug', earnings: 62000, cases: 3, hours: 48 },
-      { month: 'Sep', earnings: 38000, cases: 2, hours: 28 },
-      { month: 'Oct', earnings: 71000, cases: 4, hours: 55 },
-      { month: 'Nov', earnings: 54000, cases: 3, hours: 42 },
-      { month: 'Dec', earnings: 85000, cases: 5, hours: 63 }
-    ]
-
-    setTimeout(() => {
-      setPayments(mockPayments)
-      setFilteredPayments(mockPayments)
-      setStats(mockStats)
-      setMonthlyData(mockMonthlyData)
-      setIsLoading(false)
-    }, 1000)
+    fetchData()
   }, [])
 
   // Filter payments

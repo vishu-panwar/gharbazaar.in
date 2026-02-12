@@ -73,139 +73,103 @@ interface NotificationSettings {
   }
 }
 
+import { backendApi } from '@/lib/backendApi'
+
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [filteredNotifications, setFilteredNotifications] = useState<Notification[]>([])
-  const [settings, setSettings] = useState<NotificationSettings | null>(null)
+  const [settings, setSettings] = useState<NotificationSettings | null>({
+    emailNotifications: true,
+    pushNotifications: true,
+    smsNotifications: false,
+    desktopNotifications: true,
+    categories: {
+      cases: true,
+      payments: true,
+      documents: true,
+      messages: true,
+      system: false,
+      compliance: true
+    },
+    quietHours: {
+      enabled: true,
+      startTime: '22:00',
+      endTime: '08:00'
+    }
+  })
   const [activeTab, setActiveTab] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedNotifications, setSelectedNotifications] = useState<string[]>([])
   const [showSettings, setShowSettings] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Mock data
   useEffect(() => {
-    const mockNotifications: Notification[] = [
-      {
-        id: 'N001',
-        type: 'case-assigned',
-        title: 'New Case Assigned',
-        message: 'Property verification case for Bandra apartment has been assigned to you.',
-        timestamp: '2024-12-31T10:00:00Z',
-        read: false,
-        priority: 'high',
-        category: 'cases',
-        actionUrl: '/legal-partner/cases/LC001',
-        metadata: {
-          caseId: 'LC001',
-          clientName: 'Mr. Arjun Mehta'
+    async function fetchNotifications() {
+      try {
+        setIsLoading(true)
+        const response = await backendApi.notifications.getAll()
+        if (response?.success) {
+          const mappedNotifications: Notification[] = (response.notifications || []).map((n: any) => ({
+            id: n.id,
+            type: n.type || 'system-update',
+            title: n.title,
+            message: n.message,
+            timestamp: n.createdAt,
+            read: n.read || false,
+            priority: n.priority || 'medium',
+            category: n.category || 'system',
+            actionUrl: n.link,
+            metadata: n.metadata
+          }))
+          setNotifications(mappedNotifications)
+          setFilteredNotifications(mappedNotifications)
         }
-      },
-      {
-        id: 'N002',
-        type: 'document-uploaded',
-        title: 'Documents Updated',
-        message: 'Additional documents have been uploaded for case LC002.',
-        timestamp: '2024-12-31T09:30:00Z',
-        read: false,
-        priority: 'medium',
-        category: 'documents',
-        actionUrl: '/legal-partner/documents',
-        metadata: {
-          caseId: 'LC002'
-        }
-      },
-      {
-        id: 'N003',
-        type: 'payment-processed',
-        title: 'Payment Received',
-        message: 'Payment of ₹25,000 for case LC001 has been processed successfully.',
-        timestamp: '2024-12-31T08:15:00Z',
-        read: true,
-        priority: 'low',
-        category: 'payments',
-        actionUrl: '/legal-partner/earnings',
-        metadata: {
-          amount: 25000,
-          caseId: 'LC001'
-        }
-      },
-      {
-        id: 'N004',
-        type: 'deadline-reminder',
-        title: 'Deadline Approaching',
-        message: 'Legal opinion for case LC003 is due in 2 days.',
-        timestamp: '2024-12-31T07:45:00Z',
-        read: false,
-        priority: 'urgent',
-        category: 'cases',
-        actionUrl: '/legal-partner/cases/LC003',
-        metadata: {
-          caseId: 'LC003',
-          dueDate: '2025-01-02T00:00:00Z'
-        }
-      },
-      {
-        id: 'N005',
-        type: 'message-received',
-        title: 'New Message',
-        message: 'You have received a new message from the compliance team.',
-        timestamp: '2024-12-30T16:20:00Z',
-        read: true,
-        priority: 'medium',
-        category: 'messages',
-        actionUrl: '/legal-partner/communications'
-      },
-      {
-        id: 'N006',
-        type: 'system-update',
-        title: 'System Maintenance',
-        message: 'Scheduled maintenance will occur on Jan 5th from 2:00 AM to 4:00 AM.',
-        timestamp: '2024-12-30T14:00:00Z',
-        read: true,
-        priority: 'low',
-        category: 'system'
-      },
-      {
-        id: 'N007',
-        type: 'compliance-alert',
-        title: 'RERA Update Required',
-        message: 'New RERA guidelines require immediate attention for ongoing cases.',
-        timestamp: '2024-12-30T11:30:00Z',
-        read: false,
-        priority: 'high',
-        category: 'compliance',
-        actionUrl: '/legal-partner/knowledge'
-      }
-    ]
-
-    const mockSettings: NotificationSettings = {
-      emailNotifications: true,
-      pushNotifications: true,
-      smsNotifications: false,
-      desktopNotifications: true,
-      categories: {
-        cases: true,
-        payments: true,
-        documents: true,
-        messages: true,
-        system: false,
-        compliance: true
-      },
-      quietHours: {
-        enabled: true,
-        startTime: '22:00',
-        endTime: '08:00'
+      } catch (error) {
+        console.error('Error fetching notifications:', error)
+      } finally {
+        setIsLoading(false)
       }
     }
-
-    setTimeout(() => {
-      setNotifications(mockNotifications)
-      setFilteredNotifications(mockNotifications)
-      setSettings(mockSettings)
-      setIsLoading(false)
-    }, 1000)
+    fetchNotifications()
   }, [])
+
+  const markAsRead = async (notificationId: string) => {
+    try {
+      const response = await backendApi.notifications.markAsRead(notificationId)
+      if (response?.success) {
+        setNotifications(prev => prev.map(n => 
+          n.id === notificationId ? { ...n, read: true } : n
+        ))
+        toast.success('Marked as read')
+      }
+    } catch (error) {
+      toast.error('Failed to mark as read')
+    }
+  }
+
+  const markAllAsRead = async () => {
+    try {
+      const response = await backendApi.notifications.markAllAsRead()
+      if (response?.success) {
+        setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+        toast.success('All notifications marked as read')
+      }
+    } catch (error) {
+      toast.error('Failed to mark all as read')
+    }
+  }
+
+  const deleteNotification = async (notificationId: string) => {
+    try {
+      const response = await backendApi.notifications.delete(notificationId)
+      if (response?.success) {
+        setNotifications(prev => prev.filter(n => n.id !== notificationId))
+        toast.success('Notification deleted')
+      }
+    } catch (error) {
+      toast.error('Failed to delete notification')
+    }
+  }
 
   // Filter notifications
   useEffect(() => {
@@ -250,23 +214,6 @@ export default function NotificationsPage() {
       case 'low': return 'border-l-green-500 bg-green-50 dark:bg-green-900/20'
       default: return 'border-l-gray-500 bg-gray-50 dark:bg-gray-900/20'
     }
-  }
-
-  const markAsRead = (notificationId: string) => {
-    setNotifications(prev => prev.map(n => 
-      n.id === notificationId ? { ...n, read: true } : n
-    ))
-    toast.success('Marked as read')
-  }
-
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })))
-    toast.success('All notifications marked as read')
-  }
-
-  const deleteNotification = (notificationId: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== notificationId))
-    toast.success('Notification deleted')
   }
 
   const toggleNotificationSetting = (key: keyof NotificationSettings) => {

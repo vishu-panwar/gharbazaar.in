@@ -1530,7 +1530,31 @@ export const backendApi = {
 
         getMyProfile: async () => {
             return backendApiCall('/service-providers/me');
-        }
+        },
+        
+        list: async (params: { 
+            category?: string; 
+            verified?: boolean; 
+            available?: boolean; 
+            location?: string; 
+            sortBy?: string;
+        } = {}) => {
+            const query = new URLSearchParams(params as any).toString();
+            return backendApiCall(`/service-providers${query ? `?${query}` : ''}`);
+        },
+
+        search: async (params: {
+            search?: string;
+            category?: string;
+            minRating?: number;
+            maxRate?: number;
+            verified?: boolean;
+            available?: boolean;
+            skills?: string;
+        }) => {
+            const query = new URLSearchParams(params as any).toString();
+            return backendApiCall(`/service-providers/search${query ? `?${query}` : ''}`);
+        },
     },
 
     // Expand Request endpoints

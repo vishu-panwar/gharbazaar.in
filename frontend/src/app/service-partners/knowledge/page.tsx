@@ -180,193 +180,24 @@ export default function KnowledgeBasePage() {
     }
   ]
 
-  // Mock data
+  // Fetch knowledge base data
   useEffect(() => {
-    const mockKnowledgeItems: KnowledgeItem[] = [
-      {
-        id: 'KB001',
-        title: 'Complete Guide to RERA Compliance 2024',
-        description: 'Comprehensive guide covering all aspects of RERA compliance for real estate transactions',
-        type: 'article',
-        category: 'rera',
-        content: 'Detailed article content...',
-        difficulty: 'intermediate',
-        tags: ['rera', 'compliance', '2024', 'real-estate'],
-        author: 'Legal Expert Team',
-        publishedDate: '2024-12-30T00:00:00Z',
-        lastUpdated: '2024-12-31T00:00:00Z',
-        views: 1250,
-        likes: 89,
-        isBookmarked: true,
-        isCompleted: false,
-        rating: 4.8,
-        totalRatings: 45,
-        language: 'English'
-      },
-      {
-        id: 'KB002',
-        title: 'Property Due Diligence Checklist',
-        description: 'Essential checklist for conducting thorough property due diligence',
-        type: 'document',
-        category: 'procedures',
-        url: '/documents/due-diligence-checklist.pdf',
-        difficulty: 'beginner',
-        tags: ['due-diligence', 'checklist', 'property'],
-        author: 'Advocate Rajesh Kumar',
-        publishedDate: '2024-12-28T00:00:00Z',
-        lastUpdated: '2024-12-28T00:00:00Z',
-        views: 890,
-        likes: 67,
-        isBookmarked: false,
-        isCompleted: true,
-        rating: 4.6,
-        totalRatings: 32,
-        fileSize: 2048000,
-        language: 'English'
-      },
-      {
-        id: 'KB003',
-        title: 'Understanding Title Verification Process',
-        description: 'Step-by-step video guide on property title verification',
-        type: 'video',
-        category: 'property-law',
-        url: '/videos/title-verification.mp4',
-        duration: 1800, // 30 minutes
-        difficulty: 'intermediate',
-        tags: ['title', 'verification', 'property-law'],
-        author: 'Senior Legal Advisor',
-        publishedDate: '2024-12-25T00:00:00Z',
-        lastUpdated: '2024-12-25T00:00:00Z',
-        views: 2100,
-        likes: 156,
-        isBookmarked: true,
-        isCompleted: false,
-        progress: 65,
-        rating: 4.9,
-        totalRatings: 78,
-        language: 'English'
-      },
-      {
-        id: 'KB004',
-        title: 'Latest Supreme Court Judgments on Property Law',
-        description: 'Recent landmark judgments affecting real estate transactions',
-        type: 'article',
-        category: 'updates',
-        content: 'Recent judgments analysis...',
-        difficulty: 'advanced',
-        tags: ['supreme-court', 'judgments', 'property-law', 'updates'],
-        author: 'Legal Research Team',
-        publishedDate: '2024-12-31T00:00:00Z',
-        lastUpdated: '2024-12-31T00:00:00Z',
-        views: 567,
-        likes: 43,
-        isBookmarked: false,
-        isCompleted: false,
-        rating: 4.7,
-        totalRatings: 23,
-        language: 'English'
-      },
-      {
-        id: 'KB005',
-        title: 'RERA Registration Process Webinar',
-        description: 'Live webinar on RERA project registration procedures',
-        type: 'webinar',
-        category: 'rera',
-        url: '/webinars/rera-registration.html',
-        duration: 3600, // 60 minutes
-        difficulty: 'intermediate',
-        tags: ['rera', 'registration', 'webinar', 'live'],
-        author: 'RERA Expert Panel',
-        publishedDate: '2024-12-29T00:00:00Z',
-        lastUpdated: '2024-12-29T00:00:00Z',
-        views: 1890,
-        likes: 134,
-        isBookmarked: true,
-        isCompleted: true,
-        rating: 4.8,
-        totalRatings: 67,
-        language: 'English'
-      },
-      {
-        id: 'KB006',
-        title: 'Document Templates Collection',
-        description: 'Ready-to-use legal document templates for property transactions',
-        type: 'document',
-        category: 'documentation',
-        url: '/templates/legal-documents.zip',
-        difficulty: 'beginner',
-        tags: ['templates', 'documents', 'legal', 'property'],
-        author: 'Template Library',
-        publishedDate: '2024-12-27T00:00:00Z',
-        lastUpdated: '2024-12-30T00:00:00Z',
-        views: 1456,
-        likes: 98,
-        isBookmarked: false,
-        isCompleted: false,
-        rating: 4.5,
-        totalRatings: 56,
-        fileSize: 15728640, // 15MB
-        language: 'English'
+    async function fetchData() {
+      try {
+        setIsLoading(true)
+        // If there's a knowledge base API, we can use it here
+        // For now, we'll keep it as an empty state
+        
+        setKnowledgeItems([])
+        setFilteredItems([])
+        setCourses([])
+        setIsLoading(false)
+      } catch (error) {
+        console.error('Error fetching knowledge base data:', error)
+        setIsLoading(false)
       }
-    ]
-
-    const mockCourses: Course[] = [
-      {
-        id: 'C001',
-        title: 'Advanced Property Law Certification',
-        description: 'Comprehensive certification course covering all aspects of property law',
-        instructor: 'Prof. Anil Sharma',
-        duration: 40,
-        modules: 12,
-        enrolled: 234,
-        rating: 4.9,
-        difficulty: 'Advanced',
-        thumbnail: '/courses/property-law.jpg',
-        progress: 0,
-        isEnrolled: false,
-        price: 15000,
-        category: 'property-law'
-      },
-      {
-        id: 'C002',
-        title: 'RERA Compliance Masterclass',
-        description: 'Master RERA regulations and compliance requirements',
-        instructor: 'Advocate Priya Mehta',
-        duration: 25,
-        modules: 8,
-        enrolled: 189,
-        rating: 4.8,
-        difficulty: 'Intermediate',
-        thumbnail: '/courses/rera-compliance.jpg',
-        progress: 75,
-        isEnrolled: true,
-        price: 12000,
-        category: 'rera'
-      },
-      {
-        id: 'C003',
-        title: 'Legal Documentation Best Practices',
-        description: 'Learn to create and review legal documents effectively',
-        instructor: 'Senior Advocate Kumar',
-        duration: 18,
-        modules: 6,
-        enrolled: 156,
-        rating: 4.7,
-        difficulty: 'Beginner',
-        thumbnail: '/courses/documentation.jpg',
-        progress: 100,
-        isEnrolled: true,
-        price: 8000,
-        category: 'documentation'
-      }
-    ]
-
-    setTimeout(() => {
-      setKnowledgeItems(mockKnowledgeItems)
-      setFilteredItems(mockKnowledgeItems)
-      setCourses(mockCourses)
-      setIsLoading(false)
-    }, 1000)
+    }
+    fetchData()
   }, [])
 
   // Update category counts

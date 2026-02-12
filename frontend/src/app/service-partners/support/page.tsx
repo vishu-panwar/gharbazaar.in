@@ -153,143 +153,26 @@ export default function SupportPage() {
     }
   ]
 
-  // Mock data
+  // Fetch data
   useEffect(() => {
-    const mockTickets: SupportTicket[] = [
-      {
-        id: 'ST001',
-        title: 'Unable to upload documents in case LC001',
-        description: 'I am facing issues while trying to upload PDF documents for case LC001. The upload fails with an error message.',
-        category: 'technical',
-        priority: 'high',
-        status: 'in-progress',
-        createdDate: '2024-12-30T10:00:00Z',
-        lastUpdated: '2024-12-31T14:30:00Z',
-        assignedTo: 'Technical Support Team',
-        responses: [
-          {
-            id: 'R001',
-            message: 'Thank you for reporting this issue. We are investigating the document upload problem. Can you please share the file size and format you are trying to upload?',
-            sender: 'support',
-            senderName: 'Tech Support',
-            timestamp: '2024-12-30T11:30:00Z'
-          },
-          {
-            id: 'R002',
-            message: 'The file is a PDF, approximately 5MB in size. I have tried multiple times but it keeps failing at 80% upload progress.',
-            sender: 'user',
-            senderName: 'Advocate Rajesh Kumar',
-            timestamp: '2024-12-30T14:15:00Z'
-          },
-          {
-            id: 'R003',
-            message: 'We have identified the issue and deployed a fix. Please try uploading again. The issue was related to large file handling on our servers.',
-            sender: 'support',
-            senderName: 'Tech Support',
-            timestamp: '2024-12-31T14:30:00Z'
-          }
-        ],
-        attachments: ['error-screenshot.png'],
-        tags: ['upload', 'documents', 'pdf', 'case-management']
-      },
-      {
-        id: 'ST002',
-        title: 'Payment not reflected in earnings',
-        description: 'My payment for case LC002 was processed 3 days ago but is not showing in my earnings dashboard.',
-        category: 'billing',
-        priority: 'medium',
-        status: 'resolved',
-        createdDate: '2024-12-28T09:00:00Z',
-        lastUpdated: '2024-12-29T16:45:00Z',
-        assignedTo: 'Billing Team',
-        responses: [
-          {
-            id: 'R004',
-            message: 'We have checked your payment records. The payment was processed successfully and should reflect in your dashboard within 24 hours. We are updating the system now.',
-            sender: 'support',
-            senderName: 'Billing Support',
-            timestamp: '2024-12-29T16:45:00Z'
-          }
-        ],
-        attachments: [],
-        tags: ['payment', 'earnings', 'billing'],
-        rating: 5,
-        feedback: 'Quick resolution, very helpful!'
-      },
-      {
-        id: 'ST003',
-        title: 'Request for RERA compliance training',
-        description: 'I would like to request additional training materials or webinars on the latest RERA compliance requirements.',
-        category: 'feature-request',
-        priority: 'low',
-        status: 'open',
-        createdDate: '2024-12-31T08:30:00Z',
-        lastUpdated: '2024-12-31T08:30:00Z',
-        responses: [],
-        attachments: [],
-        tags: ['training', 'rera', 'compliance', 'education']
+    async function fetchData() {
+      try {
+        setIsLoading(true)
+        // If there's a tickets API, we can use it here
+        // For now, we'll keep it as an empty state or fetch from backend if available
+        // const ticketsResponse = await backendApi.tickets.getMyTickets()
+        
+        // Clearing mock data for production-like feel
+        setTickets([])
+        setFilteredTickets([])
+        setFaqs([])
+        setIsLoading(false)
+      } catch (error) {
+        console.error('Error fetching support data:', error)
+        setIsLoading(false)
       }
-    ]
-
-    const mockFAQs: FAQ[] = [
-      {
-        id: 'FAQ001',
-        question: 'How do I reset my password?',
-        answer: 'To reset your password, go to the login page and click on "Forgot Password". Enter your registered email address and you will receive a password reset link. Follow the instructions in the email to create a new password.',
-        category: 'account',
-        helpful: 45,
-        notHelpful: 3,
-        tags: ['password', 'login', 'account'],
-        lastUpdated: '2024-12-25T00:00:00Z'
-      },
-      {
-        id: 'FAQ002',
-        question: 'What file formats are supported for document upload?',
-        answer: 'We support the following file formats: PDF, DOC, DOCX, JPG, JPEG, PNG. Maximum file size is 10MB per document. All uploaded documents are automatically encrypted and watermarked for security.',
-        category: 'technical',
-        helpful: 67,
-        notHelpful: 2,
-        tags: ['documents', 'upload', 'formats', 'security'],
-        lastUpdated: '2024-12-28T00:00:00Z'
-      },
-      {
-        id: 'FAQ003',
-        question: 'How are payments calculated and when are they processed?',
-        answer: 'Payments are calculated based on the type of legal service provided and the complexity of the case. Due diligence reports: ₹15,000-₹50,000, Legal opinions: ₹20,000-₹75,000. Payments are processed within 7 business days after case completion and client approval.',
-        category: 'billing',
-        helpful: 89,
-        notHelpful: 5,
-        tags: ['payment', 'billing', 'rates', 'processing'],
-        lastUpdated: '2024-12-30T00:00:00Z'
-      },
-      {
-        id: 'FAQ004',
-        question: 'What are the RERA compliance requirements for legal partners?',
-        answer: 'Legal partners must ensure all property transactions comply with RERA regulations. This includes verifying RERA registration numbers, checking project approvals, validating completion certificates, and ensuring all mandatory disclosures are made to buyers.',
-        category: 'legal',
-        helpful: 78,
-        notHelpful: 4,
-        tags: ['rera', 'compliance', 'legal', 'requirements'],
-        lastUpdated: '2024-12-29T00:00:00Z'
-      },
-      {
-        id: 'FAQ005',
-        question: 'How do I update my professional credentials?',
-        answer: 'To update your professional credentials, go to your profile settings and click on "Professional Information". You can update your Bar Council registration, years of experience, specialization areas, and upload relevant certificates. Changes require admin approval.',
-        category: 'account',
-        helpful: 34,
-        notHelpful: 1,
-        tags: ['profile', 'credentials', 'bar-council', 'verification'],
-        lastUpdated: '2024-12-27T00:00:00Z'
-      }
-    ]
-
-    setTimeout(() => {
-      setTickets(mockTickets)
-      setFilteredTickets(mockTickets)
-      setFaqs(mockFAQs)
-      setIsLoading(false)
-    }, 1000)
+    }
+    fetchData()
   }, [])
 
   // Filter tickets
