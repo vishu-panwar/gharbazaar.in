@@ -44,7 +44,16 @@ export default function ConversationsList({ onSelect, selectedId }: Conversation
         try {
             const data = await backendApi.chat.getConversations();
             if (data.success) {
-                setConversations(data.data.conversations || []);
+                const fetchedConversations = data.data.conversations || [];
+                setConversations(fetchedConversations);
+                
+                // If selectedId is provided but no selectedConversation yet, try to auto-select
+                if (selectedId && fetchedConversations.length > 0) {
+                    const found = fetchedConversations.find((c: any) => c.id === selectedId);
+                    if (found) {
+                        onSelect(found);
+                    }
+                }
             }
         } catch (error) {
             console.error('Error fetching conversations:', error);

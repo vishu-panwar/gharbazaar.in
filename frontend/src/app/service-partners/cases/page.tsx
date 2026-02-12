@@ -24,7 +24,10 @@ import {
   Plus,
   Gavel,
   Shield,
-  Target
+  Target,
+  ShieldCheck,
+  ChevronRight,
+  X
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -81,6 +84,22 @@ export default function LegalCasesPage() {
   const [filterPriority, setFilterPriority] = useState('all')
   const [filterPropertyType, setFilterPropertyType] = useState('all')
   const [isLoading, setIsLoading] = useState(true)
+  const [kycStatus, setKycStatus] = useState<string | null>(null)
+  const [showAddServiceModal, setShowAddServiceModal] = useState(false)
+  const [serviceFormData, setServiceFormData] = useState({
+    category: 'lawyer',
+    specialization: '',
+    hourlyRate: '',
+    location: '',
+    description: '',
+    skills: '',
+    experience: '',
+    name: '',
+    contact: '',
+    email: '',
+    address: ''
+  })
+  const [isSubmittingService, setIsSubmittingService] = useState(false)
 
   useEffect(() => {
     async function fetchData() {
@@ -125,6 +144,21 @@ export default function LegalCasesPage() {
           setCases(mappedCases)
           setFilteredCases(mappedCases)
         }
+
+        // Fetch user profile for KYC status
+        const kycResponse = await backendApi.kyc.getStatus()
+        if (kycResponse?.success) {
+          setKycStatus(kycResponse.data.status)
+          // Pre-fill form with user info if available
+          const profile = kycResponse.data.request || {}
+          setServiceFormData(prev => ({
+            ...prev,
+            name: profile.fullName || '',
+            contact: profile.contactNumber || '',
+            email: kycResponse.data.user?.email || '',
+            address: profile.address || ''
+          }))
+        }
       } catch (error) {
         console.error('Error fetching cases:', error)
         toast.error('Failed to load cases')
@@ -141,7 +175,7 @@ export default function LegalCasesPage() {
 
     // Search filter
     if (searchQuery) {
-      filtered = filtered.filter(case_ => 
+      filtered = filtered.filter(case_ =>
         case_.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         case_.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         case_.propertyDetails.address.toLowerCase().includes(searchQuery.toLowerCase())
@@ -213,10 +247,10 @@ export default function LegalCasesPage() {
   }
 
   const acceptCase = (caseId: string) => {
-    setCases(prev => prev.map(case_ => 
-      case_.id === caseId 
-        ? { 
-            ...case_, 
+    setCases(prev => prev.map(case_ =>
+      case_.id === caseId
+        ? {
+            ...case_,
             status: 'under-review' as const,
             timeline: { ...case_.timeline, started: new Date().toISOString() }
           }
@@ -227,6 +261,44 @@ export default function LegalCasesPage() {
 
   const submitOpinion = (caseId: string) => {
     toast.success('Legal opinion submitted for review!')
+  }
+
+  const handleAddService = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSubmittingService(true)
+    try {
+      const payload = {
+        ...serviceFormData,
+        skills: serviceFormData.skills.split(',').map(s => s.trim()).filter(s => s),
+        hourlyRate: parseFloat(serviceFormData.hourlyRate) || 0,
+        experience: parseInt(serviceFormData.experience) || 0
+      }
+      const response = await backendApi.serviceProvider.create(payload)
+      if (response?.success) {
+        toast.success('Service added successfully!')
+        setShowAddServiceModal(false)
+        setServiceFormData({
+          category: 'lawyer',
+          specialization: '',
+          hourlyRate: '',
+          location: '',
+          description: '',
+          skills: '',
+          experience: '',
+          name: serviceFormData.name,
+          contact: serviceFormData.contact,
+          email: serviceFormData.email,
+          address: serviceFormData.address
+        })
+      } else {
+        toast.error(response?.error || 'Failed to add service')
+      }
+    } catch (error) {
+      console.error('Error adding service:', error)
+      toast.error('Something went wrong')
+    } finally {
+      setIsSubmittingService(false)
+    }
   }
 
   const tabs = [
@@ -257,6 +329,37 @@ export default function LegalCasesPage() {
             Manage your legal assignments and due diligence cases
           </p>
         </div>
+        {kycStatus === 'approved' && (
+          <button
+            onClick={() => setShowAddServiceModal(true)}
+            className="mt-4 sm:mt-0 flex items-center space-x-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-semibold shadow-md hover:bg-blue-700 transition-all"
+          >
+            <Plus size={20} />
+            <span>Add Your Service</span>
+          </button>
+        )}
+        {kycStatus === 'pending' && (
+          <div className="mt-4 sm:mt-0 flex items-center space-x-2 px-4 py-2 bg-yellow-100 text-yellow-800 rounded-xl text-sm font-medium">
+            <AlertTriangle size={18} />
+            <span>KYC Pending. Complete KYC to add services.</span>
+          </div>
+        )}
+        {kycStatus === 'rejected' && (
+          <div className="mt-4 sm:mt-0 flex items-center space-x-2 px-4 py-2 bg-red-100 text-red-800 rounded-xl text-sm font-medium">
+            <AlertTriangle size={18} />
+            <span>KYC Rejected. Please contact support.</span>
+          </div>
+        )}
+        {kycStatus === null && !isLoading && ( // Show if KYC status is not loaded yet or not applicable
+          <button
+            onClick={() => toast.error('Please complete your KYC to add services.')}
+            className="mt-4 sm:mt-0 flex items-center space-x-2 px-5 py-2.5 bg-gray-300 text-gray-700 rounded-xl font-semibold cursor-not-allowed opacity-70"
+            disabled
+          >
+            <Plus size={20} />
+            <span>Add Your Service</span>
+          </button>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -358,7 +461,7 @@ export default function LegalCasesPage() {
               className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
             />
           </div>
-          
+
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
@@ -575,7 +678,7 @@ export default function LegalCasesPage() {
                 <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4">
                   <h4 className="font-semibold text-gray-900 dark:text-white mb-2">{selectedCase.title}</h4>
                   <p className="text-gray-600 dark:text-gray-400 mb-4">{selectedCase.description}</p>
-                  
+
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
                       <span className="text-sm text-gray-600 dark:text-gray-400">Status</span>
@@ -696,6 +799,152 @@ export default function LegalCasesPage() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+      {/* Add Service Modal */}
+      {showAddServiceModal && (
+        <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-950 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white">
+                  <Briefcase size={20} />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Add Your Professional Service</h2>
+                  <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">List your expertise on GharBazaar Marketplace</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAddServiceModal(false)}
+                className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddService} className="p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Service Category</label>
+                  <select
+                    value={serviceFormData.category}
+                    onChange={(e) => setServiceFormData({...serviceFormData, category: e.target.value})}
+                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500"
+                    required
+                  >
+                    <option value="lawyer">Property Lawyer</option>
+                    <option value="architect">Architect</option>
+                    <option value="interior-designer">Interior Designer</option>
+                    <option value="painter">Painter</option>
+                    <option value="contractor">Civil Contractor</option>
+                    <option value="vastu">Vastu Consultant</option>
+                    <option value="inspector">Property Inspector</option>
+                    <option value="movers">Packers & Movers</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Specialization</label>
+                  <input
+                    type="text"
+                    value={serviceFormData.specialization}
+                    onChange={(e) => setServiceFormData({...serviceFormData, specialization: e.target.value})}
+                    placeholder="e.g. Real Estate Law, Modern Architecture"
+                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Hourly Rate (₹)</label>
+                  <input
+                    type="number"
+                    value={serviceFormData.hourlyRate}
+                    onChange={(e) => setServiceFormData({...serviceFormData, hourlyRate: e.target.value})}
+                    placeholder="500"
+                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Years of Experience</label>
+                  <input
+                    type="number"
+                    value={serviceFormData.experience}
+                    onChange={(e) => setServiceFormData({...serviceFormData, experience: e.target.value})}
+                    placeholder="5"
+                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Location</label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                  <input
+                    type="text"
+                    value={serviceFormData.location}
+                    onChange={(e) => setServiceFormData({...serviceFormData, location: e.target.value})}
+                    placeholder="City, State"
+                    className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Skills (Comma separated)</label>
+                <input
+                  type="text"
+                  value={serviceFormData.skills}
+                  onChange={(e) => setServiceFormData({...serviceFormData, skills: e.target.value})}
+                  placeholder="Java, Python, React (comma separated)"
+                  className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Service Description</label>
+                <textarea
+                  value={serviceFormData.description}
+                  onChange={(e) => setServiceFormData({...serviceFormData, description: e.target.value})}
+                  rows={4}
+                  placeholder="Describe your services, approach and what clients can expect..."
+                  className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+
+              <div className="pt-4 border-t border-gray-200 dark:border-gray-800 flex gap-4">
+                <button
+                  type="button"
+                  onClick={() => setShowAddServiceModal(false)}
+                  className="flex-1 px-6 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-2xl font-bold hover:bg-gray-200 dark:hover:bg-gray-700 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingService}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-bold shadow-lg hover:shadow-xl disabled:opacity-50 transition-all flex items-center justify-center space-x-2"
+                >
+                  {isSubmittingService ? (
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <>
+                      <CheckCircle size={20} />
+                      <span>Post Service</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

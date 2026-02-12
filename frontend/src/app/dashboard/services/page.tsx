@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
   Scale,
@@ -28,8 +28,11 @@ import {
   IndianRupee
 } from 'lucide-react'
 import Link from 'next/link'
+import { backendApi } from '@/lib/backendApi'
+import { useRouter } from 'next/navigation'
+import toast from 'react-hot-toast'
 
-import { allProviders, getProvidersByCategory } from './providersData'
+// import { allProviders, getProvidersByCategory } from './providersData'
 
 // Service Categories
 const serviceCategories = [
@@ -124,20 +127,84 @@ const serviceCategories = [
 ]
 
 export default function ServicesPage() {
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const [providers, setProviders] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchProviders = async () => {
+      try {
+        setLoading(true)
+        const response = await backendApi.serviceProvider.list()
+        if (response?.success) {
+          setProviders(response.providers || [])
+        }
+      } catch (error) {
+        console.error('Error fetching providers:', error)
+        toast.error('Failed to load service providers')
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchProviders()
+  }, [])
 
   // Filter providers based on search and category
-  const filteredProviders = allProviders.filter(provider => {
-    const matchesSearch = provider.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         provider.profession.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         provider.location.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredProviders = providers.filter(provider => {
+    const providerName = provider.user?.name || provider.name || ''
+    const providerCategory = provider.category || ''
+    const providerLocation = provider.location || ''
+
+    const matchesSearch = providerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         providerCategory.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         providerLocation.toLowerCase().includes(searchQuery.toLowerCase())
     
     const matchesCategory = selectedCategory === 'all' || 
-                           provider.profession.toLowerCase().includes(selectedCategory.toLowerCase())
+                           providerCategory.toLowerCase().includes(selectedCategory.toLowerCase())
     
     return matchesSearch && matchesCategory
   })
+
+  const handleCall = (phone: string) => {
+    if (!phone) {
+      toast.error('Phone number not available')
+      return
+    }
+    
+    // Check if mobile
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+    if (isMobile) {
+      window.location.href = `tel:${phone}`
+    } else {
+      navigator.clipboard.writeText(phone)
+      toast.success('Phone number copied to clipboard!')
+    }
+  }
+
+  const handleMessage = async (provider: any) => {
+    try {
+      if (!provider.userId) {
+        toast.error('Provider ID not found')
+        return
+      }
+
+      const response = await backendApi.chat.createConversation({
+        otherUserId: provider.userId,
+        type: 'direct'
+      })
+
+      if (response?.success) {
+        router.push(`/dashboard/messages?id=${response.data.id}`)
+      } else {
+        toast.error(response?.error || 'Failed to start conversation')
+      }
+    } catch (error) {
+      console.error('Error starting conversation:', error)
+      toast.error('Failed to start chat')
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -234,132 +301,122 @@ export default function ServicesPage() {
 
       {/* Featured Professionals */}
       <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-            {selectedCategory === 'all' ? 'All Professionals' : `${serviceCategories.find(c => c.id === selectedCategory)?.name || 'Professionals'}`}
-          </h2>
-          <span className="text-sm text-gray-500 dark:text-gray-400">
-            {filteredProviders.length} found
-          </span>
-        </div>
-
-        {filteredProviders.length > 0 ? (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 space-y-4">
+            <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-gray-500 dark:text-gray-400 animate-pulse">Loading professionals...</p>
+          </div>
+        ) : filteredProviders.length > 0 ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {filteredProviders.map((provider, index) => (
-            <motion.div
-              key={provider.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-700 transition-all duration-200"
-            >
-              <div className="flex gap-4">
-                {/* Avatar - Compact */}
-                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xl font-bold flex-shrink-0">
-                  {provider.name.charAt(0)}
-                </div>
+              <motion.div
+                key={provider.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-700 transition-all duration-200"
+              >
+                <div className="flex gap-4">
+                  {/* Avatar - Compact */}
+                  <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold flex-shrink-0 shadow-inner">
+                    {(provider.user?.name || provider.name || 'P').charAt(0)}
+                  </div>
 
-                {/* Info - Compact */}
-                <div className="flex-1 min-w-0">
-                  {/* Header */}
-                  <div className="flex items-start justify-between mb-1.5">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <h3 className="text-base font-bold text-gray-900 dark:text-white truncate">
-                          {provider.name}
-                        </h3>
-                        {provider.verified && (
-                          <CheckCircle className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                  {/* Info - Compact */}
+                  <div className="flex-1 min-w-0">
+                    {/* Header */}
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <h3 className="text-base font-bold text-gray-900 dark:text-white truncate">
+                            {provider.user?.name || provider.name}
+                          </h3>
+                          {provider.verified && (
+                            <CheckCircle className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                          )}
+                        </div>
+                        <p className="text-xs text-blue-600 dark:text-blue-400 font-medium truncate">
+                          {provider.specialization || provider.category}
+                        </p>
+                      </div>
+                      <div className="flex items-center space-x-1 bg-yellow-50 dark:bg-yellow-900/20 px-2 py-0.5 rounded-lg border border-yellow-100 dark:border-yellow-800">
+                        <Star className="w-3.5 h-3.5 text-yellow-500 fill-current" />
+                        <span className="text-xs font-bold text-yellow-700 dark:text-yellow-400">{provider.rating || 'New'}</span>
+                      </div>
+                    </div>
+
+                    {/* Meta Grid */}
+                    <div className="grid grid-cols-2 gap-y-2 gap-x-4 mb-4">
+                      <div className="flex items-center space-x-2 text-xs text-gray-600 dark:text-gray-400">
+                        <Briefcase className="w-3.5 h-3.5 text-blue-500" />
+                        <span>{provider.experience || 0} yrs exp.</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-xs text-gray-600 dark:text-gray-400">
+                        <MapPin className="w-3.5 h-3.5 text-red-500" />
+                        <span className="truncate">{provider.location}</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-xs text-gray-600 dark:text-gray-400">
+                        <IndianRupee className="w-3.5 h-3.5 text-green-500" />
+                        <span>₹{provider.hourlyRate}/hr</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-xs text-gray-600 dark:text-gray-400">
+                        <Award className="w-3.5 h-3.5 text-purple-500" />
+                        <span>{provider.completedProjects || 0} Projects</span>
+                      </div>
+                    </div>
+
+                    {/* Skills/Specialties */}
+                    {provider.skills && provider.skills.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mb-4">
+                        {provider.skills.slice(0, 3).map((skill: string, i: number) => (
+                          <span key={i} className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded text-[10px] border border-gray-200 dark:border-gray-600">
+                            {skill}
+                          </span>
+                        ))}
+                        {provider.skills.length > 3 && (
+                          <span className="text-[10px] text-gray-400">+{provider.skills.length - 3} more</span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
-                        {provider.profession} • {provider.experience}
-                      </p>
-                    </div>
-                    <div className={`px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ml-2 ${
-                      provider.available 
-                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-400'
-                    }`}>
-                      {provider.available ? 'Available' : 'Busy'}
-                    </div>
-                  </div>
-
-                  {/* Rating & Location - Compact */}
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="flex items-center gap-1">
-                      <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />
-                      <span className="text-xs font-semibold text-gray-900 dark:text-white">
-                        {provider.rating}
-                      </span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        ({provider.reviews})
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
-                      <MapPin className="w-3.5 h-3.5" />
-                      <span className="truncate">{provider.location}</span>
-                    </div>
-                  </div>
-
-                  {/* Specialties - Compact */}
-                  <div className="flex flex-wrap gap-1.5 mb-3">
-                    {provider.specialties.slice(0, 3).map((specialty, idx) => (
-                      <span
-                        key={idx}
-                        className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 text-xs rounded"
-                      >
-                        {specialty}
-                      </span>
-                    ))}
-                    {provider.specialties.length > 3 && (
-                      <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-xs rounded">
-                        +{provider.specialties.length - 3}
-                      </span>
                     )}
-                  </div>
 
-                  {/* Price & Actions - Compact */}
-                  <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
-                    <div>
-                      <div className="text-lg font-bold text-gray-900 dark:text-white">
-                        {provider.price}
-                      </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {provider.priceType}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Link href={`/dashboard/services/provider/${provider.id}`}>
-                        <button className="px-3 py-1.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg text-xs font-medium transition-all flex items-center gap-1">
-                          <span>View</span>
-                          <ArrowRight size={12} />
-                        </button>
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 pt-3 border-t border-gray-100 dark:border-gray-800">
+                      <button
+                        onClick={() => handleCall(provider.user?.phone || provider.phone)}
+                        className="flex-1 flex items-center justify-center space-x-2 py-2 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl transition-all text-sm font-medium border border-gray-100 dark:border-gray-700"
+                      >
+                        <Phone className="w-4 h-4" />
+                        <span>Call</span>
+                      </button>
+                      <button
+                        onClick={() => handleMessage(provider)}
+                        className="flex-1 flex items-center justify-center space-x-2 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all text-sm font-medium shadow-md shadow-blue-600/20"
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                        <span>Message</span>
+                      </button>
+                      <Link href={`/dashboard/services/provider/${provider.id}`} className="p-2 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-xl border border-gray-100 dark:border-gray-700">
+                        <ArrowRight className="w-4 h-4" />
                       </Link>
                     </div>
                   </div>
                 </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+              </motion.div>
+            ))}
+          </div>
         ) : (
-          <div className="text-center py-10 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-            <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-3">
-              <SearchIcon className="w-8 h-8 text-gray-400" />
+          <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-2xl border border-dashed border-gray-300 dark:border-gray-700">
+            <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
+              <SearchIcon size={32} />
             </div>
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
-              No professionals found
-            </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-              Try adjusting your search or filters
-            </p>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">No professionals found</h3>
+            <p className="text-gray-500 dark:text-gray-400">Try adjusting your search or category filter</p>
             <button
               onClick={() => {
                 setSearchQuery('')
                 setSelectedCategory('all')
               }}
-              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-all"
+              className="mt-6 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-all"
             >
               Clear Filters
             </button>
