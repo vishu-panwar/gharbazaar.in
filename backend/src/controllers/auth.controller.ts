@@ -1,28 +1,23 @@
-
 import { Request, Response } from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 import { generateToken, verifyToken as jwtVerifyToken } from '../utils/jwt';
-import { isMongoDBAvailable } from '../utils/memoryStore';
-import User from '../models/user.model';
-import EmployeeProfile from '../models/employeeProfile.model';
+import { prisma } from '../utils/prisma';
 import { getNextEmployeeId } from '../utils/idGenerator';
 import config from '../config';
 import { sendPasswordResetEmail } from '../utils/email.service';
 
-// Initialize OAuth2 client with client ID and client secret so server-side
-// token exchange (authorization code -> tokens) works reliably.
+// Initialize OAuth2 client
 const client = new OAuth2Client({
     clientId: config.google.clientId,
     clientSecret: config.google.clientSecret,
 });
 
-// Helper to generate random hex string of 7 chars
 const generateRandomHex = (): string => {
     return crypto.randomBytes(4).toString('hex').slice(0, 7);
 };
 
-// Helper to generate custom ID
 const generateCustomId = (role: string): string => {
     const randomHex = generateRandomHex();
     let prefix = 'gbclient';
@@ -35,6 +30,15 @@ const generateCustomId = (role: string): string => {
     return `${prefix}${randomHex}`;
 };
 
+// Helper function to check if email is admin
+const isAdminEmail = (email: string): boolean => {
+    const adminEmails = (process.env.ADMIN_EMAILS || '')
+        .split(',')
+        .map(e => e.trim().toLowerCase())
+        .filter(e => e.length > 0);
+    return adminEmails.includes(email.toLowerCase());
+};
+
 export const login = async (req: Request, res: Response) => {
     try {
         const { email, password } = req.body;
@@ -44,13 +48,14 @@ export const login = async (req: Request, res: Response) => {
         }
 
         // Find user by email
-        const user = await User.findOne({ email });
+        const user = await prisma.user.findUnique({
+            where: { email },
+        });
 
         if (!user) {
             return res.status(401).json({ success: false, error: 'Invalid credentials' });
         }
 
-        // Check if user has a password (might be an OAuth-only user)
         if (!user.password) {
             return res.status(401).json({
                 success: false,
@@ -59,22 +64,26 @@ export const login = async (req: Request, res: Response) => {
         }
 
         // Verify password
-        const isMatch = await user.comparePassword(password);
+        const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
             return res.status(401).json({ success: false, error: 'Invalid credentials' });
         }
 
-        // Force admin role if applicable
-        if (email.toLowerCase() === 'adityaprajapati1234567@gmail.com' && user.role !== 'admin') {
-            user.role = 'admin';
-            await user.save();
+        // Check if user should be admin
+        let finalRole = user.role;
+        if (isAdminEmail(email) && user.role !== 'admin') {
+            const updatedUser = await prisma.user.update({
+                where: { id: user.id },
+                data: { role: 'admin' }
+            });
+            finalRole = 'admin';
         }
 
         const userData = {
             uid: user.uid,
             email: user.email,
             displayName: user.name,
-            role: user.role,
+            role: finalRole,
             buyerClientId: user.buyerClientId,
             sellerClientId: user.sellerClientId,
             onboardingCompleted: user.onboardingCompleted
@@ -84,7 +93,8 @@ export const login = async (req: Request, res: Response) => {
             userId: userData.uid,
             email: userData.email,
             name: userData.displayName,
-            role: userData.role
+            role: userData.role,
+            onboardingCompleted: user.onboardingCompleted
         });
 
         res.json({
@@ -109,55 +119,65 @@ export const signup = async (req: Request, res: Response) => {
             return res.status(400).json({ success: false, error: 'Missing required fields' });
         }
 
-        // Check if user exists
-        const existingUser = await User.findOne({ email });
+        const existingUser = await prisma.user.findUnique({ where: { email } });
         if (existingUser) {
             return res.status(400).json({ success: false, error: 'Email already registered' });
         }
 
-        const finalRole = email.toLowerCase() === 'adityaprajapati1234567@gmail.com' ? 'admin' : role;
+        const finalRole = isAdminEmail(email) ? 'admin' : role;
         const uid = generateCustomId(finalRole);
         const buyerClientId = `gbclient${generateRandomHex()}`;
         const sellerClientId = `gbclient${generateRandomHex()}`;
 
+        // Hash password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
 
-        // Create new user
-        const newUser = new User({
-            uid,
-            email,
-            password, // Will be hashed by pre-save hook
-            name: displayName,
-            role: finalRole,
-            buyerClientId,
-            sellerClientId
+        // Create user with profiles in transaction
+        const result = await prisma.$transaction(async (tx: any) => {
+            const user = await tx.user.create({
+                data: {
+                    uid,
+                    email,
+                    password: hashedPassword,
+                    name: displayName,
+                    role: finalRole as any,
+                    buyerClientId,
+                    sellerClientId,
+                    onboardingCompleted: ['buyer', 'admin'].includes(finalRole) // Only buyers/admins skip onboarding
+                }
+            });
+
+            // Create employee profile if needed
+            if (finalRole === 'employee') {
+                const employeeId = await getNextEmployeeId();
+                await tx.employeeProfile.create({
+                    data: {
+                        userId: user.id,
+                        employeeId: employeeId,
+                        isActive: true
+                    }
+                });
+                console.log(`👷 Professional Employee ID ${employeeId} assigned to ${email}`);
+            }
+
+            // Create default profiles
+            await tx.buyerProfile.create({
+                data: { userId: user.id }
+            });
+            await tx.sellerProfile.create({
+                data: { userId: user.id }
+            });
+
+            return user;
         });
 
-        await newUser.save();
-
-        // If employee, create professional ID and profile
-        if (role === 'employee') {
-            try {
-                const employeeId = await getNextEmployeeId();
-                const profile = new EmployeeProfile({
-                    userId: newUser.uid,
-                    employeeId: employeeId
-                });
-                await profile.save();
-
-                // Update user with professional ID if needed, 
-                // but user.uid is already the lookup key. 
-                // We'll keep user.uid as is for auth, but the profile carries the professional ID.
-                console.log(`👷 Professional Employee ID ${employeeId} assigned to ${email}`);
-            } catch (err) {
-                console.error('⚠️ Failed to create employee profile:', err);
-            }
-        }
-
         const token = generateToken({
-            userId: newUser.uid,
-            email: newUser.email,
-            name: newUser.name,
-            role: newUser.role
+            userId: result.uid,
+            email: result.email,
+            name: result.name,
+            role: result.role,
+            onboardingCompleted: result.onboardingCompleted
         });
 
         res.status(201).json({
@@ -165,13 +185,13 @@ export const signup = async (req: Request, res: Response) => {
             data: {
                 token,
                 user: {
-                    uid: newUser.uid,
-                    email: newUser.email,
-                    displayName: newUser.name,
-                    role: newUser.role,
-                    buyerClientId: newUser.buyerClientId,
-                    sellerClientId: newUser.sellerClientId,
-                    onboardingCompleted: newUser.onboardingCompleted
+                    uid: result.uid,
+                    email: result.email,
+                    displayName: result.name,
+                    role: result.role,
+                    buyerClientId: result.buyerClientId,
+                    sellerClientId: result.sellerClientId,
+                    onboardingCompleted: result.onboardingCompleted
                 }
             }
         });
@@ -196,12 +216,21 @@ export const verifyToken = async (req: Request, res: Response) => {
             return res.status(401).json({ success: false, error: 'Invalid or expired token' });
         }
 
+        // Fetch latest user data from DB to ensure onboarding status is up to date
+        const user = await prisma.user.findUnique({
+            where: { uid: decoded.userId }
+        });
+
+        if (!user) {
+            return res.status(404).json({ success: false, error: 'User no longer exists' });
+        }
+
         const userData = {
-            uid: decoded.userId,
-            email: decoded.email,
-            displayName: decoded.name || decoded.email?.split('@')[0] || 'User',
-            role: decoded.role || 'buyer',
-            onboardingCompleted: decoded.onboardingCompleted || false
+            uid: user.uid,
+            email: user.email,
+            displayName: user.name,
+            role: user.role,
+            onboardingCompleted: user.onboardingCompleted
         };
 
         res.json({
@@ -221,10 +250,6 @@ export const logout = async (req: Request, res: Response) => {
     res.json({ success: true, message: 'Logged out successfully' });
 };
 
-/**
- * Google OAuth Handler
- * Accepts authorization code or ID token and logs in user
- */
 export const googleAuth = async (req: Request, res: Response) => {
     try {
         const code = req.query.code || req.body.code;
@@ -233,12 +258,8 @@ export const googleAuth = async (req: Request, res: Response) => {
 
         let finalIdToken = idToken;
 
-        // If we have a code, exchange it for tokens
         if (code && !finalIdToken) {
-            console.log(`🔐 Exchanging Google code for tokens...`);
-            // Note: redirect_uri must match EXACTLY what was sent to Google from frontend
             const redirectUri = `${config.frontendUrl}/auth/google/callback`;
-            console.log(`🔁 Using redirectUri for token exchange: ${redirectUri}`);
             const { tokens } = await client.getToken({
                 code: String(code),
                 redirect_uri: redirectUri
@@ -253,7 +274,6 @@ export const googleAuth = async (req: Request, res: Response) => {
             });
         }
 
-        // Verify Google token
         const ticket = await client.verifyIdToken({
             idToken: finalIdToken,
             audience: config.google.clientId,
@@ -270,66 +290,38 @@ export const googleAuth = async (req: Request, res: Response) => {
             return res.status(400).json({ success: false, error: 'Email not provided by Google' });
         }
 
-        const isAdminEmail = email.toLowerCase() === 'adityaprajapati1234567@gmail.com';
-        const finalRole = isAdminEmail ? 'admin' : requestedRole;
+        const userIsAdmin = isAdminEmail(email);
+        const finalRole = userIsAdmin ? 'admin' : requestedRole;
 
-            // Find or create user with an atomic upsert to avoid duplicate-key race conditions
-            const uid = generateCustomId(finalRole);
-            const buyerClientId = `gbclient${generateRandomHex()}`;
-            const sellerClientId = `gbclient${generateRandomHex()}`;
+        // Upsert user
+        const uid = generateCustomId(finalRole);
+        const buyerClientId = `gbclient${generateRandomHex()}`;
+        const sellerClientId = `gbclient${generateRandomHex()}`;
 
-            const upsertDoc = {
-                $setOnInsert: {
-                    uid,
-                    email,
-                    name: name || email.split('@')[0],
-                    googleId,
-                    role: finalRole,
-                    buyerClientId,
-                    sellerClientId,
-                    onboardingCompleted: finalRole !== 'employee'
-                }
-            } as any;
-
-            let user = await User.findOneAndUpdate(
-                { email },
-                upsertDoc,
-                { upsert: true, new: true, setDefaultsOnInsert: true }
-            );
-
-            // Fail-safe: if user still not found, create explicitly (shouldn't happen)
-            if (!user) {
-                const created = new User({
-                    uid,
-                    email,
-                    name: name || email.split('@')[0],
-                    googleId,
-                    role: finalRole,
-                    buyerClientId,
-                    sellerClientId,
-                    onboardingCompleted: finalRole !== 'employee'
-                });
-                await created.save();
-                user = created;
+        const user = await prisma.user.upsert({
+            where: { email },
+            update: {
+                googleId,
+                role: userIsAdmin ? 'admin' : undefined
+            },
+            create: {
+                uid,
+                email,
+                name: name || email.split('@')[0],
+                googleId,
+                role: finalRole,
+                buyerClientId,
+                sellerClientId,
+                onboardingCompleted: ['buyer', 'admin'].includes(finalRole) // Only buyers/admins skip onboarding
             }
-
-            // Ensure googleId and admin role are set for existing records
-            let needSave = false;
-            if (!user.googleId) {
-                user.googleId = googleId;
-                needSave = true;
-            }
-            if (isAdminEmail && user.role !== 'admin') {
-                user.role = 'admin';
-                needSave = true;
-            }
-            if (needSave) await user.save();
+        });
 
         const token = generateToken({
             userId: user.uid,
             email: user.email,
             name: user.name,
-            role: user.role
+            role: user.role,
+            onboardingCompleted: user.onboardingCompleted
         });
 
         res.json({
@@ -350,15 +342,7 @@ export const googleAuth = async (req: Request, res: Response) => {
         });
 
     } catch (error: any) {
-        // Log full Google response body if available for easier debugging
-        const googleErrorBody = error?.response?.data || error?.errors || null;
-        console.error('❌ Google OAuth error:', googleErrorBody || error?.message || error);
-
-        if (googleErrorBody) {
-            // Return Google's error payload to the client with 400 so it's easier to debug during dev
-            return res.status(400).json({ success: false, error: googleErrorBody });
-        }
-
+        console.error('❌ Google OAuth error:', error?.message || error);
         res.status(500).json({
             success: false,
             error: error.message || 'Google authentication failed'
@@ -366,46 +350,42 @@ export const googleAuth = async (req: Request, res: Response) => {
     }
 };
 
-/**
- * Forgot Password
- * Generates reset token and sends email
- */
 export const forgotPassword = async (req: Request, res: Response) => {
     try {
         const { email } = req.body;
 
-        const user = await User.findOne({ email });
+        const user = await prisma.user.findUnique({ where: { email } });
 
         if (!user) {
-            // Don't reveal if user exists or not for security, but we'll be helpful in dev
             return res.status(200).json({
                 success: true,
                 message: 'If an account exists with that email, a reset link has been sent.'
             });
         }
 
-        // Generate reset token
         const resetToken = crypto.randomBytes(32).toString('hex');
+        const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+        const expireDate = new Date(Date.now() + 3600000);
 
-        // Hash token and set to user field
-        user.resetPasswordToken = crypto
-            .createHash('sha256')
-            .update(resetToken)
-            .digest('hex');
-
-        // Set expire (1 hour)
-        user.resetPasswordExpires = new Date(Date.now() + 3600000);
-
-        await user.save();
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                resetPasswordToken: hashedToken,
+                resetPasswordExpires: expireDate
+            }
+        });
 
         try {
             await sendPasswordResetEmail(user.email, resetToken);
             res.status(200).json({ success: true, data: 'Email sent' });
         } catch (err) {
-            user.resetPasswordToken = undefined;
-            user.resetPasswordExpires = undefined;
-            await user.save();
-
+            await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                    resetPasswordToken: null,
+                    resetPasswordExpires: null
+                }
+            });
             return res.status(500).json({ success: false, error: 'Email could not be sent' });
         }
 
@@ -415,10 +395,6 @@ export const forgotPassword = async (req: Request, res: Response) => {
     }
 };
 
-/**
- * Reset Password
- * Verifies reset token and updates password
- */
 export const resetPassword = async (req: Request, res: Response) => {
     try {
         const { token, password } = req.body;
@@ -427,27 +403,30 @@ export const resetPassword = async (req: Request, res: Response) => {
             return res.status(400).json({ success: false, error: 'Token and password are required' });
         }
 
-        // Get hashed token
-        const resetPasswordToken = crypto
-            .createHash('sha256')
-            .update(token)
-            .digest('hex');
+        const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
 
-        const user = await User.findOne({
-            resetPasswordToken,
-            resetPasswordExpires: { $gt: Date.now() }
+        const user = await prisma.user.findFirst({
+            where: {
+                resetPasswordToken: hashedToken,
+                resetPasswordExpires: { gt: new Date() }
+            }
         });
 
         if (!user) {
             return res.status(400).json({ success: false, error: 'Invalid or expired token' });
         }
 
-        // Set new password
-        user.password = password;
-        user.resetPasswordToken = undefined;
-        user.resetPasswordExpires = undefined;
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
 
-        await user.save();
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                password: hashedPassword,
+                resetPasswordToken: null,
+                resetPasswordExpires: null
+            }
+        });
 
         res.status(200).json({ success: true, data: 'Password reset successful' });
 

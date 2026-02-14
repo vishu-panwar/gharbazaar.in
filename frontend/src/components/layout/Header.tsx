@@ -214,23 +214,6 @@ export function Header() {
                     </Link>
 
                     <Link
-                      href="/legal-partner"
-                      onClick={() => {
-                        setIsPartnerPortalOpen(false)
-                        showLoader('Loading legal partner portal...', 1500)
-                      }}
-                      className="flex items-center space-x-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
-                    >
-                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg flex items-center justify-center">
-                        <Scale className="text-white" size={20} />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-gray-900 dark:text-white">Legal Partners</p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">Legal services & documentation</p>
-                      </div>
-                    </Link>
-
-                    <Link
                       href="/partner"
                       onClick={() => {
                         setIsPartnerPortalOpen(false)
@@ -430,23 +413,6 @@ export function Header() {
                     <div>
                       <p className="font-medium text-gray-900 text-sm">Ground Partners</p>
                       <p className="text-xs text-gray-600">Field operations & client management</p>
-                    </div>
-                  </Link>
-
-                  <Link
-                    href="/legal-partner"
-                    onClick={() => {
-                      setIsMenuOpen(false)
-                      showLoader('Loading legal partner portal...', 1500)
-                    }}
-                    className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-gray-50 transition-all"
-                  >
-                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg flex items-center justify-center">
-                      <Scale className="text-white" size={16} />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900 text-sm">Legal Partners</p>
-                      <p className="text-xs text-gray-600">Legal services & documentation</p>
                     </div>
                   </Link>
 

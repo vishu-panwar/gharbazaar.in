@@ -1,54 +1,23 @@
 import { Request, Response } from 'express';
-import mongoose from 'mongoose';
-import User from '../models/user.model';
-import Property from '../models/property.model';
-import Bid from '../models/bid.model';
-import UserPlan from '../models/userPlan.model';
-import Plan from '../models/plan.model';
-
-const isDbReady = () => mongoose.connection.readyState === 1;
+import { prisma } from '../utils/prisma';
 
 export const getAdminDashboard = async (_req: Request, res: Response) => {
     try {
-        if (!isDbReady()) {
-            return res.json({
-                success: true,
-                data: {
-                    overviewStats: {
-                        totalRevenue: 0,
-                        revenueGrowth: 0,
-                        totalUsers: 0,
-                        userGrowth: 0,
-                        totalListings: 0,
-                        listingGrowth: 0,
-                        activeSubscriptions: 0,
-                        subscriptionGrowth: 0
-                    },
-                    revenueData: [],
-                    userGrowthData: [],
-                    topCities: [],
-                    subscriptionBreakdown: [],
-                    trafficSources: [],
-                    recentActivity: []
-                },
-                message: 'Database not ready - returning empty analytics'
-            });
-        }
+        const totalUsers = await prisma.user.count();
+        const totalListings = await prisma.property.count();
+        const activeSubscriptions = await prisma.subscription.count({ where: { status: 'active' } });
 
-        const totalUsers = await User.countDocuments({});
-        const totalListings = await Property.countDocuments({});
-        const activeSubscriptions = await UserPlan.countDocuments({ status: 'active' });
+        // Calculate revenue
+        const subscriptions = await prisma.subscription.findMany({
+            include: { plan: true }
+        });
 
-        const plans = await Plan.find({});
-        const planPriceMap = plans.reduce((acc: any, plan) => {
-            acc[plan._id.toString()] = plan.price || 0;
-            return acc;
-        }, {});
-
-        const allUserPlans = await UserPlan.find({});
-        const totalRevenue = allUserPlans.reduce((sum, userPlan) => {
-            const price = planPriceMap[userPlan.planId.toString()] || 0;
-            return sum + price;
+        const totalRevenue = subscriptions.reduce((sum, sub) => {
+            // Check if plan exists and has a price
+            if (sub.plan && sub.plan.price) {
+                return sum + Number(sub.plan.price);
+            }
+            return sum;
         }, 0);
 
         return res.json({
@@ -83,23 +52,25 @@ export const getSellerInsights = async (req: Request, res: Response) => {
         const userId = (req as any).user?.userId;
         if (!userId) return res.status(401).json({ success: false, message: 'User not authenticated' });
 
-        if (!isDbReady()) {
-            return res.json({ success: true, data: { listings: 0, bids: 0, views: 0 } });
-        }
-
-        const listings = await Property.countDocuments({ sellerId: userId });
-        const bids = await Bid.countDocuments({ sellerId: userId });
-        const viewsAgg = await Property.aggregate([
-            { $match: { sellerId: userId } },
-            { $group: { _id: null, totalViews: { $sum: '$views' } } }
-        ]);
+        // Need internal ID for proper querying if userId is UID
+        // But the schema says sellerId in Property refers to user.uid
+        // "sellerId" in Propery model: seller    User     @relation(fields: [sellerId], references: [uid], onDelete: Cascade)
+        // So we can use userId directly if it is the UID.
+        
+        const listings = await prisma.property.count({ where: { sellerId: userId } });
+        const bids = await prisma.bid.count({ where: { sellerId: userId } });
+        
+        const viewsAgg = await prisma.property.aggregate({
+            where: { sellerId: userId },
+            _sum: { views: true }
+        });
 
         res.json({
             success: true,
             data: {
                 listings,
                 bids,
-                views: viewsAgg[0]?.totalViews || 0
+                views: viewsAgg._sum.views || 0
             }
         });
     } catch (error: any) {
@@ -109,19 +80,28 @@ export const getSellerInsights = async (req: Request, res: Response) => {
 };
 
 export const getSearchSuggestions = async (req: Request, res: Response) => {
-    const { q } = req.query;
-    const query = (q || '').toString().trim();
-    if (!query) return res.json({ success: true, data: [] });
+    try {
+        const { q } = req.query;
+        const query = (q || '').toString().trim();
+        if (!query) return res.json({ success: true, data: [] });
 
-    if (!isDbReady()) {
-        return res.json({ success: true, data: [] });
+        const cities = await prisma.property.findMany({
+            where: {
+                city: {
+                    contains: query,
+                    mode: 'insensitive'
+                }
+            },
+            select: { city: true },
+            distinct: ['city'],
+            take: 5
+        });
+
+        res.json({ success: true, data: cities.map(c => c.city) });
+    } catch (error: any) {
+        console.error('getSearchSuggestions error:', error);
+        res.json({ success: true, data: [] });
     }
-
-    const cities = await Property.find({ city: new RegExp(query, 'i') })
-        .limit(5)
-        .distinct('city');
-
-    res.json({ success: true, data: cities });
 };
 
 export const trackSearch = async (_req: Request, res: Response) => {
@@ -135,9 +115,11 @@ export const getPopularSearches = async (_req: Request, res: Response) => {
 export const getPropertyPerformance = async (req: Request, res: Response) => {
     try {
         const { propertyId } = req.params;
-        if (!isDbReady()) return res.json({ success: true, data: null });
 
-        const property = await Property.findById(propertyId);
+        const property = await prisma.property.findUnique({
+            where: { id: propertyId }
+        });
+        
         if (!property) return res.status(404).json({ success: false, message: 'Property not found' });
 
         res.json({
@@ -156,15 +138,27 @@ export const getPropertyPerformance = async (req: Request, res: Response) => {
 
 export const getCitywiseAnalytics = async (_req: Request, res: Response) => {
     try {
-        if (!isDbReady()) return res.json({ success: true, data: [] });
+        // Group by city and count
+        const cityStats = await prisma.property.groupBy({
+            by: ['city'],
+            _count: {
+                city: true // Count occurrences
+            },
+            orderBy: {
+                _count: {
+                    city: 'desc'
+                }
+            },
+            take: 10
+        });
 
-        const cityStats = await Property.aggregate([
-            { $group: { _id: '$city', listings: { $sum: 1 } } },
-            { $sort: { listings: -1 } },
-            { $limit: 10 }
-        ]);
-
-        res.json({ success: true, data: cityStats.map(c => ({ city: c._id, listings: c.listings })) });
+        res.json({ 
+            success: true, 
+            data: cityStats.map(c => ({ 
+                city: c.city, 
+                listings: c._count.city 
+            })) 
+        });
     } catch (error: any) {
         console.error('getCitywiseAnalytics error:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch citywise analytics', error: error.message });

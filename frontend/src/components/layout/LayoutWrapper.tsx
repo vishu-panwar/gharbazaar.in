@@ -28,11 +28,14 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
   // Partner portal pages (have their own layout)
   const isPartnerPage = pathname.startsWith('/partner')
 
+  // Service Partners portal pages (have their own layout)
+  const isServicePartnerPage = pathname.startsWith('/service-partners')
+
   // Dashboard pages (have their own layout)
   const isDashboardPage = pathname.startsWith('/dashboard')
 
-  // Don't show header/footer for auth, admin, employee, ground-partner, legal-partner, partner, or dashboard pages
-  if (isAuthPage || isAdminPage || isEmployeePage || isGroundPartnerPage || isLegalPartnerPage || isPartnerPage || isDashboardPage) {
+  // Don't show header/footer for auth, admin, employee, ground-partner, legal-partner, partner, service-partners, or dashboard pages
+  if (isAuthPage || isAdminPage || isEmployeePage || isGroundPartnerPage || isLegalPartnerPage || isPartnerPage || isServicePartnerPage || isDashboardPage) {
     return <>{children}</>
   }
 

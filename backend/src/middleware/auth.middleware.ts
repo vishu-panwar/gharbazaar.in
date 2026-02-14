@@ -1,6 +1,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../utils/jwt';
+
 export const authenticate = async (
     req: Request,
     res: Response,
@@ -17,14 +18,25 @@ export const authenticate = async (
         }
         const token = authHeader.substring(7);
 
-        // Bypass for demo mode in development
-        if (token === 'demo-token') {
-            (req as any).user = {
-                userId: 'demo-buyer',
-                role: 'buyer',
-                email: 'demo@gharbazaar.in'
-            };
-            return next();
+        // Support formatted demo tokens: demo-token:role:userId
+        if (token.startsWith('demo-token')) {
+            if (process.env.NODE_ENV === 'development') {
+                const parts = token.split(':');
+                const role = parts[1] || 'buyer';
+                const userId = parts[2] || 'demo-user';
+                
+                (req as any).user = {
+                    userId: userId,
+                    role: role,
+                    email: `${role}@demo.com`
+                };
+                return next();
+            } else {
+                return res.status(401).json({
+                    success: false,
+                    error: 'Demo mode not available in production.'
+                });
+            }
         }
 
         const decoded = verifyToken(token);
@@ -40,4 +52,18 @@ export const authenticate = async (
 };
 
 export const authenticateRequest = authenticate;
+export const authenticateUser = authenticate;
+
+export const authorizeRoles = (...roles: string[]) => {
+    return (req: Request, res: Response, next: NextFunction) => {
+        const user = (req as any).user;
+        if (!user || !roles.includes(user.role)) {
+            return res.status(403).json({
+                success: false,
+                error: 'Access denied. Unauthorized role.'
+            });
+        }
+        next();
+    };
+};
 

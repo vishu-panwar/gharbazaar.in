@@ -25,6 +25,9 @@ import {
   MessageSquare
 } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import toast from 'react-hot-toast'
+import { AuthUtils } from '@/lib/firebase'
 
 interface DashboardStats {
   totalCases: number
@@ -61,6 +64,7 @@ interface Notification {
 }
 
 export default function LegalPartnerDashboard() {
+  const router = useRouter()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [recentCases, setRecentCases] = useState<RecentCase[]>([])
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -69,9 +73,19 @@ export default function LegalPartnerDashboard() {
 
   useEffect(() => {
     // Get user data
-    const userData = localStorage.getItem('user')
+    const userData = AuthUtils.getCachedUser()
     if (userData) {
-      setUser(JSON.parse(userData))
+      // Safety check: Only lawyers can access this dashboard
+      if (userData.partnerType !== 'Lawyer') {
+        toast.error('Access Denied: Specialized profile required.')
+        router.push('/service-partners')
+        return
+      }
+
+      setUser(userData)
+    } else {
+      router.push('/service-partners/login')
+      return
     }
 
     // Mock data

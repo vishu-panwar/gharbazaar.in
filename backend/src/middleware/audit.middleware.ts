@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import mongoose from 'mongoose';
-import AuditLog from '../models/auditLog.model';
+import { prisma } from '../utils/database';
 
 export const auditMiddleware = async (req: Request, res: Response, next: NextFunction) => {
     const method = req.method.toUpperCase();
@@ -14,20 +13,18 @@ export const auditMiddleware = async (req: Request, res: Response, next: NextFun
         try {
             const user = (req as any).user || {};
             const log = {
-                userId: user.userId,
-                role: user.role,
+                userId: user.userId || null,
+                role: user.role || null,
                 method,
                 path: req.originalUrl,
                 status: res.statusCode,
-                ip: req.ip,
-                userAgent: req.headers['user-agent']
+                ipAddress: req.ip,
+                userAgent: req.headers['user-agent'] || null
             };
 
-            if (mongoose.connection.readyState === 1) {
-                await AuditLog.create(log);
-            } else {
-                console.log('🧾 AuditLog (memory mode):', log);
-            }
+            await prisma.auditLog.create({
+                data: log
+            });
         } catch (error) {
             console.warn('Audit log failed:', (error as Error).message);
         }

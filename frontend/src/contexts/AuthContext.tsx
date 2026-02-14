@@ -25,7 +25,7 @@ interface AuthContextType {
   loading: boolean
   authLoading: boolean
   signup: (email: string, password: string, name: string) => Promise<void>
-  login: (email: string, password: string) => Promise<void>
+  login: (email: string, password: string, role?: string) => Promise<void>
   loginWithGoogle: (role?: string) => Promise<void>
   loginWithPhone: (phoneNumber: string) => Promise<any>
   logout: () => Promise<void>
@@ -80,6 +80,12 @@ export const AuthProvider = ({
           if (demoMode === 'true' && demoUserStr) {
             try {
               const demoUser = JSON.parse(demoUserStr)
+              
+              // Ensure we have a token for backend calls if in demo mode
+              if (!localStorage.getItem('auth_token')) {
+                localStorage.setItem('auth_token', `demo-token:${demoUser.role || 'buyer'}:${demoUser.uid}`)
+              }
+
               setUser({
                 uid: demoUser.uid,
                 email: demoUser.email,
@@ -161,9 +167,16 @@ export const AuthProvider = ({
   }
 
   // Login with backend API
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, role?: string) => {
     try {
       setAuthLoading(true)
+      
+      if (role) {
+        localStorage.setItem('requested_role', role)
+      } else {
+        localStorage.removeItem('requested_role')
+      }
+
       const response = await backendApi.auth.login(email, password)
 
       if (!response.success) {
@@ -182,11 +195,44 @@ export const AuthProvider = ({
 
       toast.success('Welcome back!')
 
-      // Navigate to dashboard
+      // Navigate based on role and onboarding status
       setTimeout(() => {
-        router.push('/dashboard')
+        const user = userData as any;
+        const role = (user?.role || '').toLowerCase();
+        console.log('🔮 Redirection logic - User role:', role);
+        
+        // Helper to check if role matches variations
+        const isRole = (val: string, targets: string[]) => targets.includes(val);
+
+        if (isRole(role, ['legal_partner', 'service-partners', 'service_partner'])) {
+          if (!user.onboardingCompleted) {
+            router.push('/service-partners/registration');
+          } else {
+            // Check for specific partner types if available
+            if (localStorage.getItem('gharbazaar_partner_type') === 'Lawyer' || user.partnerType === 'Lawyer') {
+              router.push('/legal-partner');
+            } else {
+              router.push('/service-partners');
+            }
+          }
+        } else if (isRole(role, ['employee'])) {
+          if (!user.onboardingCompleted) {
+            router.push('/employee/onboarding');
+          } else {
+            router.push('/employee');
+          }
+        } else if (isRole(role, ['ground_partner', 'ground-partner'])) {
+          router.push('/ground-partner');
+        } else if (isRole(role, ['promoter_partner', 'promoter-partner', 'promo-partner', 'partner'])) {
+          router.push('/partner');
+        } else if (isRole(role, ['admin'])) {
+          router.push('/dashboard'); // Admin usually goes to dashboard or admin panel if exists
+        } else {
+          console.warn('Unknown role, defaulting to dashboard:', role);
+          router.push('/dashboard');
+        }
         setAuthLoading(false)
-      }, 1500)
+      }, 500)
 
     } catch (error: any) {
       setAuthLoading(false)
@@ -221,9 +267,36 @@ export const AuthProvider = ({
 
       toast.success('Account created! Welcome to GharBazaar.')
 
-      // Navigate to dashboard
+      // Navigate based on role and onboarding status
       setTimeout(() => {
-        router.push('/dashboard')
+        const user = userData as any;
+        const role = (user?.role || '').toLowerCase();
+        console.log('🔮 Signup Redirection - User role:', role);
+        
+        // Helper to check if role matches variations
+        const isRole = (val: string, targets: string[]) => targets.includes(val);
+
+        if (isRole(role, ['legal_partner', 'service-partners', 'service_partner'])) {
+          if (!user.onboardingCompleted) {
+            router.push('/service-partners/registration');
+          } else {
+            router.push('/service-partners');
+          }
+        } else if (isRole(role, ['employee'])) {
+          if (!user.onboardingCompleted) {
+            router.push('/employee/onboarding');
+          } else {
+            router.push('/employee');
+          }
+        } else if (isRole(role, ['ground_partner', 'ground-partner'])) {
+          router.push('/ground-partner');
+        } else if (isRole(role, ['promoter_partner', 'promoter-partner', 'promo-partner', 'partner'])) {
+          router.push('/partner');
+        } else if (isRole(role, ['admin'])) {
+          router.push('/dashboard');
+        } else {
+          router.push('/dashboard');
+        }
         setAuthLoading(false)
       }, 1500)
 
@@ -336,7 +409,7 @@ export const AuthProvider = ({
       // Update cached user
       const cachedUser = AuthUtils.getCachedUser()
       if (cachedUser) {
-        const updatedUser = { ...cachedUser, displayName, photoURL }
+        const updatedUser = { ...cachedUser, displayName, photoURL: photoURL || null }
         AuthUtils.cacheUser(updatedUser)
         setUser(updatedUser)
       }

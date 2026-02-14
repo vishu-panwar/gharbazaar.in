@@ -1,9 +1,5 @@
 import { Request, Response } from 'express';
-import Bid from '../models/bid.model';
-import Property from '../models/property.model';
-import Notification from '../models/notification.model';
-import User from '../models/user.model';
-import Contract from '../models/contract.model';
+import { prisma } from '../utils/prisma';
 import { sendEmail } from '../utils/email.service';
 
 /**
@@ -14,7 +10,7 @@ import { sendEmail } from '../utils/email.service';
 export const createBid = async (req: Request, res: Response) => {
     try {
         const { propertyId, bidAmount, message } = req.body;
-        const buyerId = (req as any).user?.id;
+        const buyerId = (req as any).user?.userId; // Note: using userId from token which should be uid
 
         if (!buyerId) {
             return res.status(401).json({
@@ -24,7 +20,10 @@ export const createBid = async (req: Request, res: Response) => {
         }
 
         // Get property to find seller
-        const property = await Property.findById(propertyId);
+        const property = await prisma.property.findUnique({
+            where: { id: propertyId }
+        });
+
         if (!property) {
             return res.status(404).json({
                 success: false,
@@ -33,28 +32,32 @@ export const createBid = async (req: Request, res: Response) => {
         }
 
         // Create bid
-        const bid = await Bid.create({
-            propertyId,
-            buyerId,
-            sellerId: property.sellerId,
-            bidAmount,
-            message,
-            status: 'pending'
+        const bid = await prisma.bid.create({
+            data: {
+                propertyId,
+                buyerId,
+                sellerId: property.sellerId,
+                bidAmount,
+                message,
+                status: 'pending'
+            }
         });
 
         // Create notification for seller
-        await Notification.create({
-            userId: property.sellerId,
-            type: 'bid_received',
-            title: 'New Bid Received',
-            message: `You received a new bid of ₹${bidAmount.toLocaleString()} for "${property.title}"`,
-            link: `/dashboard/bids`,
-            priority: 'high',
-            metadata: { bidId: bid._id, propertyId: property._id }
+        await prisma.notification.create({
+            data: {
+                userId: property.sellerId,
+                type: 'bid_received',
+                title: 'New Bid Received',
+                message: `You received a new bid of ₹${bidAmount.toLocaleString()} for "${property.title}"`,
+                link: `/dashboard/bids`,
+                priority: 'high',
+                metadata: JSON.stringify({ bidId: bid.id, propertyId: property.id })
+            }
         });
 
         // Send email to seller
-        const seller = await User.findOne({ uid: property.sellerId });
+        const seller = await prisma.user.findUnique({ where: { uid: property.sellerId } });
         if (seller && seller.email) {
             await sendEmail({
                 email: seller.email,
@@ -86,7 +89,7 @@ export const createBid = async (req: Request, res: Response) => {
  */
 export const getSellerBids = async (req: Request, res: Response) => {
     try {
-        const sellerId = (req as any).user?.id;
+        const sellerId = (req as any).user?.userId;
         const { status } = req.query;
 
         if (!sellerId) {
@@ -96,14 +99,25 @@ export const getSellerBids = async (req: Request, res: Response) => {
             });
         }
 
-        const query: any = { sellerId };
+        const where: any = { sellerId };
         if (status) {
-            query.status = status;
+            where.status = status as string;
         }
 
-        const bids = await Bid.find(query)
-            .populate('propertyId', 'title location price images')
-            .sort({ createdAt: -1 });
+        const bids = await prisma.bid.findMany({
+            where,
+            include: {
+                property: {
+                    select: {
+                        title: true,
+                        location: true,
+                        price: true,
+                        images: true
+                    }
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
 
         res.status(200).json({
             success: true,
@@ -126,7 +140,7 @@ export const getSellerBids = async (req: Request, res: Response) => {
  */
 export const getBuyerBids = async (req: Request, res: Response) => {
     try {
-        const buyerId = (req as any).user?.id;
+        const buyerId = (req as any).user?.userId;
         const { status } = req.query;
 
         if (!buyerId) {
@@ -136,14 +150,25 @@ export const getBuyerBids = async (req: Request, res: Response) => {
             });
         }
 
-        const query: any = { buyerId };
+        const where: any = { buyerId };
         if (status) {
-            query.status = status;
+            where.status = status as string;
         }
 
-        const bids = await Bid.find(query)
-            .populate('propertyId', 'title location price images')
-            .sort({ createdAt: -1 });
+        const bids = await prisma.bid.findMany({
+            where,
+            include: {
+                property: {
+                    select: {
+                        title: true,
+                        location: true,
+                        price: true,
+                        images: true
+                    }
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
 
         res.status(200).json({
             success: true,
@@ -168,7 +193,7 @@ export const updateBidStatus = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const { status, counterAmount, counterMessage } = req.body;
-        const sellerId = (req as any).user?.id;
+        const sellerId = (req as any).user?.userId;
 
         if (!sellerId) {
             return res.status(401).json({
@@ -177,7 +202,10 @@ export const updateBidStatus = async (req: Request, res: Response) => {
             });
         }
 
-        const bid = await Bid.findById(id);
+        const bid = await prisma.bid.findUnique({
+            where: { id }
+        });
+
         if (!bid) {
             return res.status(404).json({
                 success: false,
@@ -194,47 +222,55 @@ export const updateBidStatus = async (req: Request, res: Response) => {
         }
 
         // Update bid
-        bid.status = status;
-        if (status === 'countered') {
-            bid.counterAmount = counterAmount;
-            bid.counterMessage = counterMessage;
-        }
-        await bid.save();
+        const updatedBid = await prisma.bid.update({
+            where: { id },
+            data: {
+                status,
+                counterAmount: status === 'countered' ? counterAmount : undefined,
+                counterMessage: status === 'countered' ? counterMessage : undefined
+            }
+        });
 
         if (status === 'accepted') {
-            const existing = await Contract.findOne({ bidId: bid._id });
+            const existing = await prisma.contract.findUnique({
+                where: { bidId: id }
+            });
+
             if (!existing) {
-                await Contract.create({
-                    propertyId: bid.propertyId,
-                    bidId: bid._id,
-                    buyerId: bid.buyerId,
-                    sellerId: bid.sellerId,
-                    agreedPrice: bid.counterAmount || bid.bidAmount
+                await prisma.contract.create({
+                    data: {
+                        propertyId: bid.propertyId,
+                        bidId: bid.id,
+                        buyerId: bid.buyerId,
+                        sellerId: bid.sellerId,
+                        agreedPrice: bid.counterAmount || bid.bidAmount
+                    }
                 });
             }
         }
 
         // Create notification for buyer
-        const buyerNotification = {
-            userId: bid.buyerId,
-            type: status === 'accepted' ? 'bid_accepted' : status === 'rejected' ? 'bid_rejected' : 'bid_received',
-            title: `Bid ${status.charAt(0).toUpperCase() + status.slice(1)}`,
-            message: status === 'accepted'
-                ? `Congratulations! Your bid for a property has been accepted.`
-                : status === 'rejected'
-                    ? `Your bid for a property has been rejected.`
-                    : `The seller has sent a counter offer for your bid.`,
-            link: `/dashboard/bids`,
-            priority: status === 'accepted' ? 'high' : 'medium',
-            metadata: { bidId: bid._id, propertyId: bid.propertyId }
-        };
-        await Notification.create(buyerNotification);
+        await prisma.notification.create({
+            data: {
+                userId: bid.buyerId,
+                type: status === 'accepted' ? 'bid_accepted' : status === 'rejected' ? 'bid_rejected' : 'bid_received',
+                title: `Bid ${status.charAt(0).toUpperCase() + status.slice(1)}`,
+                message: status === 'accepted'
+                    ? `Congratulations! Your bid for a property has been accepted.`
+                    : status === 'rejected'
+                        ? `Your bid for a property has been rejected.`
+                        : `The seller has sent a counter offer for your bid.`,
+                link: `/dashboard/bids`,
+                priority: status === 'accepted' ? 'high' : 'medium',
+                metadata: JSON.stringify({ bidId: bid.id, propertyId: bid.propertyId })
+            }
+        });
 
         // Send email to buyer
-        const buyer = await User.findOne({ uid: bid.buyerId });
+        const buyer = await prisma.user.findUnique({ where: { uid: bid.buyerId } });
         if (buyer && buyer.email) {
             const subject = `Bid ${status.charAt(0).toUpperCase() + status.slice(1)} - GharBazaar`;
-            const property = await Property.findById(bid.propertyId);
+            const property = await prisma.property.findUnique({ where: { id: bid.propertyId } });
             await sendEmail({
                 email: buyer.email,
                 subject,
@@ -246,7 +282,7 @@ export const updateBidStatus = async (req: Request, res: Response) => {
         res.status(200).json({
             success: true,
             message: `Bid ${status} successfully`,
-            data: bid
+            data: updatedBid
         });
     } catch (error: any) {
         console.error('Error updating bid:', error);
@@ -266,7 +302,7 @@ export const updateBidStatus = async (req: Request, res: Response) => {
 export const getPropertyBids = async (req: Request, res: Response) => {
     try {
         const { propertyId } = req.params;
-        const sellerId = (req as any).user?.id;
+        const sellerId = (req as any).user?.userId;
 
         if (!sellerId) {
             return res.status(401).json({
@@ -276,7 +312,10 @@ export const getPropertyBids = async (req: Request, res: Response) => {
         }
 
         // Verify seller owns the property
-        const property = await Property.findById(propertyId);
+        const property = await prisma.property.findUnique({
+            where: { id: propertyId }
+        });
+
         if (!property) {
             return res.status(404).json({
                 success: false,
@@ -291,8 +330,10 @@ export const getPropertyBids = async (req: Request, res: Response) => {
             });
         }
 
-        const bids = await Bid.find({ propertyId })
-            .sort({ createdAt: -1 });
+        const bids = await prisma.bid.findMany({
+            where: { propertyId },
+            orderBy: { createdAt: 'desc' }
+        });
 
         res.status(200).json({
             success: true,

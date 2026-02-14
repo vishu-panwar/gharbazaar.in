@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { MessageCircle } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import { useSearchParams } from 'next/navigation';
 
 // Dynamically import with error handling
 const ChatWindow = dynamic(() => import('@/components/Chat/ChatWindow'), {
@@ -41,9 +42,64 @@ interface Conversation {
   unreadCount: number;
 }
 
-export default function MessagesPage() {
+function MessagesContent() {
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const searchParams = useSearchParams();
+  const conversationId = searchParams.get('id');
 
+  return (
+    <div className="h-[calc(100vh-8rem)] flex bg-gray-50 dark:bg-gray-900">
+      {/* Left Panel - Conversations List */}
+      <div className="w-96 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+        <ConversationsList
+          onSelect={setSelectedConversation}
+          selectedId={selectedConversation?.id || conversationId || undefined}
+        />
+      </div>
+
+      {/* Right Panel - Chat Window or Empty State */}
+      <div className="flex-1 flex flex-col">
+        {selectedConversation ? (
+          <ChatWindow
+            conversationId={selectedConversation.id}
+            otherUser={selectedConversation.otherUser}
+          />
+        ) : (
+          /* Empty State */
+          <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+            <div className="text-center max-w-md">
+              <div className="w-24 h-24 bg-gray-200 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
+                <MessageCircle size={48} className="text-gray-400 dark:text-gray-600" />
+              </div>
+
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                Select a conversation
+              </h3>
+
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
+                Choose a message from the list to start chatting with sellers and agents
+              </p>
+
+              <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                <h4 className="text-gray-900 dark:text-white font-semibold mb-2">
+                  💡 Tips for messaging:
+                </h4>
+                <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1 text-left">
+                  <li>• Be specific about your requirements</li>
+                  <li>• Ask about viewing schedules</li>
+                  <li>• Inquire about pricing and negotiations</li>
+                  <li>• Request property documents</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function MessagesPage() {
   return (
     <ChatErrorBoundary>
       <ConnectionStatus />
@@ -76,54 +132,9 @@ export default function MessagesPage() {
                 }
             `}</style>
 
-      <div className="h-[calc(100vh-8rem)] flex bg-gray-50 dark:bg-gray-900">
-        {/* Left Panel - Conversations List */}
-        <div className="w-96 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
-          <ConversationsList
-            onSelect={setSelectedConversation}
-            selectedId={selectedConversation?.id}
-          />
-        </div>
-
-        {/* Right Panel - Chat Window or Empty State */}
-        <div className="flex-1 flex flex-col">
-          {selectedConversation ? (
-            <ChatWindow
-              conversationId={selectedConversation.id}
-              otherUser={selectedConversation.otherUser}
-            />
-          ) : (
-            /* Empty State */
-            <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-              <div className="text-center max-w-md">
-                <div className="w-24 h-24 bg-gray-200 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <MessageCircle size={48} className="text-gray-400 dark:text-gray-600" />
-                </div>
-
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                  Select a conversation
-                </h3>
-
-                <p className="text-gray-600 dark:text-gray-400 mb-6">
-                  Choose a message from the list to start chatting with sellers and agents
-                </p>
-
-                <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                  <h4 className="text-gray-900 dark:text-white font-semibold mb-2">
-                    💡 Tips for messaging:
-                  </h4>
-                  <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1 text-left">
-                    <li>• Be specific about your requirements</li>
-                    <li>• Ask about viewing schedules</li>
-                    <li>• Inquire about pricing and negotiations</li>
-                    <li>• Request property documents</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+      <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div></div>}>
+        <MessagesContent />
+      </Suspense>
     </ChatErrorBoundary>
   );
 }

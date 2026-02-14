@@ -29,7 +29,8 @@ import {
   Settings,
   Lock,
   Eye,
-  AlertTriangle
+  AlertTriangle,
+  ShieldCheck
 } from 'lucide-react'
 import NotificationDropdown from '@/components/NotificationDropdown'
 import { AuthUtils } from '@/lib/firebase'
@@ -61,7 +62,11 @@ export default function LegalPartnerLayout({ children }: { children: React.React
     const demoUser = AuthUtils.getCachedUser();
     if (demoUser && demoUser.isDemo) {
       // Check if user is legal partner
-      if (demoUser.role !== 'legal-partner' && demoUser.role !== 'admin') {
+      const role = (demoUser.role || '').toLowerCase();
+      const isRole = (val: string, targets: string[]) => targets.includes(val);
+      
+      if (!isRole(role, ['legal-partner', 'legal_partner', 'service-partners', 'service_partner', 'admin'])) {
+        console.warn('Legal Partner Layout: Role mismatch for demo user, redirecting to dashboard');
         router.push('/dashboard')
         return
       }
@@ -70,16 +75,21 @@ export default function LegalPartnerLayout({ children }: { children: React.React
     }
 
     // PRIORITY 2: Normal auth check
-    const userData = localStorage.getItem('user')
+    const userData = AuthUtils.getCachedUser()
     if (userData) {
-      const parsed = JSON.parse(userData)
-      // Check if user is legal partner
-      if (parsed.role !== 'legal-partner' && parsed.role !== 'admin') {
-        router.push('/dashboard')
+      const role = (userData.role || '').toLowerCase();
+      const isRole = (val: string, targets: string[]) => targets.includes(val);
+      
+      if (!isRole(role, ['legal-partner', 'legal_partner', 'service-partners', 'service_partner', 'admin'])) {
+        console.warn('Legal Partner Layout: Role mismatch for user:', role);
+        if (!isPublicPage) {
+          router.push('/dashboard')
+        }
         return
       }
-      setUser(parsed)
+      setUser(userData)
     } else {
+      console.log('Legal Partner Layout: No user found, redirecting to login');
       router.push('/legal-partner/login')
     }
   }, [router, pathname, isPublicPage])
@@ -126,6 +136,7 @@ export default function LegalPartnerLayout({ children }: { children: React.React
 
   const navigation = [
     { name: 'Dashboard', href: '/legal-partner', icon: LayoutDashboard },
+    { name: 'KYC Verification', href: '/legal-partner/kyc', icon: ShieldCheck },
     { name: 'Cases', href: '/legal-partner/cases', icon: Briefcase },
     { name: 'Due Diligence', href: '/legal-partner/due-diligence', icon: FileCheck },
     { name: 'Documents', href: '/legal-partner/documents', icon: FileText },

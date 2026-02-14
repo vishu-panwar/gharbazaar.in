@@ -1,4 +1,4 @@
-import Counter from '../models/counter.model';
+import { prisma } from './database';
 
 /**
  * Generates a professional sequential Employee ID
@@ -6,11 +6,19 @@ import Counter from '../models/counter.model';
  */
 export const getNextEmployeeId = async (): Promise<string> => {
     const year = new Date().getFullYear();
-    const counter = await Counter.findOneAndUpdate(
-        { id: 'employeeId' },
-        { $inc: { seq: 1 } },
-        { new: true, upsert: true }
-    );
+    
+    const counter = await prisma.counter.upsert({
+        where: { id: 'employeeId' },
+        update: {
+            seq: {
+                increment: 1
+            }
+        },
+        create: {
+            id: 'employeeId',
+            seq: 1
+        }
+    });
 
     const sequenceNumber = String(counter.seq).padStart(3, '0');
     return `GB-EMP-${year}-${sequenceNumber}`;

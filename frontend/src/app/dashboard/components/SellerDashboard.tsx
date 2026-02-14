@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import BidManagement from '@/components/Dashboard/BidManagement'
 import PlanUsageWidget from '@/components/Dashboard/PlanUsageWidget'
+import { backendApi } from '@/lib/backendApi'
+import ExpandRequestModal from '@/components/ExpandRequest/RequestModal'
 import {
     Eye,
     Heart,
@@ -61,7 +63,6 @@ import {
 } from 'lucide-react'
 
 import PropertyCard from '@/components/PropertyCard'
-import { backendApi } from '@/lib/backendApi'
 
 interface SellerDashboardProps {
     user: any
@@ -80,6 +81,8 @@ export default function SellerDashboard({ user, currentTime }: SellerDashboardPr
     const [marketInsights, setMarketInsights] = useState<any>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [showExpandBanner, setShowExpandBanner] = useState(false)
+    const [showExpandModal, setShowExpandModal] = useState(false)
 
     // Fetch dashboard data from backend
     useEffect(() => {
@@ -113,6 +116,35 @@ export default function SellerDashboard({ user, currentTime }: SellerDashboardPr
 
         fetchDashboardData()
     }, [user])
+
+    // Check if expand banner should be shown
+    const checkExpandBannerVisibility = async () => {
+        try {
+            // Check if user already has a request
+            const existingCheck = await backendApi.expandRequests.checkExisting()
+            if (existingCheck?.hasRequest) {
+                setShowExpandBanner(false)
+                return
+            }
+
+            // Check user's location from IP
+            const locationCheck = await backendApi.expandRequests.checkLocation()
+            if (locationCheck?.data?.shouldShowBanner) {
+                setShowExpandBanner(true)
+            } else {
+                setShowExpandBanner(false)
+            }
+        } catch (error) {
+            console.error('Error checking expand banner visibility:', error)
+            // Default to showing banner if check fails
+            setShowExpandBanner(true)
+        }
+    }
+
+    // Check banner visibility on mount
+    useEffect(() => {
+        checkExpandBannerVisibility()
+    }, [])
 
     const getGreeting = () => {
         const hour = currentTime.getHours()
@@ -412,6 +444,61 @@ export default function SellerDashboard({ user, currentTime }: SellerDashboardPr
                             </div>
                         </div>
                     </div>
+
+                    {/* Expand Request Promotional Banner - At Top */}
+                    {showExpandBanner && (
+                        <div className="max-w-7xl mx-auto px-6 pt-6">
+                            <div 
+                                onClick={() => setShowExpandModal(true)}
+                                className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500 via-pink-500 to-purple-600 p-6 cursor-pointer group animate-pulse hover:animate-none transition-all hover:scale-[1.02] shadow-lg shadow-purple-500/30 hover:shadow-xl hover:shadow-purple-600/50"
+                            >
+                                {/* Animated background shine */}
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out"></div>
+                                
+                                {/* Sparkle effects */}
+                                <div className="absolute top-2 right-2 w-2 h-2 bg-yellow-300 rounded-full animate-ping"></div>
+                                <div className="absolute top-2 right-2 w-2 h-2 bg-yellow-400 rounded-full"></div>
+                                <div className="absolute bottom-3 left-4 w-1.5 h-1.5 bg-white/60 rounded-full animate-pulse"></div>
+                                <div className="absolute top-1/2 right-8 w-1 h-1 bg-white/40 rounded-full animate-ping" style={{ animationDelay: '0.5s' }}></div>
+                                
+                                {/* Content */}
+                                <div className="relative z-10 flex items-center justify-between">
+                                    <div className="flex-1">
+                                        <div className="flex items-center space-x-2 mb-1">
+                                            <TrendingUp className="w-6 h-6 text-white animate-bounce" />
+                                            <h3 className="text-white font-bold text-xl sm:text-2xl">
+                                                Expand Request
+                                            </h3>
+                                            <span className="px-2 py-0.5 bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full animate-pulse">
+                                                NEW
+                                            </span>
+                                        </div>
+                                        <p className="text-white/90 text-sm sm:text-base">
+                                            Currently operating in Saharanpur and Roorkee. Want us in your city? 🚀
+                                        </p>
+                                    </div>
+                                    <div className="ml-4 bg-white/20 backdrop-blur-sm rounded-full p-3 group-hover:bg-white/30 transition-all">
+                                        <ArrowUpRight className="w-6 h-6 text-white group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                                    </div>
+                                </div>
+                                
+                                {/* Animated border glow */}
+                                <div className="absolute inset-0 rounded-2xl border-2 border-white/20 group-hover:border-white/40 transition-all"></div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Expand Request Modal */}
+                    <ExpandRequestModal
+                        isOpen={showExpandModal}
+                        onClose={() => {
+                            setShowExpandModal(false)
+                            // Recheck banner visibility after closing modal
+                            checkExpandBannerVisibility()
+                        }}
+                        userName={user?.name || ''}
+                        userEmail={user?.email || ''}
+                    />
 
                     {/* Main Dashboard Content */}
                     <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">

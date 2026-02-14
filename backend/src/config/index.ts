@@ -8,7 +8,7 @@ interface Config {
     nodeEnv: string;
     jwtSecret: string;
     jwtExpiresIn: string;
-    mongodbUri: string;
+    databaseUrl: string;
     frontendUrl: string;
     appName: string;
     google: {
@@ -38,7 +38,7 @@ const config: Config = {
     nodeEnv: process.env.NODE_ENV || 'development',
     jwtSecret: process.env.JWT_SECRET || 'change_this_secret_key_in_production',
     jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
-    mongodbUri: process.env.MONGODB_URI || 'mongodb://localhost:27017/gharbazaar',
+    databaseUrl: process.env.DATABASE_URL || 'postgresql://localhost:5432/gharbazaar',
     frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
     appName: process.env.APP_NAME || 'GharBazaar',
     google: {
@@ -61,7 +61,6 @@ const config: Config = {
         max: parseInt(process.env.RATE_LIMIT_MAX || '100', 10),
         windowMs: (() => {
             const raw = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10);
-            // If a small number is provided (e.g. 15), treat it as minutes.
             if (raw > 0 && raw < 1000) return raw * 60 * 1000;
             return raw;
         })(),
@@ -71,7 +70,7 @@ const config: Config = {
 };
 
 export const validateConfig = (): void => {
-    const requiredVars = ['JWT_SECRET', 'MONGODB_URI'];
+    const requiredVars = ['JWT_SECRET', 'DATABASE_URL'];
     const missing = requiredVars.filter(varName => !process.env[varName]);
 
     if (missing.length > 0) {

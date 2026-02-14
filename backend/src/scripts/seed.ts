@@ -1,147 +1,137 @@
 /**
- * 🌱 DATABASE SEED SCRIPT
- * 
- * Seeds demo data into MongoDB for testing Socket.IO features.
- * Run this after starting the backend to populate demo conversations and tickets.
- * 
- * Usage: ts-node src/scripts/seed.ts
- * 
- * @author GharBazaar Backend Team
+ * 🌱 DATABASE SEED SCRIPT (PostgreSQL/Prisma)
+ *
+ * Seeds demo data into PostgreSQL for testing features.
+ * Usage: npx ts-node src/scripts/seed.ts
  */
 
-import mongoose from 'mongoose';
-import config from '../config';
-import Conversation from '../models/conversation.model';
-import Message from '../models/message.model';
-import Ticket from '../models/ticket.model';
-import TicketMessage from '../models/ticketMessage.model';
+import { PrismaClient } from '@prisma/client';
 
-/**
- * Demo data - matches frontend demo script
- */
+const prisma = new PrismaClient();
+
 const demoData = {
-    conversations: [
+    users: [
         {
-            participants: ['demo_buyer_001', 'demo_seller_001'],
-            propertyId: 'prop_demo_123',
-            propertyTitle: '3BHK Apartment in Bandra, Mumbai',
-            lastMessage: 'The property is located at: Plot No. 42...',
-            lastMessageAt: new Date('2026-01-10T14:30:00Z'),
+            uid: 'demo_buyer_001',
+            email: 'demo_buyer_001@gharbazaar.in',
+            name: 'Demo Buyer 1',
+            role: 'buyer',
+            buyerClientId: 'gbclient_b1',
+            sellerClientId: 'gbclient_b1_seller'
         },
         {
-            participants: ['demo_buyer_002', 'demo_seller_002'],
-            propertyId: 'prop_demo_456',
-            propertyTitle: '2BHK Villa in Goa',
-            lastMessage: 'The rent is ₹45,000 per month...',
-            lastMessageAt: new Date('2026-01-10T16:45:00Z'),
+            uid: 'demo_seller_001',
+            email: 'demo_seller_001@gharbazaar.in',
+            name: 'Demo Seller 1',
+            role: 'seller',
+            buyerClientId: 'gbclient_s1_buyer',
+            sellerClientId: 'gbclient_s1'
         }
     ],
-
-    tickets: [
+    properties: [
         {
-            userId: 'demo_customer_001',
-            userRole: 'buyer',
-            categoryTitle: 'Payment Issue',
-            subCategoryTitle: 'Payment Failed',
-            problem: 'My payment failed but the amount was deducted from my bank account. Transaction ID: TXN20260110001',
-            status: 'open',
-            createdAt: new Date('2026-01-10T11:00:00Z'),
-        },
-        {
-            userId: 'demo_buyer_001',
-            userRole: 'buyer',
-            categoryTitle: 'Account Issue',
-            subCategoryTitle: 'Cannot Login',
-            problem: 'I am unable to login to my account. Getting "Invalid credentials" error.',
-            status: 'assigned',
-            assignedTo: 'demo_employee_001',
-            assignedToName: 'Support Agent - Ravi',
-            createdAt: new Date('2026-01-10T12:00:00Z'),
+            id: 'prop_demo_123',
+            title: '3BHK Apartment in Bandra, Mumbai',
+            description: 'Beautiful apartment in the heart of the city with modern amenities.',
+            price: 25000000,
+            propertyType: 'Apartment',
+            listingType: 'sale',
+            address: 'Bandra West, Mumbai',
+            city: 'Mumbai',
+            state: 'Maharashtra',
+            country: 'India',
+            bedrooms: 3,
+            bathrooms: 3,
+            area: '1500',
+            areaUnit: 'sqft',
+            status: 'active',
+            featured: true,
+            verified: true
         }
     ]
 };
 
-/**
- * 🌱 Seed the database
- */
-const seedDatabase = async () => {
+async function seedDatabase() {
     try {
-        console.log('🌱 Starting database seeding...\n');
+        console.log('🌱 Starting database seeding (Prisma)...');
 
-        // Connect to MongoDB
-        await mongoose.connect(config.mongodbUri);
-        console.log('✅ Connected to MongoDB\n');
-
-        // Clear existing demo data
-        console.log('🗑️  Clearing existing demo data...');
-        await Conversation.deleteMany({ propertyId: /^prop_demo_/ });
-        await Message.deleteMany({});
-        await Ticket.deleteMany({ userId: /^demo_/ });
-        await TicketMessage.deleteMany({});
-        console.log('✅ Cleared old data\n');
-
-        // Seed conversations
-        console.log('💬 Seeding conversations...');
-        for (const conv of demoData.conversations) {
-            const conversation = await Conversation.create(conv);
-            console.log(`   ✅ Created conversation: ${conversation.propertyTitle}`);
-
-            // Add demo messages
-            await Message.create({
-                conversationId: conversation._id,
-                senderId: conv.participants[0],
-                senderEmail: `${conv.participants[0]}@gharbazaar.in`,
-                content: 'Hi! Is this property still available?',
-                type: 'text',
-                read: true,
-                createdAt: new Date(Date.now() - 3600000), // 1 hour ago
+        // Upsert demo users
+        for (const userData of demoData.users) {
+            const user = await prisma.user.upsert({
+                where: { email: userData.email },
+                update: {},
+                create: {
+                    uid: userData.uid,
+                    email: userData.email,
+                    name: userData.name,
+                    role: userData.role,
+                    buyerClientId: userData.buyerClientId,
+                    sellerClientId: userData.sellerClientId,
+                    onboardingCompleted: true
+                }
             });
 
-            await Message.create({
-                conversationId: conversation._id,
-                senderId: conv.participants[1],
-                senderEmail: `${conv.participants[1]}@gharbazaar.in`,
-                content: 'Yes, it is! Would you like to schedule a visit?',
-                type: 'text',
-                read: false,
-                createdAt: new Date(),
+            // Ensure profiles exist
+            await prisma.buyerProfile.upsert({
+                where: { userId: user.id },
+                update: {},
+                create: { userId: user.id }
             });
+            await prisma.sellerProfile.upsert({
+                where: { userId: user.id },
+                update: {},
+                create: { userId: user.id }
+            });
+
+            console.log(`   ✅ Handled user: ${user.email}`);
         }
-        console.log(`✅ Created ${demoData.conversations.length} conversations with messages\n`);
 
-        // Seed tickets
-        console.log('🎫 Seeding tickets...');
-        for (const ticketData of demoData.tickets) {
-            const ticket = await Ticket.create(ticketData);
-            console.log(`   ✅ Created ticket: ${ticket.categoryTitle}`);
+        // Get the seller user
+        const seller = await prisma.user.findUnique({
+            where: { uid: 'demo_seller_001' }
+        });
 
-            // Add initial message
-            await TicketMessage.create({
-                ticketId: ticket._id,
-                senderId: ticketData.userId,
-                senderType: 'customer',
-                message: ticketData.problem,
-                timestamp: ticketData.createdAt,
-            });
+        if (!seller) {
+            throw new Error('Demo seller user not found');
         }
-        console.log(`✅ Created ${demoData.tickets.length} tickets with messages\n`);
 
-        console.log('🎉 Database seeding completed successfully!\n');
-        console.log('📊 Summary:');
-        console.log(`   - ${demoData.conversations.length} conversations`);
-        console.log(`   - ${demoData.conversations.length * 2} messages`);
-        console.log(`   - ${demoData.tickets.length} tickets`);
-        console.log(`   - ${demoData.tickets.length} ticket messages\n`);
+        // Seed properties
+        for (const propData of demoData.properties) {
+            await prisma.property.upsert({
+                where: { id: propData.id },
+                update: {},
+                create: {
+                    id: propData.id,
+                    title: propData.title,
+                    description: propData.description,
+                    price: propData.price,
+                    propertyType: propData.propertyType,
+                    listingType: propData.listingType,
+                    address: propData.address,
+                    city: propData.city,
+                    state: propData.state,
+                    bedrooms: propData.bedrooms,
+                    bathrooms: propData.bathrooms,
+                    area: propData.area,
+                    areaUnit: propData.areaUnit,
+                    status: propData.status,
+                    featured: propData.featured,
+                    verified: propData.verified,
+                    sellerId: seller.id,
+                    sellerClientId: seller.sellerClientId || undefined
+                }
+            });
+            console.log(`   ✅ Handled property: ${propData.title}`);
+        }
 
-        await mongoose.disconnect();
-        console.log('📴 Disconnected from MongoDB');
+        console.log('🎉 Seeding completed!');
         process.exit(0);
-
     } catch (error) {
-        console.error('❌ Error seeding database:', error);
+        console.error('❌ Seeding error:', error);
         process.exit(1);
+    } finally {
+        await prisma.$disconnect();
     }
-};
+}
 
-// Run the seed function
 seedDatabase();

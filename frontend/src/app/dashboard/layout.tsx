@@ -27,7 +27,10 @@ import {
   CreditCard,
   Sun,
   Moon,
-  Mail
+  Mail,
+  Briefcase,
+  ShieldCheck,
+  ArrowRight
 } from 'lucide-react'
 import NotificationDropdown from '@/components/NotificationDropdown'
 import { useAuth } from '@/contexts/AuthContext'
@@ -71,6 +74,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const user = AuthUtils.getCachedUser()
       if (user) {
         setUser(user)
+
+        // SAFETY REDIRECT: Kick partners out of client dashboard
+        const role = (user.role || '').toLowerCase();
+        const isRole = (val: string, targets: string[]) => targets.includes(val);
+
+        if (isRole(role, ['ground_partner', 'ground-partner'])) {
+          console.log('🚪 Partitioning: Ground Partner detected in client dashboard, redirecting...');
+          router.push('/ground-partner');
+          return;
+        }
+        if (isRole(role, ['promoter_partner', 'promoter-partner', 'promo-partner', 'partner'])) {
+          console.log('🚪 Partitioning: Promoter Partner detected in client dashboard, redirecting...');
+          router.push('/partner');
+          return;
+        }
+        if (isRole(role, ['legal_partner', 'service-partners', 'service_partner'])) {
+          console.log('🚪 Partitioning: Service Partner detected in client dashboard, redirecting...');
+          router.push('/service-partners');
+          return;
+        }
+        if (isRole(role, ['employee'])) {
+          console.log('🚪 Partitioning: Employee detected in client dashboard, redirecting...');
+          router.push('/employee');
+          return;
+        }
 
         // If demo mode, set mode based on role
         if (user.isDemo) {
@@ -150,9 +178,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Buyer Navigation
   const buyerNavigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'KYC Verification', href: '/dashboard/kyc', icon: ShieldCheck },
     { name: 'Browse Properties', href: '/dashboard/browse', icon: Eye },
     { name: 'My Proposals', href: '/dashboard/proposals', icon: Gavel },
     { name: 'Favorites', href: '/dashboard/favorites', icon: Heart },
+    { name: 'Services', href: '/dashboard/services', icon: Briefcase },
     { name: 'Messages', href: '/dashboard/messages', icon: MessageSquare },
     { name: 'Pricing Plans', href: '/dashboard/pricing', icon: DollarSign },
     { name: 'Profile', href: '/dashboard/profile', icon: User },
@@ -162,6 +192,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Seller Navigation
   const sellerNavigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'KYC Verification', href: '/dashboard/kyc', icon: ShieldCheck },
     { name: 'My Listings', href: '/dashboard/listings', icon: Home },
     { name: 'Offer Letters', href: '/dashboard/offer-letters', icon: Mail },
     { name: 'Analytics', href: '/dashboard/analytics', icon: TrendingUp },

@@ -104,7 +104,9 @@ export default function GoogleCallbackPage() {
                 }
 
                 // Final save and redirect
-                AuthUtils.cacheUser(userData)
+                if (userData) {
+                    AuthUtils.cacheUser(userData)
+                }
                 console.log('💾 [Step 3] User cached, redirecting...')
 
                 toast.success(`Welcome back! Logging you in...`)
@@ -112,11 +114,36 @@ export default function GoogleCallbackPage() {
                 // Use location.replace to force a clean slate for the auth context
                 setTimeout(() => {
                     const user = userData as any;
-                    if (user && user.role === 'employee' && !user.onboardingCompleted) {
-                        window.location.replace('/employee/onboarding')
-                    } else if (user && user.role === 'employee') {
-                        window.location.replace('/employee')
+                    const role = (user?.role || '').toLowerCase();
+                    console.log('🔮 Google Callback Redirection - User role:', role);
+
+                    // Helper to check if role matches variations
+                    const isRole = (val: string, targets: string[]) => targets.includes(val);
+
+                    if (isRole(role, ['legal_partner', 'service-partners', 'service_partner'])) {
+                        if (!user.onboardingCompleted) {
+                            window.location.replace('/service-partners/registration')
+                        } else {
+                            if (localStorage.getItem('gharbazaar_partner_type') === 'Lawyer' || user.partnerType === 'Lawyer') {
+                                window.location.replace('/legal-partner')
+                            } else {
+                                window.location.replace('/service-partners')
+                            }
+                        }
+                    } else if (isRole(role, ['employee'])) {
+                        if (!user.onboardingCompleted) {
+                            window.location.replace('/employee/onboarding')
+                        } else {
+                            window.location.replace('/employee')
+                        }
+                    } else if (isRole(role, ['ground_partner', 'ground-partner'])) {
+                        window.location.replace('/ground-partner')
+                    } else if (isRole(role, ['promoter_partner', 'promoter-partner', 'promo-partner', 'partner'])) {
+                        window.location.replace('/partner')
+                    } else if (isRole(role, ['admin'])) {
+                        window.location.replace('/dashboard')
                     } else {
+                        console.warn('Unknown role in Google callback, defaulting to dashboard:', role);
                         window.location.replace('/dashboard')
                     }
                 }, 500)

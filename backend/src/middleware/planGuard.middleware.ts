@@ -1,23 +1,24 @@
 import { Request, Response, NextFunction } from 'express';
-import UserPlan from '../models/userPlan.model';
-import Plan from '../models/plan.model';
-import { isMongoDBAvailable } from '../utils/memoryStore';
+import { prisma } from '../utils/database';
+import { Decimal } from '@prisma/client/runtime/library';
+import { isDatabaseAvailable } from '../utils/memoryStore';
+
+// For internal transition, we can alias or just use the new better name
+const isMongoDBAvailable = isDatabaseAvailable;
 
 /**
  * Plan Guard Middleware
  * Validates user has active plan with required permissions
- * DOES NOT modify existing auth flow - works alongside it
  */
 
 interface PlanGuardOptions {
     planType: 'buyer' | 'seller';
-    feature?: string;
+    feature?: 'viewLimit' | 'listingLimit' | 'consultationLimit' | 'featuredLimit';
     incrementUsage?: string;
 }
 
 /**
  * Middleware to require active plan
- * Attaches plan info to request without breaking existing logic
  */
 export const requireActivePlan = (options: PlanGuardOptions) => {
     return async (req: Request, res: Response, next: NextFunction) => {
@@ -31,8 +32,9 @@ export const requireActivePlan = (options: PlanGuardOptions) => {
                 });
             }
 
-            // Skip plan check if MongoDB not available (demo/memory mode)
-            if (!isMongoDBAvailable()) {
+            // Skip plan check if Database not available (demo/memory mode)
+            const dbAvailable = await isDatabaseAvailable();
+            if (!dbAvailable) {
                 console.log(`⚠️  Plan check skipped (memory mode) for ${user.email}`);
                 (req as any).userPlan = {
                     demo: true,
@@ -41,14 +43,17 @@ export const requireActivePlan = (options: PlanGuardOptions) => {
                 return next();
             }
 
-            // Find active plan
-            const userPlan = await UserPlan.findOne({
-                userId: user.userId,
-                status: 'active',
-                expiryDate: { $gt: new Date() }
-            }).populate('planId');
+            // Find active plan via Subscription
+            const subscription = await prisma.subscription.findFirst({
+                where: {
+                    userId: user.id || user.userId, 
+                    status: 'active',
+                    endDate: { gt: new Date() }
+                },
+                include: { plan: true }
+            });
 
-            if (!userPlan || !userPlan.planId) {
+            if (!subscription || !subscription.plan) {
                 return res.status(403).json({
                     success: false,
                     error: `Active ${options.planType} plan required`,
@@ -57,10 +62,10 @@ export const requireActivePlan = (options: PlanGuardOptions) => {
                 });
             }
 
-            const plan = userPlan.planId as any;
+            const plan = subscription.plan;
 
             // Verify plan type matches
-            if (plan.type !== options.planType) {
+            if (plan.type !== options.planType && plan.type !== 'combined') {
                 return res.status(403).json({
                     success: false,
                     error: `This action requires a ${options.planType} plan`,
@@ -70,7 +75,7 @@ export const requireActivePlan = (options: PlanGuardOptions) => {
 
             // Check specific feature if requested
             if (options.feature) {
-                const featureValue = plan.features[options.feature];
+                const featureValue = (plan as any)[options.feature];
                 if (featureValue === false || featureValue === 0 || featureValue === undefined) {
                     return res.status(403).json({
                         success: false,
@@ -83,7 +88,7 @@ export const requireActivePlan = (options: PlanGuardOptions) => {
                 // Check usage limits
                 if (typeof featureValue === 'number') {
                     const usageKey = (options.incrementUsage || options.feature.replace('Limit', 'Used')) as string;
-                    const currentUsage = (userPlan.usageStats as any)[usageKey] || 0;
+                    const currentUsage = ((subscription.usageStats as any) || {}) [usageKey] || 0;
                     
                     if (currentUsage >= featureValue) {
                         return res.status(403).json({
@@ -100,13 +105,16 @@ export const requireActivePlan = (options: PlanGuardOptions) => {
 
             // Attach plan info to request for controllers to use
             (req as any).userPlan = {
-                id: userPlan._id,
-                planId: plan._id,
+                id: subscription.id,
+                planId: plan.id,
                 planName: plan.name,
                 planType: plan.type,
-                features: plan.features,
-                usageStats: userPlan.usageStats,
-                expiryDate: userPlan.expiryDate
+                viewLimit: plan.viewLimit,
+                consultationLimit: plan.consultationLimit,
+                listingLimit: plan.listingLimit,
+                featuredLimit: plan.featuredLimit,
+                usageStats: subscription.usageStats || {},
+                expiryDate: subscription.endDate
             };
 
             next();
@@ -131,14 +139,18 @@ export const incrementPlanUsage = (usageField: string) => {
             const userPlan = (req as any).userPlan;
             const user = (req as any).user;
 
-            // Skip if demo mode or no plan attached
-            if (!userPlan || userPlan.demo || !user || !isMongoDBAvailable()) {
-                return next();
-            }
-
             // Increment usage
-            await UserPlan.findByIdAndUpdate(userPlan.id, {
-                $inc: { [`usageStats.${usageField}`]: 1 }
+            const currentStats = (userPlan.usageStats as any) || {};
+            const updatedStats = {
+                ...currentStats,
+                [usageField]: (currentStats[usageField] || 0) + 1
+            };
+
+            await prisma.subscription.update({
+                where: { id: userPlan.id },
+                data: {
+                    usageStats: updatedStats
+                }
             });
 
             console.log(`📊 Incremented ${usageField} for user ${user.email}`);
@@ -159,18 +171,16 @@ export const checkPlanOptional = async (req: Request, res: Response, next: NextF
     try {
         const user = (req as any).user;
         
-        if (!user || !isMongoDBAvailable()) {
-            (req as any).userPlan = null;
-            return next();
-        }
+        const subscription = await prisma.subscription.findFirst({
+            where: {
+                userId: user.id || user.userId,
+                status: 'active',
+                endDate: { gt: new Date() }
+            },
+            include: { plan: true }
+        });
 
-        const userPlan = await UserPlan.findOne({
-            userId: user.userId,
-            status: 'active',
-            expiryDate: { $gt: new Date() }
-        }).populate('planId');
-
-        (req as any).userPlan = userPlan || null;
+        (req as any).userPlan = subscription || null;
         next();
 
     } catch (error) {

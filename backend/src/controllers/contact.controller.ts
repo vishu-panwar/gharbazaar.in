@@ -1,7 +1,5 @@
 import { Request, Response } from 'express';
-import mongoose from 'mongoose';
-import Contact from '../models/contact.model';
-import Counter from '../models/counter.model';
+import { prisma } from '../utils/prisma';
 import { emailService } from '../utils/email.service';
 
 const generateReferenceId = () => {
@@ -43,7 +41,12 @@ export const sendContactForm = async (req: Request, res: Response) => {
         const now = new Date();
         const referenceId = generateReferenceId();
         const submittedAt = formatSubmittedAt(now);
-        let sequenceId = Math.floor(Math.random() * 1000) + 1000; // Local fallback ID
+        
+        // Counter logic for legacy sequence ID (if needed, mainly for reference)
+        // We'll use Prisma to manage the counter if strictly required, or just rely on UUIDs for main IDs
+        // For 'sequenceId' in the response, we can maintain the counter logic with Prisma
+        
+        let sequenceId = Math.floor(Math.random() * 1000) + 1000; // Fallback
 
         const emailData = {
             username: name,
@@ -57,50 +60,43 @@ export const sendContactForm = async (req: Request, res: Response) => {
 
         console.log(`📡 Processing contact submission for: ${email}`);
 
-        // 3. SEND REAL EMAILS IMMEDIATELY (This is what the user wants)
-        // We do this before DB operations to ensure success even if DB is unstable
+        // 3. SEND REAL EMAILS IMMEDIATELY
         try {
             await emailService.sendContactFormEmails(emailData);
             console.log(`✅ Real emails sent successfully for submission ${referenceId}`);
         } catch (emailError: any) {
-            console.error('❌ Email sending failed. This is the main issue:', emailError.message);
-            // If email fails, we still proceed to try and save, but user will be disappointed
+            console.error('❌ Email sending failed:', emailError.message);
         }
 
-        // 4. Record to Database (Async/Background-style)
-        const isDbConnected = mongoose.connection.readyState === 1;
-        if (isDbConnected) {
-            try {
-                // Get auto-incremented ID
-                const sequenceDoc = await Counter.findOneAndUpdate(
-                    { id: 'contactId' },
-                    { $inc: { seq: 1 } },
-                    { new: true, upsert: true, timeoutMS: 2000 }
-                );
+        // 4. Record to Database (Using Prisma)
+        try {
+            // Update counter for readable ID
+            const counter = await prisma.counter.upsert({
+                where: { id: 'contact_id' },
+                update: { seq: { increment: 1 } },
+                create: { id: 'contact_id', seq: 1000 },
+            });
+            sequenceId = counter.seq;
 
-                if (sequenceDoc) {
-                    sequenceId = sequenceDoc.seq;
-                }
-
-                // Save submission
-                await Contact.create({
-                    id: sequenceId,
+            // Save submission
+            await prisma.contact.create({
+                data: {
                     name,
                     email,
                     phone,
                     subject,
                     message,
                     referenceId,
-                    submittedAt
-                });
-                console.log(`📝 Submission recorded in database with ID: ${sequenceId}`);
-            } catch (dbError) {
-                console.warn('⚠️  Database save failed (but email might have been sent):', dbError);
-            }
+                    // Prisma handles createdAt/updatedAt automatically
+                    submittedAt: now 
+                }
+            });
+            console.log(`📝 Submission recorded in database with Sequence ID: ${sequenceId}`);
+        } catch (dbError) {
+            console.warn('⚠️  Database save failed:', dbError);
         }
 
-        // 5. Always Return Success to User according to specified format
-        // Status 201 Created as requested
+        // 5. Return Success
         return res.status(201).json({
             id: sequenceId,
             name,

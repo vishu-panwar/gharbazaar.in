@@ -1,52 +1,53 @@
-import mongoose from 'mongoose';
-import config from '../config';
-import Property from '../models/property.model';
-import User from '../models/user.model';
-import Conversation from '../models/conversation.model';
-import Message from '../models/message.model';
-import Ticket from '../models/ticket.model';
-import TicketMessage from '../models/ticketMessage.model';
+import { prisma } from '../utils/prisma';
 
 async function clearData() {
     try {
-        await mongoose.connect(config.mongodbUri);
-        console.log('🧹 Connected to MongoDB for clearing all demo data...');
+        console.log('🧹 Clearing all demo data from PostgreSQL...');
 
-        // Clear everything
-        await Property.deleteMany({});
-        console.log('✅ Cleared properties');
-
-        // Clear conversations and messages
-        await Conversation.deleteMany({});
-        await Message.deleteMany({});
+        // Clear everything in the correct order to avoid foreign key constraints
+        // We delete from child tables first
+        
+        await prisma.message.deleteMany({});
+        await prisma.conversationParticipant.deleteMany({});
+        await prisma.conversation.deleteMany({});
         console.log('✅ Cleared chats (conversations and messages)');
 
-        // Clear tickets
-        await Ticket.deleteMany({});
-        await TicketMessage.deleteMany({});
+        await prisma.bid.deleteMany({});
+        await prisma.favorite.deleteMany({});
+        await prisma.property.deleteMany({});
+        console.log('✅ Cleared properties, bids, and favorites');
+
+        await prisma.ticketMessage.deleteMany({});
+        await prisma.ticket.deleteMany({});
         console.log('✅ Cleared support tickets');
 
-        // Optional: keep users but reset their stats? 
-        // Usually, users want to keep their account but clear the "demo" activity.
-        // For now, let's just clear everything except the users themselves, 
-        // but reset user stats to 0.
-        await User.updateMany({}, {
-            $set: {
+        await prisma.notification.deleteMany({});
+        await prisma.paymentTransaction.deleteMany({});
+        console.log('✅ Cleared notifications and payments');
+
+        // Reset user stats in Buyer/Seller profiles instead of a single Mongoose model
+        await prisma.buyerProfile.updateMany({
+            data: {
                 propertiesViewed: 0,
                 savedProperties: 0,
-                activeOffers: 0,
+            }
+        });
+        
+        await prisma.sellerProfile.updateMany({
+            data: {
                 activeListings: 0,
                 totalViews: 0,
                 inquiries: 0,
-                revenue: '₹0'
             }
         });
+
         console.log('✅ Reset all user statistics to 0');
 
-        await mongoose.disconnect();
         console.log('👋 Backend is now CLEAN');
+        process.exit(0);
     } catch (error) {
         console.error('❌ Clearing error:', error);
+        process.exit(1);
     }
 }
 

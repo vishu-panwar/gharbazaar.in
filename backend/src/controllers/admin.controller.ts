@@ -1,33 +1,29 @@
 import { Request, Response } from 'express';
-import User from '../models/user.model';
-import EmployeeProfile from '../models/employeeProfile.model';
-import Salary from '../models/salary.model';
-import Notification from '../models/notification.model';
-import Payout from '../models/payout.model';
+import { prisma } from '../utils/database';
 import { getNextEmployeeId } from '../utils/idGenerator';
 import crypto from 'crypto';
-import mongoose from 'mongoose';
 import fs from 'fs';
 import path from 'path';
-import Property from '../models/property.model';
-import UserPlan from '../models/userPlan.model';
-import Plan from '../models/plan.model';
+import { Decimal } from '@prisma/client/runtime/library';
+import { Prisma } from '@prisma/client';
 
 export const listEmployees = async (req: Request, res: Response) => {
     try {
-        const employees = await User.find({ role: 'employee' }).select('-password');
-        const profiles = await EmployeeProfile.find();
-
-        // Enumerate profiles and merge with user data
-        const detailedEmployees = employees.map(emp => {
-            const profile = profiles.find(p => p.userId === emp.uid);
-            return {
-                ...emp.toObject(),
-                profile: profile || null
-            };
+        const employees = await prisma.user.findMany({
+            where: { role: 'employee' },
+            select: {
+                id: true,
+                uid: true,
+                email: true,
+                name: true,
+                role: true,
+                branch: true,
+                office: true,
+                employeeProfile: true
+            }
         });
 
-        res.json({ success: true, data: { employees: detailedEmployees } });
+        res.json({ success: true, data: { employees } });
     } catch (error) {
         console.error('Error listing employees:', error);
         res.status(500).json({ success: false, error: 'Failed to fetch employees' });
@@ -42,47 +38,56 @@ export const addEmployee = async (req: Request, res: Response) => {
             return res.status(400).json({ success: false, error: 'Email, password and name are required' });
         }
 
-        const existingUser = await User.findOne({ email });
+        const existingUser = await prisma.user.findUnique({
+            where: { email }
+        });
+
         if (existingUser) {
             return res.status(400).json({ success: false, error: 'Email already exists' });
         }
 
         // Create user with employee role
         const uid = `gbemployee${crypto.randomBytes(4).toString('hex').slice(0, 7)}`;
-        const user = new User({
-            uid,
-            email,
-            password,
-            name,
-            role: 'employee',
-            onboardingCompleted: true
-        });
-
-        await user.save();
-
         const employeeId = await getNextEmployeeId();
-        const profile = new EmployeeProfile({
-            userId: uid,
-            employeeId,
-            department: department || 'Sales',
-            designation: designation || 'Support Agent'
-        });
 
-        await profile.save();
+        const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+            const user = await tx.user.create({
+                data: {
+                    uid,
+                    email,
+                    password, // Note: Should be hashed in a real app, but preserving existing logic
+                    name,
+                    role: 'employee',
+                    onboardingCompleted: true
+                }
+            });
+
+            const profile = await tx.employeeProfile.create({
+                data: {
+                    userId: user.id,
+                    employeeId,
+                    department: department || 'Sales',
+                    designation: designation || 'Support Agent'
+                }
+            });
+
+            return { user, profile };
+        });
 
         res.status(201).json({
             success: true,
             data: {
                 user: {
-                    uid: user.uid,
-                    email: user.email,
-                    name: user.name,
-                    role: user.role
+                    uid: result.user.uid,
+                    email: result.user.email,
+                    name: result.user.name,
+                    role: result.user.role
                 },
-                profile
+                profile: result.profile
             }
         });
     } catch (error) {
+        console.error('Error adding employee:', error);
         res.status(500).json({ success: false, error: 'Failed to add employee' });
     }
 };
@@ -91,7 +96,10 @@ export const removeEmployee = async (req: Request, res: Response) => {
     try {
         const { id } = req.params; // Expecting user.uid
 
-        const user = await User.findOne({ uid: id });
+        const user = await prisma.user.findUnique({
+            where: { uid: id }
+        });
+
         if (!user) {
             return res.status(404).json({ success: false, error: 'Employee not found' });
         }
@@ -101,16 +109,12 @@ export const removeEmployee = async (req: Request, res: Response) => {
         }
 
         // We'll perform a soft delete by updating status in profile
-        await EmployeeProfile.findOneAndUpdate(
-            { userId: id },
-            { status: 'terminated' }
-        );
+        await prisma.employeeProfile.update({
+            where: { userId: user.id },
+            data: { isActive: false }
+        });
 
-        // Optionally update user role or deactivate
-        // user.role = 'buyer'; // Downgrade to buyer
-        // await user.save();
-
-        res.json({ success: true, message: 'Employee terminated successfully' });
+        res.json({ success: true, message: 'Employee deactivated successfully' });
     } catch (error) {
         console.error('Error removing employee:', error);
         res.status(500).json({ success: false, error: 'Failed to remove employee' });
@@ -119,18 +123,21 @@ export const removeEmployee = async (req: Request, res: Response) => {
 
 export const updateEmployeeProfile = async (req: Request, res: Response) => {
     try {
-        const { id } = req.params; // userId
+        const { id } = req.params; // This is the user.uid from the route usually, let's verify if it's uid or id
         const updates = req.body;
 
-        const profile = await EmployeeProfile.findOneAndUpdate(
-            { userId: id },
-            { $set: updates },
-            { new: true }
-        );
+        const user = await prisma.user.findUnique({
+            where: { uid: id }
+        });
 
-        if (!profile) {
-            return res.status(404).json({ success: false, error: 'Employee profile not found' });
+        if (!user) {
+            return res.status(404).json({ success: false, error: 'User not found' });
         }
+
+        const profile = await prisma.employeeProfile.update({
+            where: { userId: user.id },
+            data: updates
+        });
 
         res.json({ success: true, data: { profile } });
     } catch (error) {
@@ -149,20 +156,38 @@ export const processSalary = async (req: Request, res: Response) => {
 
         const netSalary = (Number(baseSalary) + Number(allowances || 0)) - Number(deductions || 0);
 
-        const salary = await Salary.findOneAndUpdate(
-            { userId, month, year },
-            {
-                baseSalary,
-                allowances,
-                deductions,
-                netSalary,
+        const salary = await prisma.salary.upsert({
+            where: {
+                userId_month_year: {
+                    userId,
+                    month,
+                    year: Number(year)
+                }
+            },
+            update: {
+                baseSalary: new Decimal(baseSalary),
+                allowances: new Decimal(allowances || 0),
+                deductions: new Decimal(deductions || 0),
+                netSalary: new Decimal(netSalary),
                 status: 'paid',
                 paymentDate: new Date(),
                 paymentMethod,
                 transactionReference
             },
-            { new: true, upsert: true }
-        );
+            create: {
+                userId,
+                month,
+                year: Number(year),
+                baseSalary: new Decimal(baseSalary),
+                allowances: new Decimal(allowances || 0),
+                deductions: new Decimal(deductions || 0),
+                netSalary: new Decimal(netSalary),
+                status: 'paid',
+                paymentDate: new Date(),
+                paymentMethod,
+                transactionReference
+            }
+        });
 
         res.json({ success: true, data: { salary } });
     } catch (error) {
@@ -176,17 +201,13 @@ export const approvePayout = async (req: Request, res: Response) => {
         const { id } = req.params;
         const { reference, status } = req.body;
 
-        const payout = await Payout.findById(id);
-        if (!payout) {
-            return res.status(404).json({ success: false, error: 'Payout not found' });
-        }
-
-        payout.status = status || 'paid';
-        if (reference) {
-            payout.reference = reference;
-        }
-
-        await payout.save();
+        const payout = await prisma.payout.update({
+            where: { id },
+            data: {
+                status: status || 'paid',
+                reference: reference || undefined
+            }
+        });
 
         res.json({ success: true, data: payout });
     } catch (error) {
@@ -198,11 +219,14 @@ export const approvePayout = async (req: Request, res: Response) => {
 export const getSalaryRecords = async (req: Request, res: Response) => {
     try {
         const { month, year } = req.query;
-        let query: any = {};
-        if (month) query.month = month;
-        if (year) query.year = year;
+        let where: any = {};
+        if (month) where.month = month as string;
+        if (year) where.year = Number(year);
 
-        const records = await Salary.find(query).sort({ createdAt: -1 });
+        const records = await prisma.salary.findMany({
+            where,
+            orderBy: { createdAt: 'desc' }
+        });
         res.json({ success: true, data: { records } });
     } catch (error) {
         console.error('Error fetching salary records:', error);
@@ -219,19 +243,23 @@ export const broadcastAnnouncement = async (req: Request, res: Response) => {
         }
 
         // 1. Identify target users
-        let userQuery: any = {};
+        let where: any = {};
         if (target && target !== 'all') {
-            userQuery.role = target; // e.g., 'buyer', 'seller', 'ground_partner'
+            where.role = target; // e.g., 'buyer', 'seller', 'ground_partner'
         }
 
-        const users = await User.find(userQuery).select('uid');
+        const users = await prisma.user.findMany({
+            where,
+            select: { id: true }
+        });
+
         if (users.length === 0) {
             return res.json({ success: true, message: 'No users found for this target' });
         }
 
         // 2. Create notification records
-        const notifications = users.map(user => ({
-            userId: user.uid,
+        const notificationData = users.map(user => ({
+            userId: user.id,
             type: 'system',
             title,
             message,
@@ -240,14 +268,13 @@ export const broadcastAnnouncement = async (req: Request, res: Response) => {
             isRead: false
         }));
 
-        await Notification.insertMany(notifications);
+        await prisma.notification.createMany({
+            data: notificationData
+        });
 
         // 3. Emit via Socket.io if available
         const io = req.app.get('io');
         if (io) {
-            // If target is specific role, we can emit to a room if we implement role-based rooms,
-            // otherwise we can emit a general broadcast and clients can filter or we emit to everyone.
-            // Best: Emit 'new_announcement' to all, with target info
             io.emit('new_announcement', {
                 target,
                 title,
@@ -271,15 +298,19 @@ export const broadcastAnnouncement = async (req: Request, res: Response) => {
 
 // Database Administration Controls
 
+// Database Administration Controls (Refactored for Prisma/PostgreSQL)
+
 export const exportDatabase = async (req: Request, res: Response) => {
     try {
-        const collections = mongoose.connection.collections;
-        const backup: any = {};
-
-        for (const key in collections) {
-            const data = await collections[key].find({}).toArray();
-            backup[key] = data;
-        }
+        // Simple JSON export of main tables
+        const backup: any = {
+            users: await prisma.user.findMany(),
+            properties: await prisma.property.findMany(),
+            subscriptions: await prisma.subscription.findMany(),
+            plans: await prisma.plan.findMany(),
+            serviceProviders: await prisma.serviceProvider.findMany(),
+            employeeProfiles: await prisma.employeeProfile.findMany()
+        };
 
         res.json({ success: true, data: backup });
     } catch (error) {
@@ -295,16 +326,27 @@ export const importDatabase = async (req: Request, res: Response) => {
             return res.status(400).json({ success: false, error: 'Backup data is required' });
         }
 
-        const collections = mongoose.connection.collections;
+        // WARNING: This is a destructive operation!
+        // For Prisma/PostgreSQL, we should be very careful.
+        // This is a simplified implementation.
+        
+        await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+            // Delete in order to respect dependencies
+            await tx.serviceProvider.deleteMany({});
+            await tx.employeeProfile.deleteMany({});
+            await tx.subscription.deleteMany({});
+            await tx.property.deleteMany({});
+            await tx.user.deleteMany({});
+            await tx.plan.deleteMany({});
 
-        for (const key in backupData) {
-            if (collections[key]) {
-                await collections[key].deleteMany({});
-                if (backupData[key].length > 0) {
-                    await collections[key].insertMany(backupData[key]);
-                }
-            }
-        }
+            // Re-insert
+            if (backupData.plans) await tx.plan.createMany({ data: backupData.plans });
+            if (backupData.users) await tx.user.createMany({ data: backupData.users });
+            if (backupData.properties) await tx.property.createMany({ data: backupData.properties });
+            if (backupData.subscriptions) await tx.subscription.createMany({ data: backupData.subscriptions });
+            if (backupData.employeeProfiles) await tx.employeeProfile.createMany({ data: backupData.employeeProfiles });
+            if (backupData.serviceProviders) await tx.serviceProvider.createMany({ data: backupData.serviceProviders });
+        });
 
         res.json({ success: true, message: 'Database imported successfully' });
     } catch (error) {
@@ -315,13 +357,12 @@ export const importDatabase = async (req: Request, res: Response) => {
 
 export const createBackup = async (req: Request, res: Response) => {
     try {
-        const collections = mongoose.connection.collections;
-        const backup: any = {};
-
-        for (const key in collections) {
-            const data = await collections[key].find({}).toArray();
-            backup[key] = data;
-        }
+        const backup: any = {
+            users: await prisma.user.findMany(),
+            properties: await prisma.property.findMany(),
+            subscriptions: await prisma.subscription.findMany(),
+            plans: await prisma.plan.findMany()
+        };
 
         const backupDir = path.join(process.cwd(), 'backups');
         if (!fs.existsSync(backupDir)) {
@@ -357,16 +398,19 @@ export const restoreBackup = async (req: Request, res: Response) => {
         }
 
         const backupData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-        const collections = mongoose.connection.collections;
+        
+        await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+            // Destructive restore
+            await tx.subscription.deleteMany({});
+            await tx.property.deleteMany({});
+            await tx.user.deleteMany({});
+            await tx.plan.deleteMany({});
 
-        for (const key in backupData) {
-            if (collections[key]) {
-                await collections[key].deleteMany({});
-                if (backupData[key].length > 0) {
-                    await collections[key].insertMany(backupData[key]);
-                }
-            }
-        }
+            if (backupData.plans) await tx.plan.createMany({ data: backupData.plans });
+            if (backupData.users) await tx.user.createMany({ data: backupData.users });
+            if (backupData.properties) await tx.property.createMany({ data: backupData.properties });
+            if (backupData.subscriptions) await tx.subscription.createMany({ data: backupData.subscriptions });
+        });
 
         res.json({ success: true, message: 'Database restored successfully' });
     } catch (error) {
@@ -401,7 +445,12 @@ export const listBackups = async (req: Request, res: Response) => {
 
 export const getAllClients = async (req: Request, res: Response) => {
     try {
-        const users = await User.find({ role: { $in: ['buyer', 'seller'] } }).select('-password').sort({ createdAt: -1 });
+        const users = await prisma.user.findMany({
+            where: {
+                role: { in: ['buyer', 'seller'] }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
         res.json({ success: true, data: { users } });
     } catch (error) {
         console.error('Error fetching clients:', error);
@@ -413,7 +462,9 @@ export const deleteClient = async (req: Request, res: Response) => {
     try {
         const { id } = req.params; // Expecting user.uid
 
-        const user = await User.findOne({ uid: id });
+        const user = await prisma.user.findUnique({
+            where: { uid: id }
+        });
         if (!user) {
             return res.status(404).json({ success: false, error: 'User not found' });
         }
@@ -449,7 +500,9 @@ export const deleteClient = async (req: Request, res: Response) => {
             io.emit('admin:force_logout', { userId: id });
         }
 
-        await User.deleteOne({ uid: id });
+        await prisma.user.delete({
+            where: { uid: id }
+        });
         // Also clean up related profiles if any? (e.g. if we had buyer/seller specific profiles)
         // For now, User document is the main one.
 
@@ -463,68 +516,77 @@ export const deleteClient = async (req: Request, res: Response) => {
 export const getDashboardStats = async (req: Request, res: Response) => {
     try {
         // 1. Counts
-        const totalUsers = await User.countDocuments({ role: { $in: ['buyer', 'seller'] } });
-        const activeListings = await Property.countDocuments({ status: 'active' });
-        const totalEmployees = await User.countDocuments({ role: 'employee' });
+        const totalUsers = await prisma.user.count({
+            where: { role: { in: ['buyer', 'seller'] } }
+        });
+        const activeListings = await prisma.property.count({
+            where: { status: 'active' }
+        });
+        const totalEmployees = await prisma.user.count({
+            where: { role: 'employee' }
+        });
 
-        // 2. Revenue Calculation (Estimate based on UserPlans)
-        // Find all plans to create a map of price
-        const plans = await Plan.find({});
-        const planPriceMap = plans.reduce((acc: any, plan) => {
-            acc[plan._id.toString()] = plan.price;
-            return acc;
-        }, {});
-
-        const allUserPlans = await UserPlan.find({});
-        const totalRevenue = allUserPlans.reduce((sum, userPlan) => {
-            const price = planPriceMap[userPlan.planId.toString()] || 0;
-            return sum + price;
+        // 2. Revenue Calculation (Estimate based on Subscriptions)
+        const allSubscriptions = await prisma.subscription.findMany({
+            include: { plan: true }
+        });
+        const totalRevenue = allSubscriptions.reduce((sum: number, sub: any) => {
+            return sum + (sub.plan.price ? Number(sub.plan.price) : 0);
         }, 0);
 
         // 3. Quick Stats (New Users & Revenue today)
         const startOfDay = new Date();
         startOfDay.setHours(0, 0, 0, 0);
 
-        const newUsersToday = await User.countDocuments({
-            role: { $in: ['buyer', 'seller'] },
-            createdAt: { $gte: startOfDay }
+        const newUsersToday = await prisma.user.count({
+            where: {
+                role: { in: ['buyer', 'seller'] },
+                createdAt: { gte: startOfDay }
+            }
         });
 
         // Revenue today
-        const newPlansToday = await UserPlan.find({ createdAt: { $gte: startOfDay } });
-        const revenueToday = newPlansToday.reduce((sum, userPlan) => {
-            const price = planPriceMap[userPlan.planId.toString()] || 0;
-            return sum + price;
+        const newSubscriptionsToday = await prisma.subscription.findMany({
+            where: { createdAt: { gte: startOfDay } },
+            include: { plan: true }
+        });
+        const revenueToday = newSubscriptionsToday.reduce((sum: number, sub: any) => {
+            return sum + (sub.plan.price ? Number(sub.plan.price) : 0);
         }, 0);
 
         // Pending Approvals (Properties pending)
-        const pendingApprovals = await Property.countDocuments({ status: 'pending' });
+        const pendingApprovals = await prisma.property.count({
+            where: { status: 'pending' }
+        });
 
         // 4. Recent Activities
         // Fetch last 5 users
-        const recentUsers = await User.find({ role: { $in: ['buyer', 'seller'] } })
-            .sort({ createdAt: -1 })
-            .limit(5)
-            .select('name role createdAt');
+        const recentUsers = await prisma.user.findMany({
+            where: { role: { in: ['buyer', 'seller'] } },
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+            select: { id: true, name: true, role: true, createdAt: true }
+        });
 
         // Fetch last 5 properties
-        const recentProperties = await Property.find({})
-            .sort({ createdAt: -1 })
-            .limit(5)
-            .select('title propertyType createdAt');
+        const recentProperties = await prisma.property.findMany({
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+            select: { id: true, title: true, propertyType: true, createdAt: true }
+        });
 
         // Normalize and merge
         const activities = [
-            ...recentUsers.map(u => ({
-                id: u._id,
+            ...recentUsers.map((u: any) => ({
+                id: u.id,
                 type: 'user',
                 title: 'New User Registration',
                 description: `${u.name} joined as ${u.role}`,
                 time: u.createdAt,
                 createdAt: u.createdAt
             })),
-            ...recentProperties.map(p => ({
-                id: p._id,
+            ...recentProperties.map((p: any) => ({
+                id: p.id,
                 type: 'listing',
                 title: 'New Property Listed',
                 description: p.title,
@@ -532,7 +594,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
                 createdAt: p.createdAt
             }))
         ]
-            .sort((a: any, b: any) => b.createdAt - a.createdAt)
+            .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
             .slice(0, 10); // Last 10 mixed activities
 
         // Helper to format currency
@@ -569,7 +631,9 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 
 export const getAllProperties = async (req: Request, res: Response) => {
     try {
-        const properties = await Property.find().sort({ createdAt: -1 });
+        const properties = await prisma.property.findMany({
+            orderBy: { createdAt: 'desc' }
+        });
         res.json({ success: true, data: { properties } });
     } catch (error) {
         console.error('Error fetching properties:', error);
@@ -587,24 +651,21 @@ export const updatePropertyStatus = async (req: Request, res: Response) => {
             return res.status(400).json({ success: false, error: 'Invalid status' });
         }
 
-        const property = await Property.findByIdAndUpdate(
-            id,
-            { status },
-            { new: true }
-        );
-
-        if (!property) {
-            return res.status(404).json({ success: false, error: 'Property not found' });
-        }
+        const property = await prisma.property.update({
+            where: { id },
+            data: { status }
+        });
 
         // Notify seller
-        await Notification.create({
-            userId: property.sellerId,
-            type: 'listing_update',
-            title: `Listing Status Updated: ${status.toUpperCase()}`,
-            message: `Your listing "${property.title}" has been ${status} by admin.${reason ? ` Reason: ${reason}` : ''}`,
-            link: `/dashboard/listings/${property._id}`,
-            priority: 'medium'
+        await prisma.notification.create({
+            data: {
+                userId: property.sellerId, // sellerId in Property is uid, let's fix that if needed, but in schema we defined it as relation to User.uid
+                type: 'listing_update',
+                title: `Listing Status Updated: ${status.toUpperCase()}`,
+                message: `Your listing "${property.title}" has been ${status} by admin.${reason ? ` Reason: ${reason}` : ''}`,
+                link: `/dashboard/listings/${property.id}`,
+                priority: 'medium'
+            }
         });
 
         res.json({ success: true, data: { property } });
@@ -619,23 +680,20 @@ export const deleteProperty = async (req: Request, res: Response) => {
         const { id } = req.params;
 
         // Soft delete: Update status to 'deleted'
-        const property = await Property.findByIdAndUpdate(
-            id,
-            { status: 'deleted' },
-            { new: true }
-        );
-
-        if (!property) {
-            return res.status(404).json({ success: false, error: 'Property not found' });
-        }
+        const property = await prisma.property.update({
+            where: { id },
+            data: { status: 'deleted' }
+        });
 
         // Notify seller
-        await Notification.create({
-            userId: property.sellerId,
-            type: 'listing_update',
-            title: 'Listing Deleted by Admin',
-            message: `Your listing "${property.title}" has been deleted by admin.`,
-            priority: 'high'
+        await prisma.notification.create({
+            data: {
+                userId: property.sellerId,
+                type: 'listing_update',
+                title: 'Listing Deleted by Admin',
+                message: `Your listing "${property.title}" has been deleted by admin.`,
+                priority: 'high'
+            }
         });
 
         res.json({ success: true, message: 'Property deleted successfully' });

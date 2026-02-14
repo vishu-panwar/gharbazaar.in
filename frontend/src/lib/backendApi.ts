@@ -32,13 +32,14 @@ async function authApiCall(endpoint: string, options: RequestInit = {}) {
 
     try {
         // Dynamic config lookup [auth-v6]
-        const conf = CONFIG.AUTH_API;
-        const baseUrl = conf.BASE_URL || conf.FULL_URL;
-        const normalizedBase = baseUrl.includes('/api/v1')
-            ? baseUrl.replace(/\/$/, '')
-            : `${baseUrl.replace(/\/$/, '')}/api/v1`;
+        // Force use of NEXT_PUBLIC_API_URL from env if available to ensure port 5001
+        const envApiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+        const baseUrl = envApiUrl.endsWith('/') ? envApiUrl.slice(0, -1) : envApiUrl;
 
-        // Build full URL - endpoint should include /auth or /verify paths
+        // Build full URL - endpoint should start with /
+        // normalizedBase is now http://localhost:5001/api/v1
+        const normalizedBase = `${baseUrl}/api/v1`;
+        
         const url = `${normalizedBase}${endpoint}`;
 
         console.log(`📡 [auth-v6] Calling: ${url}`);
@@ -85,20 +86,35 @@ async function backendApiCall(endpoint: string, options: RequestInit = {}) {
         headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        ...options,
-        headers,
-    });
+    const url = `${API_BASE_URL}${endpoint}`;
 
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-        return await response.json();
-    } else {
-        const text = await response.text();
-        if (!response.ok) {
-            throw new Error(text || `HTTP ${response.status}`);
+    try {
+        const response = await fetch(url, {
+            ...options,
+            headers,
+            mode: 'cors',
+            credentials: 'omit',
+        });
+
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return await response.json();
+        } else {
+            const text = await response.text();
+            if (!response.ok) {
+                throw new Error(text || `HTTP ${response.status}`);
+            }
+            return text;
         }
-        return text;
+    } catch (error: any) {
+        // Provide more helpful error messages
+        if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+            console.error(`❌ Failed to connect to backend at: ${API_BASE_URL}`);
+            console.error('   Please ensure the backend server is running.');
+            console.error('   To start the backend: cd gharbazaar.in/backend && npm run dev');
+            throw new Error(`Unable to connect to backend server. Please ensure the backend is running at ${API_BASE_URL}`);
+        }
+        throw error;
     }
 }
 
@@ -689,6 +705,30 @@ export const backendApi = {
                     body: JSON.stringify({ fileName }),
                 });
             },
+        },
+    },
+
+    locationRequests: {
+        create: async (city: string) => {
+            return backendApiCall('/location-requests', {
+                method: 'POST',
+                body: JSON.stringify({ city }),
+            });
+        },
+        getMyRequest: async () => {
+             return backendApiCall('/location-requests/me');
+        },
+        getStats: async () => {
+             return backendApiCall('/location-requests/stats');
+        },
+        sendToAdmin: async (city: string) => {
+             return backendApiCall('/location-requests/send-to-admin', {
+                method: 'POST',
+                body: JSON.stringify({ city }),
+            });
+        },
+        getAdminRequests: async () => {
+             return backendApiCall('/location-requests/admin-requests');
         },
     },
 
@@ -1397,6 +1437,7 @@ export const backendApi = {
             }
 
             // Direct call to external Koyeb API
+            // Explicitly hit the Koyeb API as requested by the user
             const url = 'https://strict-matty-gharbazaar1-60d0c804.koyeb.app/api/forms';
 
             const response = await fetch(url, {
@@ -1406,8 +1447,11 @@ export const backendApi = {
                     'Accept': 'application/json'
                 },
                 body: JSON.stringify({
-                    ...data,
-                    phone: formattedPhone || undefined
+                    name: data.name,
+                    email: data.email,
+                    subject: data.subject,
+                    message: data.message,
+                    phone: formattedPhone
                 }),
                 mode: 'cors'
             });
@@ -1415,7 +1459,6 @@ export const backendApi = {
             if (!response.ok) {
                 const errorData = await response.json().catch(() => null);
                 if (errorData) {
-                    // Extract validation messages if they exist
                     if (typeof errorData === 'object') {
                         const messages = Object.entries(errorData)
                             .map(([field, msg]) => `${field}: ${msg}`)
@@ -1430,4 +1473,139 @@ export const backendApi = {
             return await response.json();
         },
     },
+    
+    // KYC endpoints
+    kyc: {
+        submit: async (formData: FormData) => {
+            const token = await getAuthToken();
+            const response = await fetch(`${API_BASE_URL}/kyc/submit`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    // Don't set Content-Type, browser will set it to multipart/form-data with boundary
+                },
+                body: formData,
+            });
+
+            return await response.json();
+        },
+
+        getStatus: async () => {
+            return backendApiCall('/kyc/status');
+        },
+
+        // Employee endpoints
+        getRequests: async (status?: string) => {
+            const query = status ? `?status=${status}` : '';
+            return backendApiCall(`/kyc/requests${query}`);
+        },
+
+        review: async (id: string, data: { status: 'approved' | 'rejected', reviewComments?: string }) => {
+            return backendApiCall(`/kyc/review/${id}`, {
+                method: 'POST',
+                body: JSON.stringify(data),
+            });
+        },
+    },
+
+    // Service Provider endpoints
+    serviceProvider: {
+        create: async (data: any) => {
+            return backendApiCall('/service-providers', {
+                method: 'POST',
+                body: JSON.stringify(data),
+            });
+        },
+
+        update: async (id: string, data: any) => {
+            return backendApiCall(`/service-providers/${id}`, {
+                method: 'PUT',
+                body: JSON.stringify(data),
+            });
+        },
+
+        getStats: async () => {
+            return backendApiCall('/service-providers/stats');
+        },
+
+        getMyProfile: async () => {
+            return backendApiCall('/service-providers/me');
+        },
+        
+        list: async (params: { 
+            category?: string; 
+            verified?: boolean; 
+            available?: boolean; 
+            location?: string; 
+            sortBy?: string;
+        } = {}) => {
+            const query = new URLSearchParams(params as any).toString();
+            return backendApiCall(`/service-providers${query ? `?${query}` : ''}`);
+        },
+
+        search: async (params: {
+            search?: string;
+            category?: string;
+            minRating?: number;
+            maxRate?: number;
+            verified?: boolean;
+            available?: boolean;
+            skills?: string;
+        }) => {
+            const query = new URLSearchParams(params as any).toString();
+            return backendApiCall(`/service-providers/search${query ? `?${query}` : ''}`);
+        },
+    },
+
+    // Expand Request endpoints
+    expandRequests: {
+        // Check user location from IP
+        checkLocation: async () => {
+            return backendApiCall('/expand-requests/check-location');
+        },
+
+        // Check if user already has a request
+        checkExisting: async () => {
+            return backendApiCall('/expand-requests/check');
+        },
+
+        // Create new expand request
+        create: async (data: { name: string; city: string; state: string; additionalInfo?: string }) => {
+            return backendApiCall('/expand-requests', {
+                method: 'POST',
+                body: JSON.stringify(data),
+            });
+        },
+
+        // Get user's own request
+        getMyRequest: async () => {
+            return backendApiCall('/expand-requests/my');
+        },
+
+        // Get city statistics (Employee/Admin)
+        getCityStats: async () => {
+            return backendApiCall('/expand-requests/stats');
+        },
+
+        // Get priority requests (Admin)
+        getPriorityRequests: async () => {
+            return backendApiCall('/expand-requests/priority');
+        },
+
+        // Set priority for a city (Employee/Admin)
+        setPriority: async (city: string, state: string) => {
+            return backendApiCall('/expand-requests/priority', {
+                method: 'POST',
+                body: JSON.stringify({ city, state }),
+            });
+        },
+
+        // Remove priority for a city (Employee/Admin)
+        removePriority: async (city: string, state: string) => {
+            return backendApiCall('/expand-requests/priority', {
+                method: 'DELETE',
+                body: JSON.stringify({ city, state }),
+            });
+        },
+    }
 };
