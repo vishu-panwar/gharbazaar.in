@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { prisma } from '../utils/database';
+import { prisma } from '../utils/prisma';
 
 export const getNotifications = async (req: Request, res: Response) => {
     try {
@@ -9,7 +9,7 @@ export const getNotifications = async (req: Request, res: Response) => {
         }
 
         const { limit = 20, unreadOnly = false } = req.query;
-        
+
         // Use Prisma to find notifications
         const notifications = await prisma.notification.findMany({
             where: {
@@ -45,7 +45,7 @@ export const markAsRead = async (req: Request, res: Response) => {
 
         const notification = await prisma.notification.updateMany({
             where: { id, userId },
-            data: { 
+            data: {
                 isRead: true,
                 readAt: new Date()
             }
@@ -72,7 +72,7 @@ export const markAllAsRead = async (req: Request, res: Response) => {
         const userId = (req as any).user?.userId || (req as any).user?.id;
         await prisma.notification.updateMany({
             where: { userId, isRead: false },
-            data: { 
+            data: {
                 isRead: true,
                 readAt: new Date()
             }
@@ -92,7 +92,7 @@ export const deleteNotification = async (req: Request, res: Response) => {
         const result = await prisma.notification.deleteMany({
             where: { id, userId }
         });
-        
+
         if (result.count === 0) {
             return res.status(404).json({ success: false, error: 'Notification not found' });
         }

@@ -4,7 +4,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import config, { validateConfig } from './config';
-import { connectDatabase } from './utils/database';
+import { prisma } from './utils/prisma';
 // import { initializeSocket } from './socket';
 import apiRoutes from './routes';
 import { auditMiddleware } from './middleware/audit.middleware';
@@ -16,7 +16,7 @@ const startServer = async () => {
 
         console.log('\n💾 Attempting to connect to database...');
         try {
-            await connectDatabase();
+            await prisma.$connect();
         } catch (error) {
             console.warn('⚠️  Continuing without database - Socket.IO will work but data won\'t persist');
         }
@@ -37,7 +37,7 @@ const startServer = async () => {
         app.get('/', (req, res) => {
             res.json({ success: true, message: 'Debug Server Running' });
         });
-        
+
         // Routes and Middleware
         app.use('/api/v1', auditMiddleware);
         app.use('/api/v1', apiRoutes);

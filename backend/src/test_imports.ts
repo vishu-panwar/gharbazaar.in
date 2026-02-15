@@ -10,10 +10,10 @@ try {
 }
 
 try {
-    require('./utils/database.ts');
-    console.log('✅ utils/database.ts loaded');
+    require('./utils/prisma.ts');
+    console.log('✅ utils/prisma.ts loaded');
 } catch (e: any) {
-    console.error('❌ utils/database.ts failed:', e.message);
+    console.error('❌ utils/prisma.ts failed:', e.message);
 }
 
 try {

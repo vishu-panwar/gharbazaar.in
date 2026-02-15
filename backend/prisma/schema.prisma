@@ -73,6 +73,7 @@ model User {
   kycRequest             KycRequest?
   locationRequest        LocationRequest?
   expandRequest           ExpandRequest?
+  settings               UserSettings?
 
   // Partner case relations
   partnerCases        PartnerCase[] @relation("PartnerCases")
@@ -88,8 +89,26 @@ model User {
   buyerContracts  Contract[] @relation("BuyerContracts")
   sellerContracts Contract[] @relation("SellerContracts")
 
+  // Phase 1 Enhancements: Partner relations
+  payouts         Payout[]   @relation("PartnerPayouts")
+  referrals       Referral[] @relation("PromoterReferrals")
+  
+  // Phase 1 Enhancements: Commission & Documents
+  commissions     Commission[] @relation("EmployeeCommissions")
+  documentUploads PropertyDocument[] @relation("DocumentUploads")
+  
+  // Phase 2 Enhancements: Inquiries & Metrics
+  buyerInquiries  PropertyInquiry[] @relation("BuyerInquiries")
+  sellerInquiries PropertyInquiry[] @relation("SellerInquiries")
+  partnerMetrics  PartnerMetrics[]  @relation("PartnerMetrics")
+  
+  // Phase 2: Soft Delete
+  deletedAt DateTime?
+  deletedBy String?
+
   @@index([email])
   @@index([role])
+  @@index([deletedAt])
 }
 
 model BuyerProfile {
@@ -242,6 +261,17 @@ model Property {
   verificationTasks   VerificationTask[]
   verificationReports VerificationReport[]
   partnerCases        PartnerCase[]
+  
+  // Phase 1 Enhancements
+  documents           PropertyDocument[]
+  commissions         Commission[]
+  
+  // Phase 2 Enhancements
+  propertyInquiries   PropertyInquiry[]
+  
+  // Phase 2: Soft Delete
+  deletedAt DateTime?
+  deletedBy String?
 
   @@index([city])
   @@index([status])
@@ -249,6 +279,8 @@ model Property {
   @@index([listingType])
   @@index([sellerId])
   @@index([price])
+  @@index([featured])
+  @@index([deletedAt])
 }
 
 // ==================== BIDDING SYSTEM ====================
@@ -297,10 +329,82 @@ model Contract {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  
+  // Phase 1 Enhancement
+  commissions Commission[]
+  
+  // Phase 2: Soft Delete
+  deletedAt DateTime?
+  deletedBy String?
 
   @@index([buyerId])
   @@index([sellerId])
   @@index([propertyId])
+  @@index([deletedAt])
+}
+
+// ==================== PHASE 1 ENHANCEMENTS ====================
+
+model PropertyDocument {
+  id         String   @id @default(uuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  
+  documentType String   // sale_deed, noc, encumbrance_certificate, tax_receipt, survey_document, property_tax, approval_plan
+  title        String
+  fileUrl      String
+  fileSize     Int?
+  uploadedBy   String
+  uploader     User     @relation("DocumentUploads", fields: [uploadedBy], references: [id])
+  
+  verificationStatus String    @default("pending") // pending, verified, rejected
+  verifiedBy         String?
+  verifiedAt         DateTime?
+  expiryDate         DateTime?
+  
+  isPublic  Boolean  @default(false)
+  metadata  Json?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([propertyId])
+  @@index([documentType])
+  @@index([verificationStatus])
+  @@index([uploadedBy])
+}
+
+model Commission {
+  id           String   @id @default(uuid())
+  employeeId   String
+  employee     User     @relation("EmployeeCommissions", fields: [employeeId], references: [id])
+  
+  propertyId   String?
+  property     Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  
+  contractId   String?
+  contract     Contract? @relation(fields: [contractId], references: [id], onDelete: SetNull)
+  
+  dealType     String   // sale, rent, referral
+  dealAmount   Decimal  @db.Decimal(12, 2)
+  commissionRate Decimal @db.Decimal(5, 2) // Percentage
+  commissionAmount Decimal @db.Decimal(12, 2)
+  
+  status       String   @default("pending") // pending, approved, paid
+  approvedBy   String?
+  approvedAt   DateTime?
+  paidAt       DateTime?
+  
+  paymentRef   String?
+  notes        String?
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  @@index([employeeId])
+  @@index([status])
+  @@index([propertyId])
+  @@index([contractId])
 }
 
 // ==================== FAVORITES ====================
@@ -655,6 +759,7 @@ model Salary {
 model Payout {
   id          String    @id @default(uuid())
   partnerId   String
+  partner     User      @relation("PartnerPayouts", fields: [partnerId], references: [id])
   amount      Decimal   @db.Decimal(12, 2)
   method      String    @default("bank-transfer") // bank-transfer, upi, wallet
   status      String    @default("pending") // pending, processing, paid, failed
@@ -697,6 +802,7 @@ model PartnerCase {
 model Referral {
   id               String   @id @default(uuid())
   promoterId       String
+  promoter         User     @relation("PromoterReferrals", fields: [promoterId], references: [id])
   referralCode     String
   leadName         String
   leadContact      String
@@ -901,4 +1007,112 @@ model ExpandRequest {
   @@index([status])
   @@index([city])
   @@index([priority])
+}
+
+// ==================== USER SETTINGS ====================
+
+model UserSettings {
+  id                      String   @id @default(uuid())
+  userId                  String   @unique
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Appearance
+  theme                   String   @default("system") // light, dark, system
+  
+  // Localization
+  language                String   @default("en") // en, hi, mr
+  currency                String   @default("INR") // INR, USD
+  timezone                String   @default("Asia/Kolkata")
+  
+  // Email Preferences
+  emailFrequency          String   @default("realtime") // realtime, daily, weekly, never
+  
+  // Notification Preferences (JSON object)
+  notificationPreferences Json     @default("{\"push\":true,\"email\":true,\"sms\":false}")
+  
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@index([userId])
+}
+
+
+// ==================== PHASE 2 ENHANCEMENTS ====================
+
+model PropertyInquiry {
+  id           String   @id @default(uuid())
+  propertyId   String
+  property     Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  
+  buyerId      String?
+  buyer        User?    @relation("BuyerInquiries", fields: [buyerId], references: [uid], onDelete: SetNull)
+  
+  sellerId     String
+  seller       User     @relation("SellerInquiries", fields: [sellerId], references: [uid])
+  
+  // Inquiry details
+  name         String
+  email        String
+  phone        String
+  message      String?  @db.Text
+  inquiryType  String   @default("general") // general, visit_request, price_negotiation, document_request
+  
+  // Status tracking
+  status       String   @default("new") // new, contacted, interested, not_interested, converted
+  respondedAt  DateTime?
+  respondedBy  String?
+  
+  // Lead scoring
+  leadScore    Int?     @default(0)
+  priority     String   @default("medium") // low, medium, high, urgent
+  
+  // Metadata
+  source       String?  @default("website") // website, mobile_app, partner_referral, direct
+  metadata     Json?
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  @@index([propertyId])
+  @@index([buyerId])
+  @@index([sellerId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model PartnerMetrics {
+  id           String   @id @default(uuid())
+  partnerId    String
+  partner      User     @relation("PartnerMetrics", fields: [partnerId], references: [uid], onDelete: Cascade)
+  
+  // Time period
+  month        Int     // 1-12
+  year         Int     // e.g., 2026
+  
+  // Activity metrics
+  leadsGenerated       Int     @default(0)
+  leadsConverted       Int     @default(0)
+  propertiesListed     Int     @default(0)
+  propertiesSold       Int     @default(0)
+  totalCommission      Decimal @default(0) @db.Decimal(12, 2)
+  
+  // Quality metrics
+  averageLeadScore     Decimal? @db.Decimal(5, 2)
+  customerSatisfaction Decimal? @db.Decimal(3, 2) // 0-5 rating
+  responseTime         Int?     // Average in minutes
+  
+  // Performance tier
+  tier         String?  @default("bronze") // bronze, silver, gold, platinum
+  
+  // Metadata
+  metadata     Json?
+  notes        String?  @db.Text
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  @@unique([partnerId, month, year])
+  @@index([partnerId])
+  @@index([year, month])
+  @@index([tier])
 }

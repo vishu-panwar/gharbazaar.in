@@ -1,0 +1,14 @@
+{
+    "name": "gharbazaar-frontend",
+    "version": "0.1.0",
+    "scripts": {
+        "dev": "next dev",
+        "build": "next build",
+        "start": "next start"
+    },
+    "dependencies": {
+        "i18next": "^23.7.0",
+        "react-i18next": "^14.0.0",
+        "i18next-browser-languagedetector": "^7.2.0"
+    }
+}

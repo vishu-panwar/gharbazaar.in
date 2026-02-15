@@ -1,26 +1,26 @@
 import { Server, Socket } from 'socket.io';
 import { getSocketUser } from '../auth.middleware';
-import Presence from '../../models/presence.model';
-import { isMongoDBAvailable } from '../../utils/memoryStore';
-
-const memoryPresence = new Map<string, any>();
+import { prisma } from '../../utils/prisma';
 
 export const registerPresenceHandlers = (io: Server, socket: Socket) => {
     const user = getSocketUser(socket);
 
     const handleUserOnline = async () => {
         try {
-            let presence;
-            if (isMongoDBAvailable()) {
-                presence = await Presence.findOneAndUpdate(
-                    { userId: user.userId },
-                    { userId: user.userId, status: 'online', lastSeen: new Date(), socketId: socket.id },
-                    { upsert: true, new: true }
-                );
-            } else {
-                presence = { userId: user.userId, status: 'online', lastSeen: new Date(), socketId: socket.id };
-                memoryPresence.set(user.userId, presence);
-            }
+            await prisma.presence.upsert({
+                where: { userId: user.userId },
+                update: {
+                    status: 'online',
+                    lastSeen: new Date(),
+                    socketId: socket.id
+                },
+                create: {
+                    userId: user.userId,
+                    status: 'online',
+                    lastSeen: new Date(),
+                    socketId: socket.id
+                }
+            });
 
             io.emit('presence:user-online', { userId: user.userId, status: 'online' });
         } catch (error) {
@@ -30,24 +30,19 @@ export const registerPresenceHandlers = (io: Server, socket: Socket) => {
 
     const handleUserOffline = async () => {
         try {
-            if (isMongoDBAvailable()) {
-                await Presence.findOneAndUpdate(
-                    { userId: user.userId },
-                    { status: 'offline', lastSeen: new Date(), socketId: null }
-                );
-            } else {
-                const presence = memoryPresence.get(user.userId);
-                if (presence) {
-                    presence.status = 'offline';
-                    presence.lastSeen = new Date();
-                    presence.socketId = null;
+            await prisma.presence.update({
+                where: { userId: user.userId },
+                data: {
+                    status: 'offline',
+                    lastSeen: new Date(),
+                    socketId: null
                 }
-            }
+            });
 
             io.emit('presence:user-offline', {
                 userId: user.userId,
                 status: 'offline',
-                lastSeen: new Date().toISOString(),
+                lastSeen: new Date().toISOString()
             });
         } catch (error) {
             console.error('Error updating offline status:', error);
@@ -58,18 +53,13 @@ export const registerPresenceHandlers = (io: Server, socket: Socket) => {
         try {
             const { status } = data;
 
-            if (isMongoDBAvailable()) {
-                await Presence.findOneAndUpdate(
-                    { userId: user.userId },
-                    { status, lastSeen: new Date() }
-                );
-            } else {
-                const presence = memoryPresence.get(user.userId);
-                if (presence) {
-                    presence.status = status;
-                    presence.lastSeen = new Date();
+            await prisma.presence.update({
+                where: { userId: user.userId },
+                data: {
+                    status,
+                    lastSeen: new Date()
                 }
-            }
+            });
 
             io.emit('presence:status-changed', { userId: user.userId, status });
         } catch (error) {
@@ -81,12 +71,11 @@ export const registerPresenceHandlers = (io: Server, socket: Socket) => {
         try {
             const { userIds } = data;
 
-            let presenceData = [];
-            if (isMongoDBAvailable()) {
-                presenceData = await Presence.find({ userId: { $in: userIds } });
-            } else {
-                presenceData = userIds.map(id => memoryPresence.get(id)).filter(p => p !== undefined);
-            }
+            const presenceData = await prisma.presence.findMany({
+                where: {
+                    userId: { in: userIds }
+                }
+            });
 
             socket.emit('presence:status-response', { users: presenceData });
         } catch (error) {
@@ -96,15 +85,10 @@ export const registerPresenceHandlers = (io: Server, socket: Socket) => {
 
     socket.on('presence:heartbeat', async () => {
         try {
-            if (isMongoDBAvailable()) {
-                await Presence.findOneAndUpdate(
-                    { userId: user.userId },
-                    { lastSeen: new Date() }
-                );
-            } else {
-                const presence = memoryPresence.get(user.userId);
-                if (presence) presence.lastSeen = new Date();
-            }
+            await prisma.presence.update({
+                where: { userId: user.userId },
+                data: { lastSeen: new Date() }
+            });
         } catch (error) {
             console.error('Error updating heartbeat:', error);
         }
@@ -116,11 +100,9 @@ export const registerPresenceHandlers = (io: Server, socket: Socket) => {
 
 export const getOnlineUsersCount = async (): Promise<number> => {
     try {
-        if (isMongoDBAvailable()) {
-            return await Presence.countDocuments({ status: 'online' });
-        } else {
-            return Array.from(memoryPresence.values()).filter((p: any) => p.status === 'online').length;
-        }
+        return await prisma.presence.count({
+            where: { status: 'online' }
+        });
     } catch (error) {
         console.error('Error counting online users:', error);
         return 0;

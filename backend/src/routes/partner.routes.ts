@@ -5,49 +5,18 @@ import * as partnerController from '../controllers/partner.controller';
 
 const router = express.Router();
 
-router.post(
-    '/cases',
-    authenticate,
-    requireRole(['legal_partner', 'ground_partner', 'promoter_partner', 'admin']),
-    partnerController.createPartnerCase
-);
-router.get(
-    '/cases',
-    authenticate,
-    requireRole(['legal_partner', 'ground_partner', 'promoter_partner', 'admin']),
-    partnerController.getPartnerCases
-);
-router.patch(
-    '/cases/:id',
-    authenticate,
-    requireRole(['legal_partner', 'ground_partner', 'promoter_partner', 'admin']),
-    partnerController.updatePartnerCase
-);
+// Partner CRUD
+router.get('/', authenticate, requireRole(['admin']), partnerController.getAllPartners);
+router.get('/:uid', authenticate, requireRole(['admin', 'promoter_partner', 'legal_partner', 'ground_partner']), partnerController.getPartnerByUid);
+router.post('/', authenticate, requireRole(['admin']), partnerController.createPartner);
+router.put('/:uid', authenticate, requireRole(['admin']), partnerController.updatePartner);
+router.delete('/:uid', authenticate, requireRole(['admin']), partnerController.deletePartner);
 
-router.post(
-    '/referrals',
-    authenticate,
-    requireRole(['promoter_partner', 'admin']),
-    partnerController.createReferral
-);
-router.get(
-    '/referrals',
-    authenticate,
-    requireRole(['promoter_partner', 'admin']),
-    partnerController.getReferrals
-);
+// Payout Management
+router.post('/:uid/payout', authenticate, requireRole(['admin']), partnerController.createPayout);
 
-router.get(
-    '/payouts',
-    authenticate,
-    requireRole(['legal_partner', 'ground_partner', 'promoter_partner', 'admin']),
-    partnerController.getPayouts
-);
-router.post(
-    '/payouts',
-    authenticate,
-    requireRole(['admin']),
-    partnerController.createPayout
-);
+// Partner Portal Endpoints
+router.get('/dashboard', authenticate, requireRole(['promoter_partner', 'legal_partner', 'ground_partner', 'admin']), partnerController.getPartnerDashboard);
+router.get('/leads', authenticate, requireRole(['promoter_partner', 'admin']), partnerController.getPartnerLeads);
 
 export default router;

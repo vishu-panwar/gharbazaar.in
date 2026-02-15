@@ -1,7 +1,13 @@
 /**
  * Demo Mode Utility
  * Allows bypassing authentication for demo/testing purposes
+ * 
+ * PRODUCTION GATE: Demo mode is only available when NEXT_PUBLIC_ENABLE_DEMO=true
+ * In production builds, this defaults to false.
  */
+
+// Check if demo mode is enabled via environment variable
+const DEMO_ENABLED = process.env.NEXT_PUBLIC_ENABLE_DEMO === 'true';
 
 export const DEMO_MODE_KEY = 'demo_mode';
 export const DEMO_USER_KEY = 'demo_user';
@@ -54,9 +60,15 @@ const DEMO_USERS: Record<string, DemoUser> = {
 
 /**
  * Enable demo mode with a specific user role
+ * Only works if NEXT_PUBLIC_ENABLE_DEMO=true
  */
 export function enableDemoMode(role: keyof typeof DEMO_USERS): void {
     if (typeof window === 'undefined') return;
+    
+    if (!DEMO_ENABLED) {
+        console.warn('Demo mode is disabled in this environment.');
+        return;
+    }
 
     const demoUser = DEMO_USERS[role];
     localStorage.setItem(DEMO_MODE_KEY, 'true');
@@ -75,11 +87,20 @@ export function disableDemoMode(): void {
 
 /**
  * Check if demo mode is active
+ * Returns false if NEXT_PUBLIC_ENABLE_DEMO is not true
  */
 export function isDemoMode(): boolean {
     if (typeof window === 'undefined') return false;
+    if (!DEMO_ENABLED) return false;
 
     return localStorage.getItem(DEMO_MODE_KEY) === 'true';
+}
+
+/**
+ * Check if demo mode is available in current environment
+ */
+export function isDemoModeAvailable(): boolean {
+    return DEMO_ENABLED;
 }
 
 /**

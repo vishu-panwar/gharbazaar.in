@@ -1,4 +1,4 @@
-import { prisma } from './database';
+import { prisma } from './prisma';
 
 /**
  * Generates a professional sequential Employee ID
@@ -6,7 +6,7 @@ import { prisma } from './database';
  */
 export const getNextEmployeeId = async (): Promise<string> => {
     const year = new Date().getFullYear();
-    
+
     const counter = await prisma.counter.upsert({
         where: { id: 'employeeId' },
         update: {

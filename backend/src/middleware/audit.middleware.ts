@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { prisma } from '../utils/database';
+import { prisma } from '../utils/prisma';
 
 export const auditMiddleware = async (req: Request, res: Response, next: NextFunction) => {
     const method = req.method.toUpperCase();

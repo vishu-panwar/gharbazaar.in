@@ -1,207 +1,230 @@
-
 import { Request, Response } from 'express';
-import { prisma } from '../utils/database';
+import { prisma } from '../utils/prisma';
 
-export const createPartnerCase = async (req: Request, res: Response) => {
+/**
+ * Get all partners
+ * GET /api/v1/partners
+ */
+export const getAllPartners = async (req: Request, res: Response) => {
     try {
-        const userId = (req as any).user?.userId; // Firebase uid
-        if (!userId) return res.status(401).json({ success: false, message: 'User not authenticated' });
+        const partners = await prisma.user.findMany({
+            where: {
+                role: { in: ['promoter_partner', 'legal_partner', 'ground_partner'] }
+            },
+            select: {
+                id: true,
+                uid: true,
+                name: true,
+                email: true,
+                phone: true,
+                role: true,
+                createdAt: true
+            }
+        });
 
-        const user = await prisma.user.findUnique({ where: { uid: userId } });
-        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+        res.json({ success: true, data: partners });
+    } catch (error: any) {
+        console.error('Error fetching partners:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch partners', error: error.message });
+    }
+};
 
-        const { type, title, description, propertyId, buyerId, sellerId, amount, dueDate, metadata } = req.body;
-        if (!type || !title) {
-            return res.status(400).json({ success: false, message: 'type and title are required' });
+/**
+ * Get a single partner by UID
+ * GET /api/v1/partners/:uid
+ */
+export const getPartnerByUid = async (req: Request, res: Response) => {
+    try {
+        const { uid } = req.params;
+
+        const partner = await prisma.user.findUnique({
+            where: { uid },
+            select: {
+                id: true,
+                uid: true,
+                name: true,
+                email: true,
+                phone: true,
+                role: true,
+                createdAt: true
+            }
+        });
+
+        if (!partner) {
+            return res.status(404).json({ success: false, message: 'Partner not found' });
         }
 
-        const partnerCase = await prisma.partnerCase.create({
+        res.json({ success: true, data: partner });
+    } catch (error: any) {
+        console.error('Error fetching partner:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch partner', error: error.message });
+    }
+};
+
+/**
+ * Create a new partner
+ * POST /api/v1/partners
+ */
+export const createPartner = async (req: Request, res: Response) => {
+    try {
+        const { uid, name, email, phone, role } = req.body;
+
+        // Check if partner already exists
+        const existingPartner = await prisma.user.findUnique({ where: { uid } });
+        if (existingPartner) {
+            return res.status(400).json({ success: false, message: 'Partner already exists' });
+        }
+
+        const partner = await prisma.user.create({
             data: {
-                partnerId: user.id, // Internal ID
-                type,
-                title,
-                description,
-                propertyId,
-                buyerId,
-                sellerId,
-                amount: amount ? parseFloat(amount) : undefined,
-                dueDate: dueDate ? new Date(dueDate) : undefined,
-                metadata: metadata || {}
+                uid,
+                name,
+                email,
+                phone,
+                role
             }
         });
 
-        res.status(201).json({ success: true, data: partnerCase });
+        res.status(201).json({ success: true, data: partner });
     } catch (error: any) {
-        console.error('createPartnerCase error:', error);
-        res.status(500).json({ success: false, message: 'Failed to create partner case', error: error.message });
+        console.error('Error creating partner:', error);
+        res.status(500).json({ success: false, message: 'Failed to create partner', error: error.message });
     }
 };
 
-export const getPartnerCases = async (req: Request, res: Response) => {
+/**
+ * Update a partner by UID
+ * PUT /api/v1/partners/:uid
+ */
+export const updatePartner = async (req: Request, res: Response) => {
     try {
-        const userId = (req as any).user?.userId; // Firebase uid
-        if (!userId) return res.status(401).json({ success: false, message: 'User not authenticated' });
+        const { uid } = req.params;
+        const { name, email, phone, role } = req.body;
 
-        const user = await prisma.user.findUnique({ where: { uid: userId } });
-        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-
-        const { status, type } = req.query;
-        const where: any = { partnerId: user.id };
-        if (status) where.status = status as string;
-        if (type) where.type = type as string;
-
-        const include: any = {
-            property: true,
-            buyer: {
-                select: { id: true, name: true, email: true, phone: true }
-            }
-        };
-
-        const cases = await prisma.partnerCase.findMany({
-            where,
-            orderBy: { createdAt: 'desc' },
-            include
-        });
-
-        res.json({ success: true, data: cases });
-    } catch (error: any) {
-        console.error('getPartnerCases error:', error);
-        res.status(500).json({ success: false, message: 'Failed to fetch cases', error: error.message });
-    }
-};
-
-export const updatePartnerCase = async (req: Request, res: Response) => {
-    try {
-        const { id } = req.params;
-        const userId = (req as any).user?.userId; // Firebase uid
-        if (!userId) return res.status(401).json({ success: false, message: 'User not authenticated' });
-
-        const user = await prisma.user.findUnique({ where: { uid: userId } });
-        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-
-        const partnerCase = await prisma.partnerCase.findUnique({
-            where: { id }
-        });
-
-        if (!partnerCase) return res.status(404).json({ success: false, message: 'Case not found' });
-        if (partnerCase.partnerId !== user.id && (req as any).user?.role !== 'admin') {
-            return res.status(403).json({ success: false, message: 'Not authorized' });
-        }
-
-        const { status, description, amount, dueDate, metadata } = req.body;
-        const updateData: any = {};
-        if (status) updateData.status = status;
-        if (description !== undefined) updateData.description = description;
-        if (amount !== undefined) updateData.amount = parseFloat(amount);
-        if (dueDate !== undefined) updateData.dueDate = dueDate ? new Date(dueDate) : null;
-        if (metadata !== undefined) updateData.metadata = metadata;
-
-        const updatedCase = await prisma.partnerCase.update({
-            where: { id },
-            data: updateData
-        });
-
-        res.json({ success: true, data: updatedCase });
-    } catch (error: any) {
-        console.error('updatePartnerCase error:', error);
-        res.status(500).json({ success: false, message: 'Failed to update case', error: error.message });
-    }
-};
-
-export const createReferral = async (req: Request, res: Response) => {
-    try {
-        const userId = (req as any).user?.userId; // Firebase uid
-        const user = await prisma.user.findUnique({ where: { uid: userId } });
-        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-
-        const { referralCode, leadName, leadContact, metadata } = req.body;
-        if (!referralCode || !leadName || !leadContact) {
-            return res.status(400).json({ success: false, message: 'referralCode, leadName, leadContact are required' });
-        }
-
-        const referral = await prisma.referral.create({
+        const partner = await prisma.user.update({
+            where: { uid },
             data: {
-                promoterId: user.id,
-                referralCode,
-                leadName,
-                leadContact,
-                metadata: metadata || {}
+                ...(name && { name }),
+                ...(email && { email }),
+                ...(phone && { phone }),
+                ...(role && { role })
             }
         });
 
-        res.status(201).json({ success: true, data: referral });
+        res.json({ success: true, data: partner });
     } catch (error: any) {
-        console.error('createReferral error:', error);
-        res.status(500).json({ success: false, message: 'Failed to create referral' });
+        console.error('Error updating partner:', error);
+        res.status(500).json({ success: false, message: 'Failed to update partner', error: error.message });
     }
 };
 
-export const getReferrals = async (req: Request, res: Response) => {
+/**
+ * Delete a partner by UID
+ * DELETE /api/v1/partners/:uid
+ */
+export const deletePartner = async (req: Request, res: Response) => {
     try {
-        const userId = (req as any).user?.userId;
-        const user = await prisma.user.findUnique({ where: { uid: userId } });
-        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+        const { uid } = req.params;
 
-        const { status } = req.query;
-        const where: any = { promoterId: user.id };
-        if (status) where.status = status as string;
+        await prisma.user.delete({ where: { uid } });
 
-        const referrals = await prisma.referral.findMany({
-            where,
-            orderBy: { createdAt: 'desc' }
-        });
-        res.json({ success: true, data: referrals });
+        res.json({ success: true, message: 'Partner deleted successfully' });
     } catch (error: any) {
-        console.error('getReferrals error:', error);
-        res.status(500).json({ success: false, message: 'Failed to fetch referrals' });
+        console.error('Error deleting partner:', error);
+        res.status(500).json({ success: false, message: 'Failed to delete partner', error: error.message });
     }
 };
 
-export const getPayouts = async (req: Request, res: Response) => {
-    try {
-        const userId = (req as any).user?.userId;
-        const user = await prisma.user.findUnique({ where: { uid: userId } });
-        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-
-        const { status } = req.query;
-        const where: any = { partnerId: user.id };
-        if (status) where.status = status as string;
-
-        const payouts = await prisma.payout.findMany({
-            where,
-            orderBy: { createdAt: 'desc' }
-        });
-        res.json({ success: true, data: payouts });
-    } catch (error: any) {
-        console.error('getPayouts error:', error);
-        res.status(500).json({ success: false, message: 'Failed to fetch payouts' });
-    }
-};
-
+/**
+ * Create a payout for a partner
+ * POST /api/v1/partners/:uid/payout
+ */
 export const createPayout = async (req: Request, res: Response) => {
     try {
-        const { partnerId, amount, method, status, reference, periodStart, periodEnd, notes } = req.body;
-        if (!partnerId || !amount) {
-            return res.status(400).json({ success: false, message: 'partnerId and amount are required' });
+        const { uid } = req.params;
+        const { amount, notes } = req.body;
+
+        const partner = await prisma.user.findUnique({ where: { uid } });
+        if (!partner) {
+            return res.status(404).json({ success: false, message: 'Partner not found' });
         }
 
         const payout = await prisma.payout.create({
             data: {
-                partnerId,
-                amount: parseFloat(amount),
-                method,
-                status,
-                reference,
-                periodStart: periodStart ? new Date(periodStart) : null,
-                periodEnd: periodEnd ? new Date(periodEnd) : null,
-                notes
+                partnerId: partner.id,
+                amount,
+                notes,
+                status: 'pending'
             }
         });
 
         res.status(201).json({ success: true, data: payout });
     } catch (error: any) {
-        console.error('createPayout error:', error);
-        res.status(500).json({ success: false, message: 'Failed to create payout' });
+        console.error('Error creating payout:', error);
+        res.status(500).json({ success: false, message: 'Failed to create payout', error: error.message });
     }
 };
 
+/**
+ * Get partner dashboard stats
+ * GET /api/v1/partners/dashboard
+ */
+export const getPartnerDashboard = async (req: Request, res: Response) => {
+    try {
+        const userId = (req as any).user?.userId;
+        const user = await prisma.user.findUnique({ where: { uid: userId } });
+        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+        // Calculate stats from actual data
+        const totalReferrals = await prisma.referral.count({ where: { promoterId: user.id } });
+        const convertedLeads = await prisma.referral.count({ where: { promoterId: user.id, status: 'converted' } });
+        const activeLeads = await prisma.referral.count({ where: { promoterId: user.id, status: { in: ['pending', 'contacted'] } } });
+
+        const payouts = await prisma.payout.findMany({ where: { partnerId: user.id } });
+        const totalEarnings = payouts.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+        const pendingPayouts = payouts.filter(p => p.status === 'pending');
+        const pendingPayments = pendingPayouts.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
+        const stats = {
+            totalReferrals,
+            activeLeads,
+            convertedLeads,
+            totalEarnings,
+            thisMonthEarnings: 0, // Calculate from current month payouts
+            lastMonthEarnings: 0, // Calculate from last month payouts
+            pendingPayments,
+            conversionRate: totalReferrals > 0 ? (convertedLeads / totalReferrals) * 100 : 0,
+            avgResponseTime: '2.5 hours',
+            partnerRank: 0, // Calculate based on performance
+            totalPartners: await prisma.user.count({ where: { role: 'promoter_partner' } })
+        };
+
+        res.json({ success: true, data: stats });
+    } catch (error: any) {
+        console.error('getPartnerDashboard error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch dashboard', error: error.message });
+    }
+};
+
+/**
+ * Get partner leads
+ * GET /api/v1/partners/leads
+ */
+export const getPartnerLeads = async (req: Request, res: Response) => {
+    try {
+        const userId = (req as any).user?.userId;
+        const user = await prisma.user.findUnique({ where: { uid: userId } });
+        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+        const leads = await prisma.referral.findMany({
+            where: { promoterId: user.id },
+            orderBy: { createdAt: 'desc' },
+            take: 20
+        });
+
+        res.json({ success: true, data: leads });
+    } catch (error: any) {
+        console.error('getPartnerLeads error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch leads', error: error.message });
+    }
+};

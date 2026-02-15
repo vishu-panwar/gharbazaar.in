@@ -1,14 +1,22 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { useLocale } from '@/contexts/LocaleContext'
-import { useModal } from '@/contexts/ModalContext'
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useTheme } from 'next-themes';
+import { useLocale } from '@/contexts/LocaleContext';
+import {
+  useSettings,
+  useUpdateTheme,
+  useUpdateLanguage,
+  useUpdateCurrency,
+  useUpdateTimezone,
+  useUpdateEmailPreferences,
+} from '@/hooks/api';
+import { LoadingSkeleton } from '@/components/LoadingSkeleton';
 import {
   Settings as SettingsIcon,
   Bell,
   Lock,
-  Eye,
   Globe,
   Moon,
   Sun,
@@ -21,560 +29,361 @@ import {
   MessageCircle,
   Smartphone,
   Check,
-  X,
-  AlertCircle,
-  Key,
-  Trash2,
-  Download
-} from 'lucide-react'
+  Clock,
+  DollarSign,
+} from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function SettingsPage() {
-  const router = useRouter()
-  const { language, currency, setLanguage, setCurrency } = useLocale()
-  const { showAlert } = useModal()
-  const [activeSection, setActiveSection] = useState('notifications')
+  const router = useRouter();
+  const { theme: currentTheme, setTheme } = useTheme();
+  const { language, currency, setLanguage: setLocalLanguage, setCurrency: setLocalCurrency } = useLocale();
+  const { data: settings, isLoading } = useSettings();
+  const updateTheme = useUpdateTheme();
+  const updateLanguage = useUpdateLanguage();
+  const updateCurrency = useUpdateCurrency();
+  const updateTimezone = useUpdateTimezone();
+  const updateEmailPreferences = useUpdateEmailPreferences();
 
-  const [settings, setSettings] = useState({
-    notifications: {
-      email: true,
-      push: true,
-      sms: false,
-      newProperties: true,
-      priceChanges: true,
-      bidUpdates: true,
-      messages: true,
-      newsletter: false
-    },
-    privacy: {
-      profileVisibility: 'public',
-      showEmail: false,
-      showPhone: false,
-      activityStatus: true
-    },
-    preferences: {
-      theme: 'system',
-      emailFrequency: 'daily'
-    }
-  })
+  const [activeSection, setActiveSection] = useState('preferences');
 
   const sections = [
+    { id: 'preferences', label: 'Preferences', icon: SettingsIcon },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'privacy', label: 'Privacy & Security', icon: Shield },
-    { id: 'preferences', label: 'Preferences', icon: SettingsIcon },
     { id: 'billing', label: 'Billing & Payments', icon: CreditCard },
-    { id: 'help', label: 'Help & Support', icon: HelpCircle }
-  ]
+    { id: 'help', label: 'Help & Support', icon: HelpCircle },
+  ];
 
-  const toggleNotification = (key: string) => {
-    setSettings({
-      ...settings,
-      notifications: {
-        ...settings.notifications,
-        [key]: !settings.notifications[key as keyof typeof settings.notifications]
-      }
-    })
-  }
-
-  // Open chatbot for support
-  const openChatbot = () => {
-    // Trigger chatbot - it should be available globally from SupportChatbot component
-    const chatbotButton = document.querySelector('[data-chatbot-trigger]') as HTMLButtonElement
-    if (chatbotButton) {
-      chatbotButton.click()
-    } else {
-      // Fallback: navigate to dashboard where chatbot is always available
-      router.push('/dashboard')
-      setTimeout(() => {
-        const btn = document.querySelector('[data-chatbot-trigger]') as HTMLButtonElement
-        btn?.click()
-      }, 500)
-    }
-  }
-
-  // Download user data as PDF
-  const handleDownloadData = async () => {
+  const handleThemeChange = async (theme: 'light' | 'dark' | 'system') => {
     try {
-      // In a real implementation, this would fetch actual user data from the backend
-      // For now, we'll create a simple text file with user data structure
-      const userData = {
-        profile: {
-          name: 'User Name',
-          email: 'user@email.com',
-          phone: '+91 XXXXX XXXXX',
-          role: 'Buyer/Seller',
-          memberSince: new Date().toLocaleDateString()
-        },
-        properties: [],
-        messages: [],
-        transactions: [],
-        favorites: [],
-        searches: [],
-        supportTickets: [],
-        accountActivity: []
-      }
-
-      const dataText = `GHARBAZAAR USER DATA EXPORT
-Generated on: ${new Date().toLocaleString()}
-
-=== PROFILE INFORMATION ===
-Name: ${userData.profile.name}
-Email: ${userData.profile.email}
-Phone: ${userData.profile.phone}
-Role: ${userData.profile.role}
-Member Since: ${userData.profile.memberSince}
-
-=== PROPERTY LISTINGS ===
-Total Properties: ${userData.properties.length}
-[Property details would be listed here]
-
-=== MESSAGES ===
-Total Conversations: ${userData.messages.length}
-[Message history would be listed here]
-
-=== TRANSACTIONS ===
-Total Transactions: ${userData.transactions.length}
-[Transaction history would be listed here]
-
-=== FAVORITES ===
-Total Saved Properties: ${userData.favorites.length}
-[Favorited properties would be listed here]
-
-=== SEARCH HISTORY ===
-Total Searches: ${userData.searches.length}
-[Search history would be listed here]
-
-=== SUPPORT TICKETS ===
-Total Tickets: ${userData.supportTickets.length}
-[Support ticket history would be listed here]
-
-=== ACCOUNT ACTIVITY ===
-[Login history and account changes would be listed here]
-
-This file contains all data associated with your GharBazaar account.
-For questions, contact privacy@gharbazaar.in`
-
-      // Create and download the file
-      const blob = new Blob([dataText], { type: 'text/plain' })
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `gharbazaar-data-export-${new Date().getTime()}.txt`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      window.URL.revokeObjectURL(url)
-
-      showAlert({
-        title: 'Download Successful',
-        message: 'Your data has been downloaded successfully!',
-        type: 'success'
-      })
+      // Apply theme immediately via next-themes
+      setTheme(theme);
+      // Also save to backend
+      await updateTheme.mutateAsync(theme);
+      toast.success(`Theme changed to ${theme}`);
     } catch (error) {
-      console.error('Error downloading data:', error)
-      showAlert({
-        title: 'Download Failed',
-        message: 'Failed to download data. Please try again.',
-        type: 'error'
-      })
+      toast.error('Failed to update theme');
     }
+  };
+
+  const handleLanguageChange = async (lang: string) => {
+    try {
+      const newLang = lang as 'en' | 'hi' | 'mr';
+      // Apply language immediately via LocaleContext
+      setLocalLanguage(newLang);
+      // Also save to backend
+      await updateLanguage.mutateAsync(newLang);
+      toast.success('Language updated');
+    } catch (error) {
+      toast.error('Failed to update language');
+    }
+  };
+
+  const handleCurrencyChange = async (curr: string) => {
+    try {
+      // Apply currency immediately via LocaleContext  
+      setLocalCurrency(curr as 'INR' | 'USD' | 'GBP');
+      // Also save to backend
+      await updateCurrency.mutateAsync(curr);
+      toast.success('Currency updated');
+    } catch (error) {
+      toast.error('Failed to update currency');
+    }
+  };
+
+  const handleTimezoneChange = async (timezone: string) => {
+    try {
+      await updateTimezone.mutateAsync(timezone);
+      toast.success('Timezone updated');
+    } catch (error) {
+      toast.error('Failed to update timezone');
+    }
+  };
+
+  const handleNotificationToggle = async (key: string, value: boolean) => {
+    try {
+      await updateEmailPreferences.mutateAsync({ [key]: value } as any);
+      toast.success('Notification preferences updated');
+    } catch (error) {
+      toast.error('Failed to update notifications');
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="max-w-7xl mx-auto p-6">
+        <h1 className="text-3xl font-bold mb-6">Settings</h1>
+        <LoadingSkeleton variant="dashboard" />
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white flex items-center">
-          <SettingsIcon className="mr-3 text-blue-500" size={28} />
-          Settings
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-1">
-          Manage your account settings and preferences
-        </p>
-      </div>
+    <div className="max-w-7xl mx-auto p-6">
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Settings</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Sidebar */}
         <div className="lg:col-span-1">
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-800 p-2">
-            {sections.map((section) => (
-              <button
-                key={section.id}
-                onClick={() => setActiveSection(section.id)}
-                className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all mb-1 ${activeSection === section.id
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                  }`}
-              >
-                <div className="flex items-center space-x-3">
-                  <section.icon size={20} />
-                  <span className="font-medium">{section.label}</span>
-                </div>
-                <ChevronRight size={16} />
-              </button>
-            ))}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 space-y-2">
+            {sections.map((section) => {
+              const Icon = section.icon;
+              return (
+                <button
+                  key={section.id}
+                  onClick={() => setActiveSection(section.id)}
+                  className={`w-full flex items-center justify-between p-3 rounded-lg transition-colors ${activeSection === section.id
+                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon size={20} />
+                    <span className="font-semibold">{section.label}</span>
+                  </div>
+                  <ChevronRight size={16} />
+                </button>
+              );
+            })}
           </div>
         </div>
 
         {/* Content */}
         <div className="lg:col-span-3">
-          {/* Notifications */}
-          {activeSection === 'notifications' && (
-            <div className="space-y-6">
-              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-800 p-6">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
-                  Notification Preferences
-                </h2>
-
-                {/* Notification Channels */}
-                <div className="mb-8">
-                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
-                    Notification Channels
-                  </h3>
-                  <div className="space-y-4">
-                    {[
-                      { key: 'email', label: 'Email Notifications', icon: Mail, description: 'Receive notifications via email' },
-                      { key: 'push', label: 'Push Notifications', icon: Bell, description: 'Receive push notifications in browser' },
-                      { key: 'sms', label: 'SMS Notifications', icon: Smartphone, description: 'Receive important updates via SMS' }
-                    ].map((channel) => (
-                      <div key={channel.key} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                            <channel.icon size={20} className="text-blue-600" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-gray-900 dark:text-white">{channel.label}</p>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">{channel.description}</p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => toggleNotification(channel.key)}
-                          className={`relative w-12 h-6 rounded-full transition-all ${settings.notifications[channel.key as keyof typeof settings.notifications]
-                            ? 'bg-blue-600'
-                            : 'bg-gray-300 dark:bg-gray-600'
-                            }`}
-                        >
-                          <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${settings.notifications[channel.key as keyof typeof settings.notifications]
-                            ? 'translate-x-6'
-                            : 'translate-x-0'
-                            }`} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Notification Types */}
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
-                    What to Notify
-                  </h3>
-                  <div className="space-y-3">
-                    {[
-                      { key: 'newProperties', label: 'New Properties', description: 'Get notified about new listings matching your preferences' },
-                      { key: 'priceChanges', label: 'Price Changes', description: 'Alert me when prices change on saved properties' },
-                      { key: 'bidUpdates', label: 'Bid Updates', description: 'Updates on your active bids and auctions' },
-                      { key: 'messages', label: 'Messages', description: 'New messages from sellers and agents' },
-                      { key: 'newsletter', label: 'Newsletter', description: 'Weekly newsletter with market insights' }
-                    ].map((type) => (
-                      <div key={type.key} className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                        <div className="flex-1">
-                          <p className="font-medium text-gray-900 dark:text-white">{type.label}</p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">{type.description}</p>
-                        </div>
-                        <button
-                          onClick={() => toggleNotification(type.key)}
-                          className={`ml-4 relative w-12 h-6 rounded-full transition-all ${settings.notifications[type.key as keyof typeof settings.notifications]
-                            ? 'bg-green-600'
-                            : 'bg-gray-300 dark:bg-gray-600'
-                            }`}
-                        >
-                          <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${settings.notifications[type.key as keyof typeof settings.notifications]
-                            ? 'translate-x-6'
-                            : 'translate-x-0'
-                            }`} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Privacy & Security */}
-          {activeSection === 'privacy' && (
-            <div className="space-y-6">
-              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-800 p-6">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
-                  Privacy & Security
-                </h2>
-
-                {/* Profile Visibility */}
-                <div className="mb-8">
-                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
-                    Profile Visibility
-                  </h3>
-                  <select
-                    value={settings.privacy.profileVisibility}
-                    onChange={(e) => setSettings({
-                      ...settings,
-                      privacy: { ...settings.privacy, profileVisibility: e.target.value }
-                    })}
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="public">Public - Anyone can see your profile</option>
-                    <option value="private">Private - Only you can see your profile</option>
-                    <option value="contacts">Contacts Only - Only people you've contacted</option>
-                  </select>
-                </div>
-
-                {/* Contact Information */}
-                <div className="mb-8">
-                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
-                    Contact Information
-                  </h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <Mail size={20} className="text-gray-400" />
-                        <span className="text-gray-900 dark:text-white">Show email address</span>
-                      </div>
-                      <button
-                        onClick={() => setSettings({
-                          ...settings,
-                          privacy: { ...settings.privacy, showEmail: !settings.privacy.showEmail }
-                        })}
-                        className={`relative w-12 h-6 rounded-full transition-all ${settings.privacy.showEmail ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
-                          }`}
-                      >
-                        <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${settings.privacy.showEmail ? 'translate-x-6' : 'translate-x-0'
-                          }`} />
-                      </button>
-                    </div>
-                    <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <Smartphone size={20} className="text-gray-400" />
-                        <span className="text-gray-900 dark:text-white">Show phone number</span>
-                      </div>
-                      <button
-                        onClick={() => setSettings({
-                          ...settings,
-                          privacy: { ...settings.privacy, showPhone: !settings.privacy.showPhone }
-                        })}
-                        className={`relative w-12 h-6 rounded-full transition-all ${settings.privacy.showPhone ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
-                          }`}
-                      >
-                        <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${settings.privacy.showPhone ? 'translate-x-6' : 'translate-x-0'
-                          }`} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Security Actions */}
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
-                    Security
-                  </h3>
-                  <div className="space-y-3">
-                    <button className="w-full flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
-                      <div className="flex items-center space-x-3">
-                        <Key size={20} className="text-blue-600" />
-                        <span className="text-gray-900 dark:text-white font-medium">Change Password</span>
-                      </div>
-                      <ChevronRight size={20} className="text-gray-400" />
-                    </button>
-                    <button className="w-full flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
-                      <div className="flex items-center space-x-3">
-                        <Shield size={20} className="text-green-600" />
-                        <span className="text-gray-900 dark:text-white font-medium">Two-Factor Authentication</span>
-                      </div>
-                      <ChevronRight size={20} className="text-gray-400" />
-                    </button>
-                    <button
-                      onClick={handleDownloadData}
-                      className="w-full flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
-                    >
-                      <div className="flex items-center space-x-3">
-                        <Download size={20} className="text-purple-600" />
-                        <span className="text-gray-900 dark:text-white font-medium">Download My Data</span>
-                      </div>
-                      <ChevronRight size={20} className="text-gray-400" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Danger Zone */}
-              <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 rounded-xl p-6">
-                <h3 className="text-lg font-bold text-red-600 dark:text-red-400 mb-4 flex items-center">
-                  <AlertCircle size={20} className="mr-2" />
-                  Danger Zone
-                </h3>
-                <div className="space-y-3">
-                  <button className="w-full flex items-center justify-between p-4 bg-white dark:bg-gray-900 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 transition-all">
-                    <div className="flex items-center space-x-3">
-                      <Trash2 size={20} className="text-red-600" />
-                      <div className="text-left">
-                        <p className="text-gray-900 dark:text-white font-medium">Delete Account</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">Permanently delete your account and all data</p>
-                      </div>
-                    </div>
-                    <ChevronRight size={20} className="text-gray-400" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Preferences */}
-          {activeSection === 'preferences' && (
-            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-800 p-6">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
-                Preferences
-              </h2>
-
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6">
+            {/* Preferences Section */}
+            {activeSection === 'preferences' && (
               <div className="space-y-6">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Preferences</h2>
+
+                {/* Theme */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                    Theme
+                  </label>
+                  <div className="grid grid-cols-3 gap-3">
+                    {['light', 'dark', 'system'].map((theme) => (
+                      <button
+                        key={theme}
+                        onClick={() => handleThemeChange(theme as any)}
+                        className={`p-4 rounded-lg border-2 transition-all ${settings?.theme === theme
+                          ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'
+                          }`}
+                      >
+                        {theme === 'light' && <Sun className="mx-auto mb-2" size={24} />}
+                        {theme === 'dark' && <Moon className="mx-auto mb-2" size={24} />}
+                        {theme === 'system' && <SettingsIcon className="mx-auto mb-2" size={24} />}
+                        <p className="text-sm font-semibold capitalize">{theme}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Language */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                     Language
                   </label>
                   <select
                     value={language}
-                    onChange={(e) => setLanguage(e.target.value as any)}
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => handleLanguageChange(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="en">English</option>
-                    <option value="hi">हिंदी (Hindi)</option>
+                    <option value="hi">हिन्दी (Hindi)</option>
                     <option value="mr">मराठी (Marathi)</option>
-                    <option value="ta">தமிழ் (Tamil)</option>
                   </select>
-                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                    Changes will apply across the entire website
-                  </p>
                 </div>
 
+                {/* Currency */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                     Currency
                   </label>
                   <select
                     value={currency}
-                    onChange={(e) => setCurrency(e.target.value as any)}
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => handleCurrencyChange(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="INR">₹ INR - Indian Rupee (Crores/Lakhs)</option>
-                    <option value="USD">$ USD - US Dollar (Million)</option>
-                    <option value="GBP">£ GBP - British Pound (Million)</option>
+                    <option value="INR">₹ INR - Indian Rupee</option>
+                    <option value="USD">$ USD - US Dollar</option>
+                    <option value="EUR">€ EUR - Euro</option>
+                    <option value="GBP">£ GBP - British Pound</option>
+                    <option value="AED">د.إ AED - UAE Dirham</option>
+                    <option value="CAD">C$ CAD - Canadian Dollar</option>
+                    <option value="AUD">A$ AUD - Australian Dollar</option>
                   </select>
-                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                    All prices will be converted throughout the website
-                  </p>
                 </div>
 
+                {/* Timezone */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Theme
-                  </label>
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { value: 'light', label: 'Light', icon: Sun },
-                      { value: 'dark', label: 'Dark', icon: Moon },
-                      { value: 'system', label: 'System', icon: SettingsIcon }
-                    ].map((theme) => (
-                      <button
-                        key={theme.value}
-                        onClick={() => setSettings({
-                          ...settings,
-                          preferences: { ...settings.preferences, theme: theme.value }
-                        })}
-                        className={`p-4 border-2 rounded-lg transition-all ${settings.preferences.theme === theme.value
-                          ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20'
-                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                          }`}
-                      >
-                        <theme.icon size={24} className="mx-auto mb-2 text-gray-700 dark:text-gray-300" />
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">{theme.label}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Email Frequency
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                    Timezone
                   </label>
                   <select
-                    value={settings.preferences.emailFrequency}
-                    onChange={(e) => setSettings({
-                      ...settings,
-                      preferences: { ...settings.preferences, emailFrequency: e.target.value }
-                    })}
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    value={settings?.timezone || 'Asia/Kolkata'}
+                    onChange={(e) => handleTimezoneChange(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="realtime">Real-time</option>
-                    <option value="daily">Daily Digest</option>
-                    <option value="weekly">Weekly Summary</option>
-                    <option value="never">Never</option>
+                    <option value="Asia/Kolkata">IST - India Standard Time</option>
+                    <option value="America/New_York">EST - Eastern Standard Time</option>
+                    <option value="America/Los_Angeles">PST - Pacific Standard Time</option>
+                    <option value="Europe/London">GMT - Greenwich Mean Time</option>
+                    <option value="Asia/Dubai">GST - Gulf Standard Time</option>
+                    <option value="Asia/Singapore">SGT - Singapore Time</option>
+                    <option value="Australia/Sydney">AEDT - Australian Eastern Time</option>
+                    <option value="Asia/Tokyo">JST - Japan Standard Time</option>
+                    <option value="Europe/Paris">CET - Central European Time</option>
+                    <option value="America/Toronto">CET - Canada Eastern Time</option>
                   </select>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Billing & Payments */}
-          {activeSection === 'billing' && (
-            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-800 p-6">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
-                Billing & Payments
-              </h2>
-              <div className="text-center py-12">
-                <CreditCard size={64} className="mx-auto text-gray-400 mb-4" />
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
-                  No Payment Methods
-                </h3>
-                <p className="text-gray-600 dark:text-gray-400 mb-6">
-                  Add a payment method to unlock premium features
+            {/* Notifications Section */}
+            {activeSection === 'notifications' && (
+              <div className="space-y-6">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Notifications</h2>
+
+                <div className="space-y-4">
+                  {[
+                    { key: 'email', label: 'Email Notifications', icon: Mail },
+                    { key: 'push', label: 'Push Notifications', icon: Bell },
+                    { key: 'sms', label: 'SMS Notifications', icon: Smartphone },
+                  ].map((channel) => (
+                    <div key={channel.key} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <channel.icon size={20} className="text-gray-600 dark:text-gray-400" />
+                        <span className="font-semibold text-gray-900 dark:text-white">
+                          {channel.label}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => handleNotificationToggle(channel.key, !settings?.notifications?.[channel.key])}
+                        className={`relative w-14 h-8 rounded-full transition-colors ${settings?.notifications?.[channel.key]
+                          ? 'bg-green-600'
+                          : 'bg-gray-300 dark:bg-gray-600'
+                          }`}
+                      >
+                        <span
+                          className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${settings?.notifications?.[channel.key] ? 'translate-x-6' : ''
+                            }`}
+                        />
+                      </button>
+                    </div>
+                  ))}
+
+                  <hr className="border-gray-200 dark:border-gray-700" />
+
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Notification Types
+                  </h3>
+
+                  {[
+                    { key: 'newProperties', label: 'New property listings' },
+                    { key: 'priceChanges', label: 'Price changes on saved properties' },
+                    { key: 'bidUpdates', label: 'Bid and offer updates' },
+                    { key: 'messages', label: 'New messages' },
+                    { key: 'newsletter', label: 'Newsletter and promotions' },
+                  ].map((notif) => (
+                    <div key={notif.key} className="flex items-center justify-between p-4">
+                      <span className="text-gray-900 dark:text-white">{notif.label}</span>
+                      <button
+                        onClick={() => handleNotificationToggle(notif.key, !settings?.notifications?.[notif.key])}
+                        className={`relative w-14 h-8 rounded-full transition-colors ${settings?.notifications?.[notif.key]
+                          ? 'bg-green-600'
+                          : 'bg-gray-300 dark:bg-gray-600'
+                          }`}
+                      >
+                        <span
+                          className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${settings?.notifications?.[notif.key] ? 'translate-x-6' : ''
+                            }`}
+                        />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Privacy Section */}
+            {activeSection === 'privacy' && (
+              <div className="space-y-6">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  Privacy & Security
+                </h2>
+                <p className="text-gray-600 dark:text-gray-400">
+                  Manage your privacy settings and account security
                 </p>
-                <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-all">
-                  Add Payment Method
+
+                <button
+                  onClick={() => router.push('/dashboard/security')}
+                  className="w-full flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <Lock size={20} />
+                    <span className="font-semibold">Change Password</span>
+                  </div>
+                  <ChevronRight size={20} />
                 </button>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Help & Support */}
-          {activeSection === 'help' && (
-            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-800 p-6">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
-                Help & Support
-              </h2>
-              <div className="space-y-3">
+            {/* Billing Section */}
+            {activeSection === 'billing' && (
+              <div className="space-y-6">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  Billing & Payments
+                </h2>
+
+                <button
+                  onClick={() => router.push('/dashboard/pricing')}
+                  className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-colors text-white"
+                >
+                  <div className="flex items-center gap-3">
+                    <CreditCard size={20} />
+                    <span className="font-semibold">View Plans & Pricing</span>
+                  </div>
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+            )}
+
+            {/* Help Section */}
+            {activeSection === 'help' && (
+              <div className="space-y-6">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  Help & Support
+                </h2>
+
                 <button
                   onClick={() => router.push('/dashboard/help')}
-                  className="w-full flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
+                  className="w-full flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
-                  <div className="flex items-center space-x-3">
-                    <HelpCircle size={20} className="text-blue-600" />
-                    <span className="text-gray-900 dark:text-white font-medium">Help Center</span>
+                  <div className="flex items-center gap-3">
+                    <HelpCircle size={20} />
+                    <span className="font-semibold">Help Center</span>
                   </div>
-                  <ChevronRight size={20} className="text-gray-400" />
+                  <ChevronRight size={20} />
                 </button>
+
                 <button
-                  onClick={openChatbot}
-                  className="w-full flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
+                  onClick={() => router.push('/dashboard/kyc')}
+                  className="w-full flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
-                  <div className="flex items-center space-x-3">
-                    <MessageCircle size={20} className="text-green-600" />
-                    <span className="text-gray-900 dark:text-white font-medium">Contact Support</span>
+                  <div className="flex items-center gap-3">
+                    <MessageCircle size={20} />
+                    <span className="font-semibold">Contact Support</span>
                   </div>
-                  <ChevronRight size={20} className="text-gray-400" />
+                  <ChevronRight size={20} />
                 </button>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>
-  )
+  );
 }

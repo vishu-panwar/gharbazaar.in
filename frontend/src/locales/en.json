@@ -1,0 +1,22 @@
+{
+    "welcome": "Welcome to GharBazaar",
+    "dashboard": "Dashboard",
+    "properties": "Properties",
+    "favorites": "Favorites",
+    "bids": "Bids",
+    "settings": "Settings",
+    "logout": "Logout",
+    "language": "Language",
+    "theme": "Theme",
+    "currency": "Currency",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "save": "Save",
+    "cancel": "Cancel",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "noData": "No data available",
+    "tryAgain": "Try Again"
+}

@@ -25,7 +25,7 @@ export const createProperty = async (req: Request, res: Response) => {
                 status: 'pending'
             }
         });
-        
+
         res.status(201).json({ success: true, data: property });
     } catch (error) {
         console.error('createProperty error:', error);
@@ -38,25 +38,25 @@ export const searchProperties = async (req: Request, res: Response) => {
         const { limit = 10, city, propertyType, listingType, recommendedFor } = req.query;
         console.log(`🔍 Searching properties:`, { city, propertyType, listingType, recommendedFor });
 
-        const where: any = { status: 'active' };
-        
+        const where: any = { status: 'active', deletedAt: null };
+
         if (city) {
             where.city = {
                 contains: String(city),
                 mode: 'insensitive'
             };
         }
-        
+
         if (propertyType && propertyType !== 'all') {
             where.propertyType = String(propertyType);
         }
-        
+
         if (listingType && listingType !== 'all') {
             where.listingType = String(listingType);
         }
 
         const limitNum = Math.min(Number(limit) || 10, 50);
-        
+
         const properties = await prisma.property.findMany({
             where,
             take: limitNum,
@@ -83,7 +83,12 @@ export const getPropertyById = async (req: Request, res: Response) => {
         const property = await prisma.property.findUnique({
             where: { id: req.params.id }
         });
-        
+
+        // Check if property is soft deleted
+        if (property?.deletedAt) {
+            return res.status(404).json({ success: false, error: 'Property not found' });
+        }
+
         if (!property) {
             return res.status(404).json({ success: false, error: 'Property not found' });
         }
@@ -98,7 +103,7 @@ export const getUserProperties = async (req: Request, res: Response) => {
     try {
         const userId = req.params.userId || (req as any).user?.userId;
         const properties = await prisma.property.findMany({
-            where: { sellerId: userId }
+            where: { sellerId: userId, deletedAt: null }
         });
         res.json({ success: true, properties });
     } catch (error) {
@@ -192,13 +197,13 @@ export const uploadPropertyImage = async (req: Request, res: Response) => {
 export const getMarketInsights = async (req: Request, res: Response) => {
     try {
         const totalProperties = await prisma.property.count({
-            where: { status: 'active' }
+            where: { status: 'active', deletedAt: null }
         });
 
         // Group by city using Prisma aggregate
         const cityStatsSummary = await prisma.property.groupBy({
             by: ['city'],
-            where: { status: 'active' },
+            where: { status: 'active', deletedAt: null },
             _avg: { price: true },
             _count: { _all: true },
             orderBy: { _count: { city: 'desc' } },
@@ -227,5 +232,99 @@ export const getMarketInsights = async (req: Request, res: Response) => {
     } catch (error: any) {
         console.error('getMarketInsights error:', error);
         res.status(500).json({ success: false, error: 'Failed to fetch market insights' });
+    }
+};
+
+// @desc    Soft delete a property
+// @route   DELETE /api/v1/properties/:id
+// @access  Private (Seller/Admin)
+export const softDeleteProperty = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const userId = (req as any).user?.uid;
+
+        // Verify property exists and user has permission
+        const property = await prisma.property.findUnique({
+            where: { id },
+            select: { id: true, sellerId: true, deletedAt: true },
+        });
+
+        if (!property || property.deletedAt) {
+            return res.status(404).json({
+                success: false,
+                error: 'Property not found',
+            });
+        }
+
+        // Soft delete the property
+        const updatedProperty = await prisma.property.update({
+            where: { id },
+            data: {
+                deletedAt: new Date(),
+                deletedBy: userId,
+            },
+        });
+
+        res.json({
+            success: true,
+            message: 'Property deleted successfully',
+            data: updatedProperty,
+        });
+    } catch (error: any) {
+        console.error('softDeleteProperty error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to delete property',
+        });
+    }
+};
+
+// @desc    Restore a soft-deleted property
+// @route   POST /api/v1/properties/:id/restore
+// @access  Private (Admin)
+export const restoreProperty = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+
+        // Verify property exists and is deleted
+        const property = await prisma.property.findUnique({
+            where: { id },
+            select: { id: true, deletedAt: true },
+        });
+
+        if (!property) {
+            return res.status(404).json({
+                success: false,
+                error: 'Property not found',
+            });
+        }
+
+        if (!property.deletedAt) {
+            return res.status(400).json({
+                success: false,
+                error: 'Property is not deleted',
+            });
+        }
+
+        // Restore the property
+        const restoredProperty = await prisma.property.update({
+            where: { id },
+            data: {
+                deletedAt: null,
+                deletedBy: null,
+            },
+        });
+
+        res.json({
+            success: true,
+            message: 'Property restored successfully',
+            data: restoredProperty,
+        });
+    } catch (error: any) {
+        console.error('restoreProperty error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to restore property',
+        });
     }
 };

@@ -1,7 +1,5 @@
 import { Request, Response } from 'express';
-import VerificationTask from '../models/verificationTask.model';
-import VerificationReport from '../models/verificationReport.model';
-import Property from '../models/property.model';
+import { prisma } from '../utils/prisma';
 
 export const createVerificationTask = async (req: Request, res: Response) => {
     try {
@@ -11,17 +9,21 @@ export const createVerificationTask = async (req: Request, res: Response) => {
         if (!userId) return res.status(401).json({ success: false, message: 'User not authenticated' });
         if (!propertyId) return res.status(400).json({ success: false, message: 'propertyId is required' });
 
-        const property = await Property.findById(propertyId);
+        const property = await prisma.property.findUnique({
+            where: { id: propertyId }
+        });
         if (!property) return res.status(404).json({ success: false, message: 'Property not found' });
 
-        const task = await VerificationTask.create({
-            propertyId,
-            assignedTo,
-            createdBy: userId,
-            taskType,
-            checklist,
-            dueDate: dueDate ? new Date(dueDate) : undefined,
-            notes
+        const task = await prisma.verificationTask.create({
+            data: {
+                propertyId,
+                assignedTo,
+                createdBy: userId,
+                taskType,
+                checklist: checklist || [],
+                dueDate: dueDate ? new Date(dueDate) : null,
+                notes
+            }
         });
 
         res.status(201).json({ success: true, data: task });
@@ -37,14 +39,25 @@ export const getVerificationTasks = async (req: Request, res: Response) => {
         if (!userId) return res.status(401).json({ success: false, message: 'User not authenticated' });
 
         const { assignedTo, propertyId, status } = req.query;
-        const query: any = {};
-        if (assignedTo) query.assignedTo = assignedTo;
-        if (propertyId) query.propertyId = propertyId;
-        if (status) query.status = status;
+        const where: any = {};
+        if (assignedTo) where.assignedTo = assignedTo as string;
+        if (propertyId) where.propertyId = propertyId as string;
+        if (status) where.status = status as string;
 
-        const tasks = await VerificationTask.find(query)
-            .populate('propertyId', 'title location price photos')
-            .sort({ createdAt: -1 });
+        const tasks = await prisma.verificationTask.findMany({
+            where,
+            include: {
+                property: {
+                    select: {
+                        title: true,
+                        location: true,
+                        price: true,
+                        photos: true
+                    }
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
 
         res.json({ success: true, data: tasks });
     } catch (error: any) {
@@ -59,25 +72,39 @@ export const updateVerificationTask = async (req: Request, res: Response) => {
         const userId = (req as any).user?.userId;
         if (!userId) return res.status(401).json({ success: false, message: 'User not authenticated' });
 
-        const task = await VerificationTask.findById(id);
+        const task = await prisma.verificationTask.findUnique({
+            where: { id }
+        });
         if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
 
         const { status, assignedTo, checklist, dueDate, notes } = req.body;
-        if (status) task.status = status;
-        if (assignedTo !== undefined) task.assignedTo = assignedTo;
-        if (checklist !== undefined) task.checklist = checklist;
-        if (dueDate !== undefined) task.dueDate = dueDate ? new Date(dueDate) : undefined;
-        if (notes !== undefined) task.notes = notes;
 
-        await task.save();
+        const updateData: any = {};
+        if (status !== undefined) updateData.status = status;
+        if (assignedTo !== undefined) updateData.assignedTo = assignedTo;
+        if (checklist !== undefined) updateData.checklist = checklist;
+        if (dueDate !== undefined) updateData.dueDate = dueDate ? new Date(dueDate) : null;
+        if (notes !== undefined) updateData.notes = notes;
 
+        const updatedTask = await prisma.verificationTask.update({
+            where: { id },
+            data: updateData
+        });
+
+        // Update property verification status based on task status
         if (status === 'verified') {
-            await Property.findByIdAndUpdate(task.propertyId, { verified: true, status: 'active' });
+            await prisma.property.update({
+                where: { id: task.propertyId },
+                data: { verified: true, status: 'active' }
+            });
         } else if (status === 'rejected') {
-            await Property.findByIdAndUpdate(task.propertyId, { verified: false, status: 'rejected' });
+            await prisma.property.update({
+                where: { id: task.propertyId },
+                data: { verified: false, status: 'rejected' }
+            });
         }
 
-        res.json({ success: true, data: task });
+        res.json({ success: true, data: updatedTask });
     } catch (error: any) {
         console.error('updateVerificationTask error:', error);
         res.status(500).json({ success: false, message: 'Failed to update task', error: error.message });
@@ -94,14 +121,16 @@ export const createVerificationReport = async (req: Request, res: Response) => {
             return res.status(400).json({ success: false, message: 'taskId and propertyId are required' });
         }
 
-        const report = await VerificationReport.create({
-            taskId,
-            propertyId,
-            reportType,
-            findings,
-            recommendation,
-            uploadedFiles,
-            notes
+        const report = await prisma.verificationReport.create({
+            data: {
+                taskId,
+                propertyId,
+                reportType,
+                findings: findings || [],
+                recommendation,
+                uploadedFiles: uploadedFiles || [],
+                notes
+            }
         });
 
         res.status(201).json({ success: true, data: report });
@@ -117,12 +146,14 @@ export const getVerificationReports = async (req: Request, res: Response) => {
         if (!userId) return res.status(401).json({ success: false, message: 'User not authenticated' });
 
         const { taskId, propertyId } = req.query;
-        const query: any = {};
-        if (taskId) query.taskId = taskId;
-        if (propertyId) query.propertyId = propertyId;
+        const where: any = {};
+        if (taskId) where.taskId = taskId as string;
+        if (propertyId) where.propertyId = propertyId as string;
 
-        const reports = await VerificationReport.find(query)
-            .sort({ createdAt: -1 });
+        const reports = await prisma.verificationReport.findMany({
+            where,
+            orderBy: { createdAt: 'desc' }
+        });
 
         res.json({ success: true, data: reports });
     } catch (error: any) {

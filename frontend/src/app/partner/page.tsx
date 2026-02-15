@@ -2,43 +2,47 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { 
-  Users, 
-  IndianRupee, 
-  TrendingUp, 
-  Clock, 
-  CheckCircle, 
-  AlertCircle, 
-  Eye, 
-  Phone, 
-  Mail, 
-  MapPin, 
-  Calendar, 
-  Star, 
-  Award, 
-  Target, 
-  Zap, 
-  Crown, 
-  Gift, 
-  Sparkles, 
-  ArrowRight, 
-  Plus, 
-  BarChart3, 
-  PieChart, 
-  Activity, 
-  Briefcase, 
-  Globe, 
-  MessageSquare, 
-  Share2, 
-  Download, 
-  RefreshCw, 
-  Bell, 
-  Wallet, 
-  Building, 
-  Home, 
-  User, 
-  BookOpen, 
-  PlayCircle, 
+import { usePartnerStats, usePartnerLeads } from '@/hooks/usePartnerApi'
+import LoadingState from '@/components/ui/LoadingState'
+import EmptyState from '@/components/ui/EmptyState'
+import ErrorState from '@/components/ui/ErrorState'
+import {
+  Users,
+  IndianRupee,
+  TrendingUp,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  Eye,
+  Phone,
+  Mail,
+  MapPin,
+  Calendar,
+  Star,
+  Award,
+  Target,
+  Zap,
+  Crown,
+  Gift,
+  Sparkles,
+  ArrowRight,
+  Plus,
+  BarChart3,
+  PieChart,
+  Activity,
+  Briefcase,
+  Globe,
+  MessageSquare,
+  Share2,
+  Download,
+  RefreshCw,
+  Bell,
+  Wallet,
+  Building,
+  Home,
+  User,
+  BookOpen,
+  PlayCircle,
   ExternalLink,
   TrendingDown,
   ArrowUp,
@@ -80,70 +84,18 @@ interface QuickAction {
 
 export default function PartnerDashboard() {
   const [user, setUser] = useState<any>(null)
-  const [stats, setStats] = useState<DashboardStats | null>(null)
-  const [recentLeads, setRecentLeads] = useState<RecentLead[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const { stats, isLoading: statsLoading, error: statsError } = usePartnerStats()
+  const { leads: recentLeads, isLoading: leadsLoading, error: leadsError } = usePartnerLeads()
+
+  const isLoading = statsLoading || leadsLoading
+  const error = statsError || leadsError
 
   useEffect(() => {
-    // Get user data
+    // Get user data from localStorage
     const userData = localStorage.getItem('user')
     if (userData) {
       setUser(JSON.parse(userData))
     }
-
-    // Mock dashboard data
-    const mockStats: DashboardStats = {
-      totalReferrals: 45,
-      activeLeads: 12,
-      convertedLeads: 8,
-      totalEarnings: 185000,
-      thisMonthEarnings: 45000,
-      lastMonthEarnings: 32000,
-      pendingPayments: 15000,
-      conversionRate: 17.8,
-      avgResponseTime: '2.5 hours',
-      partnerRank: 23,
-      totalPartners: 1250
-    }
-
-    const mockRecentLeads: RecentLead[] = [
-      {
-        id: 'LD001',
-        customerName: 'Rajesh Kumar',
-        type: 'buyer',
-        propertyType: '2 BHK Apartment',
-        location: 'Andheri West, Mumbai',
-        status: 'interested',
-        expectedCommission: 25000,
-        submittedAt: '2024-12-29T10:30:00Z'
-      },
-      {
-        id: 'LD002',
-        customerName: 'Priya Patel',
-        type: 'seller',
-        propertyType: '3 BHK Villa',
-        location: 'Bandra East, Mumbai',
-        status: 'converted',
-        expectedCommission: 75000,
-        submittedAt: '2024-12-28T14:20:00Z'
-      },
-      {
-        id: 'LD003',
-        customerName: 'Suresh Gupta',
-        type: 'buyer',
-        propertyType: '1 BHK Apartment',
-        location: 'Thane West, Mumbai',
-        status: 'contacted',
-        expectedCommission: 15000,
-        submittedAt: '2024-12-27T16:45:00Z'
-      }
-    ]
-
-    setTimeout(() => {
-      setStats(mockStats)
-      setRecentLeads(mockRecentLeads)
-      setIsLoading(false)
-    }, 1000)
   }, [])
 
   const quickActions: QuickAction[] = [
@@ -192,7 +144,7 @@ export default function PartnerDashboard() {
     const date = new Date(dateString)
     const now = new Date()
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
-    
+
     if (diffInHours < 1) return 'Just now'
     if (diffInHours < 24) return `${diffInHours}h ago`
     if (diffInHours < 48) return 'Yesterday'
@@ -206,14 +158,19 @@ export default function PartnerDashboard() {
   }
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading dashboard...</p>
-        </div>
-      </div>
-    )
+    return <LoadingState message="Loading partner dashboard..." />
+  }
+
+  if (error) {
+    return <ErrorState error={error} title="Failed to load dashboard" />
+  }
+
+  if (!stats) {
+    return <EmptyState
+      icon={Users}
+      title="No Partner Data"
+      description="Unable to load your partner dashboard. Please try again later."
+    />
   }
 
   return (
@@ -225,7 +182,7 @@ export default function PartnerDashboard() {
           <div className="absolute top-0 left-0 w-40 h-40 bg-white rounded-full -translate-x-20 -translate-y-20"></div>
           <div className="absolute bottom-0 right-0 w-60 h-60 bg-white rounded-full translate-x-20 translate-y-20"></div>
         </div>
-        
+
         <div className="relative z-10">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -258,7 +215,7 @@ export default function PartnerDashboard() {
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-white/10 rounded-2xl p-4 backdrop-blur-sm">
               <div className="flex items-center space-x-3">
                 <Activity className="w-8 h-8 text-green-200" />
@@ -268,7 +225,7 @@ export default function PartnerDashboard() {
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-white/10 rounded-2xl p-4 backdrop-blur-sm">
               <div className="flex items-center space-x-3">
                 <Target className="w-8 h-8 text-purple-200" />
@@ -278,7 +235,7 @@ export default function PartnerDashboard() {
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-white/10 rounded-2xl p-4 backdrop-blur-sm">
               <div className="flex items-center space-x-3">
                 <IndianRupee className="w-8 h-8 text-yellow-200" />
@@ -372,7 +329,7 @@ export default function PartnerDashboard() {
               <span className="font-semibold text-gray-900 dark:text-white">{stats?.conversionRate}%</span>
             </div>
             <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2">
-              <div 
+              <div
                 className="bg-blue-600 h-2 rounded-full transition-all duration-1000"
                 style={{ width: `${stats?.conversionRate}%` }}
               ></div>
@@ -429,11 +386,10 @@ export default function PartnerDashboard() {
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
                       <h4 className="font-semibold text-gray-900 dark:text-white">{lead.customerName}</h4>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        lead.type === 'buyer' 
-                          ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'
-                          : 'bg-green-100 text-green-600 dark:bg-green-900/20 dark:text-green-400'
-                      }`}>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${lead.type === 'buyer'
+                        ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'
+                        : 'bg-green-100 text-green-600 dark:bg-green-900/20 dark:text-green-400'
+                        }`}>
                         {lead.type}
                       </span>
                     </div>
@@ -516,7 +472,7 @@ export default function PartnerDashboard() {
               💡 Partner Tip of the Day
             </h3>
             <p className="text-gray-700 dark:text-gray-300 mb-4">
-              Follow up with your leads within 2 hours of submission to increase conversion rates by 40%. 
+              Follow up with your leads within 2 hours of submission to increase conversion rates by 40%.
               Quick response time shows professionalism and builds trust with potential customers.
             </p>
             <div className="flex items-center space-x-4">

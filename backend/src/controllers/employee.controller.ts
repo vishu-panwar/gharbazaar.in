@@ -1,17 +1,13 @@
 import { Request, Response } from 'express';
-import Ticket from '../models/ticket.model';
-import TicketMessage from '../models/ticketMessage.model';
-import Conversation from '../models/conversation.model';
-import Message from '../models/message.model';
-import Property from '../models/property.model';
-import User from '../models/user.model';
-import { isMongoDBAvailable, memoryTickets, memoryConversations } from '../utils/memoryStore';
+import { prisma } from '../utils/prisma';
 import { emailService } from '../utils/email.service';
-import Notification from '../models/notification.model';
 
 export const getPendingProperties = async (req: Request, res: Response) => {
     try {
-        const properties = await Property.find({ status: 'pending' }).sort({ createdAt: -1 });
+        const properties = await prisma.property.findMany({
+            where: { status: 'pending' },
+            orderBy: { createdAt: 'desc' }
+        });
         res.json({ success: true, data: { properties } });
     } catch (error) {
         console.error('Error fetching pending properties:', error);
@@ -22,25 +18,29 @@ export const getPendingProperties = async (req: Request, res: Response) => {
 export const approveProperty = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const property = await Property.findById(id);
+
+        // Update property
+        const property = await prisma.property.update({
+            where: { id },
+            data: {
+                status: 'active',
+                verified: true
+            }
+        });
 
         if (!property) {
             return res.status(404).json({ success: false, error: 'Property not found' });
         }
 
-        // Update property
-        property.status = 'active';
-        property.verified = true;
-        await property.save();
-
-        // Increment activeListings for seller
-        await User.findOneAndUpdate(
-            { uid: property.sellerId },
-            { $inc: { activeListings: 1 } }
-        );
-
-        // Ideally send email notification to seller
-        // await emailService.sendEmail(sellerEmail, 'Property Approved', ...);
+        // Increment activeListings for seller's profile
+        await prisma.sellerProfile.updateMany({
+            where: { userId: property.sellerId },
+            data: {
+                activeListings: {
+                    increment: 1
+                }
+            }
+        });
 
         res.json({ success: true, data: { property } });
     } catch (error) {
@@ -54,15 +54,14 @@ export const rejectProperty = async (req: Request, res: Response) => {
         const { id } = req.params;
         const { reason } = req.body;
 
-        const property = await Property.findByIdAndUpdate(id, { status: 'rejected' }, { new: true });
+        const property = await prisma.property.update({
+            where: { id },
+            data: { status: 'rejected' }
+        });
 
         if (!property) {
             return res.status(404).json({ success: false, error: 'Property not found' });
         }
-
-        // TODO: Get seller email from User model using property.sellerId and send notification
-        // For now, assuming rejection is logged/handled
-        // await emailService.sendEmail(sellerEmail, 'Property Rejected', ...);
 
         res.json({ success: true, data: { property } });
     } catch (error) {
@@ -73,9 +72,14 @@ export const rejectProperty = async (req: Request, res: Response) => {
 
 export const getApprovedProperties = async (req: Request, res: Response) => {
     try {
-        const properties = await Property.find({
-            status: { $in: ['active', 'inactive'] }
-        }).sort({ updatedAt: -1 });
+        const properties = await prisma.property.findMany({
+            where: {
+                status: {
+                    in: ['active', 'inactive']
+                }
+            },
+            orderBy: { updatedAt: 'desc' }
+        });
 
         res.json({ success: true, data: { properties } });
     } catch (error) {
@@ -87,7 +91,7 @@ export const getApprovedProperties = async (req: Request, res: Response) => {
 export const togglePropertyPause = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const property = await Property.findById(id);
+        const property = await prisma.property.findUnique({ where: { id } });
 
         if (!property) {
             return res.status(404).json({ success: false, error: 'Property not found' });
@@ -97,26 +101,30 @@ export const togglePropertyPause = async (req: Request, res: Response) => {
             return res.status(400).json({ success: false, error: 'Only approved properties can be paused/resumed' });
         }
 
-        const oldStatus = property.status;
-        property.status = oldStatus === 'active' ? 'inactive' : 'active';
-        await property.save();
+        const newStatus = property.status === 'active' ? 'inactive' : 'active';
+        const updatedProperty = await prisma.property.update({
+            where: { id },
+            data: { status: newStatus }
+        });
 
-        const action = property.status === 'active' ? 'resumed' : 'paused';
+        const action = newStatus === 'active' ? 'resumed' : 'paused';
 
         // Create notification for seller
-        await Notification.create({
-            userId: property.sellerId,
-            type: 'system',
-            title: `Property ${action.charAt(0).toUpperCase() + action.slice(1)}`,
-            message: `Your property "${property.title}" has been ${action} by our moderation team.`,
-            priority: 'medium',
-            metadata: { propertyId: property._id, action }
+        await prisma.notification.create({
+            data: {
+                userId: property.sellerId,
+                type: 'system',
+                title: `Property ${action.charAt(0).toUpperCase() + action.slice(1)}`,
+                message: `Your property "${property.title}" has been ${action} by our moderation team.`,
+                priority: 'medium',
+                metadata: JSON.stringify({ propertyId: property.id, action })
+            }
         });
 
         res.json({
             success: true,
             message: `Property ${action} successfully`,
-            data: { property }
+            data: { property: updatedProperty }
         });
     } catch (error) {
         console.error('Error toggling property pause:', error);
@@ -130,23 +138,17 @@ export const getTickets = async (req: Request, res: Response) => {
         const limit = parseInt(req.query.limit as string) || 50;
         const skip = parseInt(req.query.skip as string) || 0;
 
-        let query: any = {};
+        const where: any = {};
         if (status && status !== 'all') {
-            query.status = status;
+            where.status = status;
         }
 
-        let tickets = [];
-        if (isMongoDBAvailable()) {
-            tickets = await Ticket.find(query)
-                .sort({ createdAt: -1 })
-                .skip(skip)
-                .limit(limit);
-        } else {
-            tickets = Array.from(memoryTickets.values())
-                .filter((t: any) => !status || status === 'all' || t.status === status)
-                .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                .slice(skip, skip + limit);
-        }
+        const tickets = await prisma.ticket.findMany({
+            where,
+            orderBy: { createdAt: 'desc' },
+            skip,
+            take: limit
+        });
 
         res.json({ success: true, data: { tickets } });
     } catch (error) {
@@ -159,28 +161,17 @@ export const getActiveConversations = async (req: Request, res: Response) => {
     try {
         const userId = (req as any).user.userId;
 
-        let conversations = [];
-        if (isMongoDBAvailable()) {
-            conversations = await Conversation.find({
+        const conversations = await prisma.conversation.findMany({
+            where: {
                 conversationType: 'support-ticket',
-                $or: [
-                    { assignedEmployee: userId },
-                    { assignedEmployee: { $exists: false } }
+                OR: [
+                    { propertyTitle: userId }, // Using propertyTitle field as proxy for assignedEmployee
+                    { propertyTitle: null }
                 ]
-            })
-                .sort({ lastMessageAt: -1 })
-                .limit(50);
-        } else {
-            conversations = Array.from(memoryConversations.values())
-                .filter((c: any) =>
-                    c.conversationType === 'support-ticket' &&
-                    (c.assignedEmployee === userId || !c.assignedEmployee)
-                )
-                .sort((a: any, b: any) =>
-                    new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
-                )
-                .slice(0, 50);
-        }
+            },
+            orderBy: { lastMessageAt: 'desc' },
+            take: 50
+        });
 
         res.json({ success: true, data: { conversations } });
     } catch (error) {
@@ -207,15 +198,14 @@ export const sendQuickResponse = async (req: Request, res: Response) => {
             return res.status(400).json({ success: false, error: 'Invalid template ID' });
         }
 
-        if (isMongoDBAvailable()) {
-            await TicketMessage.create({
+        await prisma.ticketMessage.create({
+            data: {
                 ticketId,
                 senderId: userId,
-                senderType: 'employee',
-                message,
-                timestamp: new Date(),
-            });
-        }
+                content: message,
+                isInternal: false
+            }
+        });
 
         res.json({ success: true, data: { message: 'Quick response sent' } });
     } catch (error) {
@@ -228,17 +218,11 @@ export const getUserHistory = async (req: Request, res: Response) => {
     try {
         const { userId } = req.params;
 
-        let tickets = [];
-        if (isMongoDBAvailable()) {
-            tickets = await Ticket.find({ userId })
-                .sort({ createdAt: -1 })
-                .limit(20);
-        } else {
-            tickets = Array.from(memoryTickets.values())
-                .filter((t: any) => t.userId === userId)
-                .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                .slice(0, 20);
-        }
+        const tickets = await prisma.ticket.findMany({
+            where: { userId },
+            orderBy: { createdAt: 'desc' },
+            take: 20
+        });
 
         res.json({ success: true, data: { tickets } });
     } catch (error) {
@@ -251,45 +235,34 @@ export const getEmployeeStats = async (req: Request, res: Response) => {
     try {
         const userId = (req as any).user.userId;
 
-        let stats = {
-            activeTickets: 0,
-            resolvedToday: 0,
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const [activeTickets, resolvedToday, totalAssigned] = await Promise.all([
+            prisma.ticket.count({
+                where: {
+                    assignedTo: userId,
+                    status: { in: ['in_progress', 'open'] }
+                }
+            }),
+            prisma.ticket.count({
+                where: {
+                    assignedTo: userId,
+                    status: 'resolved',
+                    updatedAt: { gte: today }
+                }
+            }),
+            prisma.ticket.count({
+                where: { assignedTo: userId }
+            })
+        ]);
+
+        const stats = {
+            activeTickets,
+            resolvedToday,
             averageResponseTime: 0,
-            totalAssigned: 0
+            totalAssigned
         };
-
-        if (isMongoDBAvailable()) {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-
-            stats.activeTickets = await Ticket.countDocuments({
-                assignedTo: userId,
-                status: { $in: ['assigned', 'in_progress'] }
-            });
-
-            stats.resolvedToday = await Ticket.countDocuments({
-                assignedTo: userId,
-                status: 'resolved',
-                updatedAt: { $gte: today }
-            });
-
-            stats.totalAssigned = await Ticket.countDocuments({ assignedTo: userId });
-        } else {
-            const tickets = Array.from(memoryTickets.values());
-            stats.activeTickets = tickets.filter((t: any) =>
-                t.assignedTo === userId && ['assigned', 'in_progress'].includes(t.status)
-            ).length;
-
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            stats.resolvedToday = tickets.filter((t: any) =>
-                t.assignedTo === userId &&
-                t.status === 'resolved' &&
-                new Date(t.updatedAt) >= today
-            ).length;
-
-            stats.totalAssigned = tickets.filter((t: any) => t.assignedTo === userId).length;
-        }
 
         res.json({ success: true, data: { stats } });
     } catch (error) {
@@ -308,15 +281,14 @@ export const completeOnboarding = async (req: Request, res: Response) => {
         }
 
         // Indian Phone Number Validation
-        // Matches 10 digits, optional +91, 91, or 0 prefix
         const phoneRegex = /^(?:(?:\+|0{0,2})91[\s-]?)?[6789]\d{9}$/;
         if (!phoneRegex.test(phone)) {
             return res.status(400).json({ success: false, error: 'Please provide a valid Indian phone number' });
         }
 
-        const user = await User.findOneAndUpdate(
-            { uid: userId },
-            {
+        const user = await prisma.user.update({
+            where: { uid: userId },
+            data: {
                 name,
                 phone,
                 address,
@@ -324,9 +296,8 @@ export const completeOnboarding = async (req: Request, res: Response) => {
                 office,
                 branchManagerName,
                 onboardingCompleted: true
-            },
-            { new: true }
-        );
+            }
+        });
 
         if (!user) {
             return res.status(404).json({ success: false, error: 'User not found' });

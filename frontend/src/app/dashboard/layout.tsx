@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
+import { useLocale } from '@/contexts/LocaleContext'
 import {
   LayoutDashboard,
   Home,
@@ -47,6 +48,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user: authUser, logout: authLogout } = useAuth()
   const { showLoader } = useLoader()
   const { theme, setTheme } = useTheme()
+  const { t } = useLocale()
   const { canAddListing } = useSellerSubscription()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [user, setUser] = useState<any>(null)
@@ -177,31 +179,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // Buyer Navigation
   const buyerNavigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'KYC Verification', href: '/dashboard/kyc', icon: ShieldCheck },
-    { name: 'Browse Properties', href: '/dashboard/browse', icon: Eye },
-    { name: 'My Proposals', href: '/dashboard/proposals', icon: Gavel },
-    { name: 'Favorites', href: '/dashboard/favorites', icon: Heart },
-    { name: 'Services', href: '/dashboard/services', icon: Briefcase },
-    { name: 'Messages', href: '/dashboard/messages', icon: MessageSquare },
-    { name: 'Pricing Plans', href: '/dashboard/pricing', icon: DollarSign },
-    { name: 'Profile', href: '/dashboard/profile', icon: User },
-    { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+    { name: t('dashboard'), href: '/dashboard', icon: LayoutDashboard },
+    { name: t('kyc_verification'), href: '/dashboard/kyc', icon: ShieldCheck },
+    { name: t('browse_properties'), href: '/dashboard/browse', icon: Eye },
+    { name: t('my_proposals'), href: '/dashboard/proposals', icon: Gavel },
+    { name: t('favorites'), href: '/dashboard/favorites', icon: Heart },
+    { name: t('services'), href: '/dashboard/services', icon: Briefcase },
+    { name: t('messages'), href: '/dashboard/messages', icon: MessageSquare },
+    { name: t('pricing_plans'), href: '/dashboard/pricing', icon: DollarSign },
+    { name: t('profile'), href: '/dashboard/profile', icon: User },
+    { name: t('settings'), href: '/dashboard/settings', icon: Settings },
   ]
 
   // Seller Navigation
   const sellerNavigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'KYC Verification', href: '/dashboard/kyc', icon: ShieldCheck },
-    { name: 'My Listings', href: '/dashboard/listings', icon: Home },
-    { name: 'Offer Letters', href: '/dashboard/offer-letters', icon: Mail },
-    { name: 'Analytics', href: '/dashboard/analytics', icon: TrendingUp },
-    { name: 'Inquiries', href: '/dashboard/inquiries', icon: MessageSquare },
-    { name: 'Contracts', href: '/dashboard/contracts', icon: FileText },
-    { name: 'Earnings', href: '/dashboard/earnings', icon: DollarSign },
-    { name: 'Pricing Plans', href: '/dashboard/seller-pricing', icon: CreditCard },
-    { name: 'Profile', href: '/dashboard/profile', icon: User },
-    { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+    { name: t('dashboard'), href: '/dashboard', icon: LayoutDashboard },
+    { name: t('kyc_verification'), href: '/dashboard/kyc', icon: ShieldCheck },
+    { name: t('my_listings'), href: '/dashboard/listings', icon: Home },
+    { name: t('offer_letters'), href: '/dashboard/offer-letters', icon: Mail },
+    { name: t('analytics'), href: '/dashboard/analytics', icon: TrendingUp },
+    { name: t('inquiries'), href: '/dashboard/inquiries', icon: MessageSquare },
+    { name: t('contracts'), href: '/dashboard/contracts', icon: FileText },
+    { name: t('earnings'), href: '/dashboard/earnings', icon: DollarSign },
+    { name: t('pricing_plans'), href: '/dashboard/seller-pricing', icon: CreditCard },
+    { name: t('profile'), href: '/dashboard/profile', icon: User },
+    { name: t('settings'), href: '/dashboard/settings', icon: Settings },
   ]
 
   const navigation = userMode === 'buyer' ? buyerNavigation : sellerNavigation
@@ -289,8 +291,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   }`}
               >
                 <ShoppingCart size={16} className="sm:w-[18px] sm:h-[18px]" />
-                <span className="hidden sm:inline">Buyer</span>
-                <span className="sm:hidden">Buy</span>
+                <span className="hidden sm:inline">{t('buyer')}</span>
+                <span className="sm:hidden">{t('buyer')}</span>
               </button>
               <button
                 onClick={() => {
@@ -308,8 +310,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   }`}
               >
                 <Store size={16} className="sm:w-[18px] sm:h-[18px]" />
-                <span className="hidden sm:inline">Seller</span>
-                <span className="sm:hidden">Sell</span>
+                <span className="hidden sm:inline">{t('seller')}</span>
+                <span className="sm:hidden">{t('seller')}</span>
               </button>
             </div>
           </div>
@@ -366,7 +368,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               className="flex items-center space-x-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all w-full"
             >
               <LogOut size={20} />
-              <span className="font-medium">Logout</span>
+              <span className="font-medium">{t('logout')}</span>
             </button>
           </div>
         </div>
