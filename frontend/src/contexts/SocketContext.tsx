@@ -66,22 +66,22 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
                 const newSocket = getOrCreateSocket(token || undefined);
 
-                // Attach client-side listeners just once
-                newSocket.on('connect', () => {
+                // Define named handlers for proper cleanup
+                const handleConnect = () => {
                     console.log('✅ Socket connected');
                     setConnected(true);
-                });
+                };
 
-                newSocket.on('disconnect', () => {
+                const handleDisconnect = () => {
                     console.log('❌ Socket disconnected');
                     setConnected(false);
-                });
+                };
 
-                newSocket.on('error', (error: any) => {
+                const handleError = (error: any) => {
                     console.error('Socket error:', error);
-                });
+                };
 
-                newSocket.on('admin:force_logout', async (data: { userId: string }) => {
+                const handleForceLogout = async (data: { userId: string }) => {
                     if (user && data.userId === user.uid) {
                         console.warn('⚠️ Force logout triggered by admin');
                         localStorage.removeItem('auth_token');
@@ -89,9 +89,29 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
                         localStorage.removeItem('cached_user');
                         window.location.href = '/login?reason=deleted';
                     }
-                });
+                };
+
+                // Remove any existing listeners first to prevent duplicates
+                newSocket.off('connect', handleConnect);
+                newSocket.off('disconnect', handleDisconnect);
+                newSocket.off('error', handleError);
+                newSocket.off('admin:force_logout', handleForceLogout);
+
+                // Attach client-side listeners
+                newSocket.on('connect', handleConnect);
+                newSocket.on('disconnect', handleDisconnect);
+                newSocket.on('error', handleError);
+                newSocket.on('admin:force_logout', handleForceLogout);
 
                 setSocket(newSocket);
+                
+                // Store cleanup handlers for unmount
+                (newSocket as any).__cleanupHandlers = {
+                    handleConnect,
+                    handleDisconnect,
+                    handleError,
+                    handleForceLogout
+                };
             } catch (error) {
                 console.error('Failed to initialize socket:', error);
             }
@@ -100,8 +120,15 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         initSocket();
 
         return () => {
-            // Do not forcibly disconnect shared socket here — other providers may need it.
-            setSocket((s) => s);
+            // Cleanup: Remove event listeners to prevent memory leaks
+            // Do NOT disconnect the socket as it's shared across the app
+            if (socket && (socket as any).__cleanupHandlers) {
+                const handlers = (socket as any).__cleanupHandlers;
+                socket.off('connect', handlers.handleConnect);
+                socket.off('disconnect', handlers.handleDisconnect);
+                socket.off('error', handlers.handleError);
+                socket.off('admin:force_logout', handlers.handleForceLogout);
+            }
         };
     }, [user]);
 

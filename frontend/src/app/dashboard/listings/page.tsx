@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useMyListings, useDeleteProperty, useUpdateProperty } from '@/hooks/api';
+import { useMyListings, useDeleteProperty, useUpdateProperty, useUpdatePropertyStatus } from '@/hooks/api';
 import { LoadingSkeleton } from '@/components/LoadingSkeleton';
 import { NoPropertiesFound } from '@/components/EmptyState';
 import PropertyCard from '@/components/PropertyCard';

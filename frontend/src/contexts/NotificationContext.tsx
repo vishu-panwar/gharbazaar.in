@@ -202,6 +202,10 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
                 }
             };
 
+            // Remove any existing listeners first to prevent duplicates
+            socket.off('new_notification', handleNewNotification);
+            socket.off('new_announcement', handleNewAnnouncement);
+
             socket.on('new_notification', handleNewNotification);
             socket.on('new_announcement', handleNewAnnouncement);
 

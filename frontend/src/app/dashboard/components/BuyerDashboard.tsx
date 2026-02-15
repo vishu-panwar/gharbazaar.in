@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useLocale } from '@/contexts/LocaleContext';
 import PlanUsageWidget from '@/components/Dashboard/PlanUsageWidget';
@@ -50,10 +50,33 @@ export default function BuyerDashboard({ user, currentTime }: BuyerDashboardProp
   // Fetch real data using React Query hooks
   const { data: favorites, isLoading: favoritesLoading } = useFavorites();
   const { data: upcomingVisits, isLoading: visitsLoading } = useUpcomingVisits();
-  const { data: activeBidsCount } = useActiveBidsCount();
-  const { data: recommendedProperties, isLoading: propertiesLoading } = useProperties();
-  const { data: notifications } = useNotifications();
+  const { count: activeBidsCount } = useActiveBidsCount();
+  const { data: propertiesData, isLoading: propertiesLoading } = useProperties();
+  const { data: notificationsData } = useNotifications();
   const { data: unreadCount } = useUnreadNotificationCount();
+  
+  // Extract notifications array from response with defensive checks
+  const notifications = useMemo(() => {
+    if (!notificationsData) return [];
+    if (Array.isArray(notificationsData)) return notificationsData;
+    if (notificationsData.notifications && Array.isArray(notificationsData.notifications)) {
+      return notificationsData.notifications;
+    }
+    return [];
+  }, [notificationsData]);
+
+  // Extract properties array from response with defensive checks
+  const recommendedProperties = useMemo(() => {
+    if (!propertiesData) return [];
+    if (Array.isArray(propertiesData)) return propertiesData;
+    if (propertiesData.properties && Array.isArray(propertiesData.properties)) {
+      return propertiesData.properties;
+    }
+    if (propertiesData.data && Array.isArray(propertiesData.data)) {
+      return propertiesData.data;
+    }
+    return [];
+  }, [propertiesData]);
 
   const getGreeting = () => {
     const hour = currentTime.getHours();
@@ -200,7 +223,7 @@ export default function BuyerDashboard({ user, currentTime }: BuyerDashboardProp
             </Link>
           </div>
 
-          {!notifications || !Array.isArray(notifications) || notifications.length === 0 ? (
+          {notifications.length === 0 ? (
             <NoNotifications />
           ) : (
             <div className="space-y-3">

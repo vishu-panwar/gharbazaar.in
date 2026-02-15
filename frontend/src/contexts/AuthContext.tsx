@@ -134,6 +134,11 @@ export const AuthProvider = ({
         console.log('✅ Token verified! User:', userData.name || userData.email)
         setUser(userData)
         AuthUtils.cacheUser(userData)
+        
+        // Notify other contexts that auth state changed
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('authStateChanged', { detail: { user: userData, token } }))
+        }
       } else {
         console.warn('⚠️ Token verification failed:', response.error)
 
@@ -192,6 +197,11 @@ export const AuthProvider = ({
       // Cache user data
       AuthUtils.cacheUser(userData)
       setUser(userData)
+
+      // Notify other contexts (like SettingsContext) that auth state changed
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('authStateChanged', { detail: { user: userData, token } }))
+      }
 
       toast.success('Welcome back!')
 
@@ -264,6 +274,11 @@ export const AuthProvider = ({
       // Cache user data
       AuthUtils.cacheUser(userData)
       setUser(userData)
+
+      // Notify other contexts that auth state changed
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('authStateChanged', { detail: { user: userData, token } }))
+      }
 
       toast.success('Account created! Welcome to GharBazaar.')
 
@@ -372,6 +387,11 @@ export const AuthProvider = ({
       localStorage.removeItem('demo_user')
       AuthUtils.clearCache()
       setUser(null)
+
+      // Notify other contexts that user logged out
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('authStateChanged', { detail: { user: null, token: null } }))
+      }
 
       toast.success('Logged out successfully')
       router.push('/')

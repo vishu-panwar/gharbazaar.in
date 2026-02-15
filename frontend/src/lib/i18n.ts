@@ -3,9 +3,9 @@ import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
 // Translation resources
-import en from './locales/en.json';
-import hi from './locales/hi.json';
-import mr from './locales/mr.json';
+import en from '@/locales/en.json';
+import hi from '@/locales/hi.json';
+import mr from '@/locales/mr.json';
 
 i18n
     .use(LanguageDetector) // Detect user language

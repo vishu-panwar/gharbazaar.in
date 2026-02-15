@@ -8,10 +8,23 @@ import { sendEmail } from '../utils/email.service';
  */
 export const getSettings = async (req: Request, res: Response) => {
     try {
-        const userId = (req as any).user?.userId;
-        if (!userId) {
+        const userUid = (req as any).user?.userId;
+        if (!userUid) {
             return res.status(401).json({ success: false, message: 'User not authenticated' });
         }
+
+        // First check if user exists and get their ID
+        const user = await prisma.user.findUnique({
+            where: { uid: userUid },
+            select: { id: true }
+        });
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        // Use the user's actual ID (not uid) for UserSettings
+        const userId = user.id;
 
         let settings = await prisma.userSettings.findUnique({
             where: { userId }
@@ -19,11 +32,40 @@ export const getSettings = async (req: Request, res: Response) => {
 
         // Create default settings if none exist
         if (!settings) {
-            settings = await prisma.userSettings.create({
-                data: {
-                    userId
+            try {
+                settings = await prisma.userSettings.create({
+                    data: {
+                        userId
+                    }
+                });
+            } catch (error: any) {
+                // If creation fails (e.g., race condition), try to fetch again
+                console.error('Error creating settings, attempting to fetch:', error);
+                settings = await prisma.userSettings.findUnique({
+                    where: { userId }
+                });
+                
+                // If still no settings, return default values without saving
+                if (!settings) {
+                    return res.json({
+                        success: true,
+                        data: {
+                            id: null,
+                            userId,
+                            theme: 'system',
+                            language: 'en',
+                            currency: 'INR',
+                            timezone: 'Asia/Kolkata',
+                            emailFrequency: 'realtime',
+                            notificationPreferences: {
+                                push: true,
+                                email: true,
+                                sms: false
+                            }
+                        }
+                    });
                 }
-            });
+            }
         }
 
         res.json({ success: true, data: settings });
@@ -39,10 +81,22 @@ export const getSettings = async (req: Request, res: Response) => {
  */
 export const updateSettings = async (req: Request, res: Response) => {
     try {
-        const userId = (req as any).user?.userId;
-        if (!userId) {
+        const userUid = (req as any).user?.userId;
+        if (!userUid) {
             return res.status(401).json({ success: false, message: 'User not authenticated' });
         }
+
+        // Get user by uid and retrieve their actual ID
+        const user = await prisma.user.findUnique({
+            where: { uid: userUid },
+            select: { id: true, email: true, name: true }
+        });
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        const userId = user.id;
 
         const {
             theme,
@@ -72,13 +126,7 @@ export const updateSettings = async (req: Request, res: Response) => {
             }
         });
 
-        // Get user details for email notification
-        const user = await prisma.user.findUnique({
-            where: { uid: userId },
-            select: { email: true, name: true }
-        });
-
-        // Send email notification if user has email
+        // Send email notification if user has email (user already fetched above)
         if (user?.email) {
             const changedFields = Object.keys(updateData)
                 .map(key => `${key}: ${JSON.stringify(updateData[key])}`)

@@ -66,7 +66,7 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
             setIsLoading(true)
             setError(null)
 
-            const token = localStorage.getItem('token')
+            const token = localStorage.getItem('auth_token') || localStorage.getItem('token')
             if (!token) {
                 // Not logged in, use default settings
                 setSettings(defaultSettings)
@@ -81,12 +81,36 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
             })
 
             if (!response.ok) {
+                // If unauthorized, use defaults
+                if (response.status === 401) {
+                    setSettings(defaultSettings)
+                    setIsLoading(false)
+                    return
+                }
                 throw new Error('Failed to fetch settings')
             }
 
             const data = await response.json()
             if (data.success && data.data) {
                 setSettings(data.data)
+                
+                // Sync with localStorage for backward compatibility
+                localStorage.setItem('user_settings', JSON.stringify(data.data))
+                
+                // Sync theme with next-themes
+                if (data.data.theme && typeof window !== 'undefined') {
+                    localStorage.setItem('theme', data.data.theme)
+                }
+                
+                // Sync language with LocaleContext (triggers i18next)
+                if (data.data.language && typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('languageChange', { detail: data.data.language }))
+                }
+                
+                // Sync currency with LocaleContext
+                if (data.data.currency && typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('currencyChange', { detail: data.data.currency }))
+                }
             } else {
                 setSettings(defaultSettings)
             }
@@ -103,7 +127,7 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
         try {
             setError(null)
 
-            const token = localStorage.getItem('token')
+            const token = localStorage.getItem('auth_token') || localStorage.getItem('token')
             if (!token) {
                 throw new Error('Not authenticated')
             }
@@ -124,6 +148,32 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
             const data = await response.json()
             if (data.success && data.data) {
                 setSettings(data.data)
+                
+                // Sync with localStorage
+                localStorage.setItem('user_settings', JSON.stringify(data.data))
+                
+                // Sync theme with next-themes
+                if (newSettings.theme && typeof window !== 'undefined') {
+                    localStorage.setItem('theme', newSettings.theme)
+                    // Trigger next-themes to re-read the theme
+                    window.dispatchEvent(new StorageEvent('storage', {
+                        key: 'theme',
+                        newValue: newSettings.theme,
+                        storageArea: localStorage
+                    }))
+                }
+                
+                // Apply language change to i18next if language was updated
+                if (newSettings.language && typeof window !== 'undefined') {
+                    // Dispatch custom event for language change
+                    window.dispatchEvent(new CustomEvent('languageChange', { detail: newSettings.language }))
+                }
+                
+                // Apply currency change to LocaleContext if currency was updated
+                if (newSettings.currency && typeof window !== 'undefined') {
+                    // Dispatch custom event for currency change
+                    window.dispatchEvent(new CustomEvent('currencyChange', { detail: newSettings.currency }))
+                }
             }
         } catch (err: any) {
             console.error('Error updating settings:', err)
@@ -136,8 +186,33 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
         await fetchSettings()
     }
 
+    // Initial fetch on mount
     useEffect(() => {
         fetchSettings()
+    }, [])
+
+    // Listen for authentication changes
+    useEffect(() => {
+        const handleAuthChange = () => {
+            console.log('🔄 Auth state changed, refetching settings...')
+            fetchSettings()
+        }
+
+        // Listen for custom auth events
+        window.addEventListener('authStateChanged', handleAuthChange)
+        
+        // Also listen for storage changes (when token is set/removed)
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === 'auth_token' || e.key === 'token') {
+                fetchSettings()
+            }
+        }
+        window.addEventListener('storage', handleStorageChange)
+
+        return () => {
+            window.removeEventListener('authStateChanged', handleAuthChange)
+            window.removeEventListener('storage', handleStorageChange)
+        }
     }, [])
 
     // Apply theme changes instantly

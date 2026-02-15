@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import PlanUsageWidget from '@/components/Dashboard/PlanUsageWidget';
 import UpgradeBanner from '@/components/Dashboard/UpgradeBanner';
@@ -44,12 +44,51 @@ export default function SellerDashboard({ user, currentTime }: SellerDashboardPr
   const [showExpandModal, setShowExpandModal] = useState(false);
 
   // Fetch real data using React Query hooks
-  const { data: myListings, isLoading: listingsLoading } = useMyListings();
-  const { data: sellerBids, isLoading: bidsLoading } = useSellerBids();
+  const { data: listingsData, isLoading: listingsLoading } = useMyListings();
+  const { data: bidsData, isLoading: bidsLoading } = useSellerBids();
   const { data: earnings, isLoading: earningsLoading } = useEarnings();
   const { data: propertyAnalytics } = usePropertyStats();
-  const { data: notifications } = useNotifications();
+  const { data: notificationsData } = useNotifications();
   const { data: unreadCount } = useUnreadNotificationCount();
+  
+  // Extract notifications array from response with defensive checks
+  const notifications = useMemo(() => {
+    if (!notificationsData) return [];
+    if (Array.isArray(notificationsData)) return notificationsData;
+    if (notificationsData.notifications && Array.isArray(notificationsData.notifications)) {
+      return notificationsData.notifications;
+    }
+    return [];
+  }, [notificationsData]);
+
+  // Extract listings array from response with defensive checks
+  const myListings = useMemo(() => {
+    if (!listingsData) return [];
+    if (Array.isArray(listingsData)) return listingsData;
+    if (listingsData.listings && Array.isArray(listingsData.listings)) {
+      return listingsData.listings;
+    }
+    if (listingsData.properties && Array.isArray(listingsData.properties)) {
+      return listingsData.properties;
+    }
+    if (listingsData.data && Array.isArray(listingsData.data)) {
+      return listingsData.data;
+    }
+    return [];
+  }, [listingsData]);
+
+  // Extract bids array from response with defensive checks
+  const sellerBids = useMemo(() => {
+    if (!bidsData) return [];
+    if (Array.isArray(bidsData)) return bidsData;
+    if (bidsData.bids && Array.isArray(bidsData.bids)) {
+      return bidsData.bids;
+    }
+    if (bidsData.data && Array.isArray(bidsData.data)) {
+      return bidsData.data;
+    }
+    return [];
+  }, [bidsData]);
 
   const getGreeting = () => {
     const hour = currentTime.getHours();
@@ -190,10 +229,10 @@ export default function SellerDashboard({ user, currentTime }: SellerDashboardPr
           {listingsLoading ? (
             <PropertyCardSkeleton count={3} />
           ) : !myListings || myListings.length === 0 ? (
-            <NoPropertiesFound
-              message="You haven't listed any properties yet"
-              onBrowse={() => (window.location.href = '/dashboard/listings/new')}
-              buttonText="Add Property"
+            <EmptyState
+              icon={<Home size={48} />}
+              title="No Properties Yet"
+              description="You haven't listed any properties yet"
             />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -274,7 +313,7 @@ export default function SellerDashboard({ user, currentTime }: SellerDashboardPr
             </Link>
           </div>
 
-          {!notifications || !Array.isArray(notifications) || notifications.length === 0 ? (
+          {notifications.length === 0 ? (
             <NoNotifications />
           ) : (
             <div className="space-y-3">

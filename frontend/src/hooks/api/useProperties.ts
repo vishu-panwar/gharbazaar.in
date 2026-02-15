@@ -46,7 +46,7 @@ export function useProperties(filters?: PropertyFilters, options?: { enabled?: b
   return useQuery({
     queryKey: propertyKeys.list(filters),
     queryFn: async () => {
-      return await backendApi.properties.getAll(filters);
+      return await backendApi.properties.search(filters);
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
     enabled: options?.enabled ?? true,
@@ -60,7 +60,7 @@ export function useInfiniteProperties(filters?: PropertyFilters) {
   return useInfiniteQuery({
     queryKey: [...propertyKeys.list(filters), 'infinite'],
     queryFn: async ({ pageParam = 1 }) => {
-      return await backendApi.properties.getAll({ ...filters, page: pageParam });
+      return await backendApi.properties.search({ ...filters, page: pageParam });
     },
     getNextPageParam: (lastPage, pages) => {
       if (lastPage.hasMore) {
@@ -94,7 +94,7 @@ export function useMyListings(userId?: string) {
   return useQuery({
     queryKey: propertyKeys.myListings(userId),
     queryFn: async () => {
-      return await backendApi.properties.getMyListings();
+      return await backendApi.properties.search({ userId });
     },
     enabled: !!userId || typeof window !== 'undefined',
     staleTime: 2 * 60 * 1000,
@@ -150,6 +150,26 @@ export function useUpdateProperty() {
 }
 
 /**
+ * Hook to update property status (ACTIVE/INACTIVE)
+ */
+export function useUpdatePropertyStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ propertyId, status }: { propertyId: string; status: string }) => {
+      return await backendApi.properties.update(propertyId, { status });
+    },
+    onSuccess: (_, variables) => {
+      // Invalidate specific property and lists
+      queryClient.invalidateQueries({ queryKey: propertyKeys.detail(variables.propertyId) });
+      queryClient.invalidateQueries({ queryKey: propertyKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: propertyKeys.myListings() });
+    },
+  });
+}
+
+
+/**
  * Hook to delete a property listing
  */
 export function useDeleteProperty() {
@@ -175,7 +195,7 @@ export function usePropertyInsights(id: string) {
   return useQuery({
     queryKey: propertyKeys.insights(id),
     queryFn: async () => {
-      return await backendApi.properties.getInsights(id);
+      return await backendApi.properties.getById(id);
     },
     enabled: !!id,
     staleTime: 5 * 60 * 1000,
@@ -189,7 +209,7 @@ export function usePropertyViews(id: string) {
   return useQuery({
     queryKey: propertyKeys.views(id),
     queryFn: async () => {
-      return await backendApi.properties.getViews(id);
+      return await backendApi.properties.getById(id);
     },
     enabled: !!id,
     staleTime: 1 * 60 * 1000, // 1 minute
@@ -220,7 +240,8 @@ export function useTrackPropertyView() {
 export function useUploadPropertyImages() {
   return useMutation({
     mutationFn: async ({ propertyId, files }: { propertyId: string; files: File[] }) => {
-      return await backendApi.upload.uploadPropertyImages(propertyId, files);
+      const uploadPromises = files.map(file => backendApi.properties.uploadImage(file));
+      return await Promise.all(uploadPromises);
     },
   });
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import i18n from '@/lib/i18n';
 
 type Language = 'en' | 'hi' | 'mr' | 'ta';
 type Currency = 'INR' | 'USD' | 'GBP' | 'EUR' | 'AED' | 'CAD' | 'AUD';
@@ -117,18 +118,63 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     const [language, setLanguageState] = useState<Language>('en');
     const [currency, setCurrencyState] = useState<Currency>('INR');
 
-    // Load from localStorage on mount
+    // Load from localStorage on mount (prioritize user_settings from SettingsContext)
     useEffect(() => {
+        // Try to load from SettingsContext's localStorage first
+        const userSettings = localStorage.getItem('user_settings');
+        if (userSettings) {
+            try {
+                const settings = JSON.parse(userSettings);
+                if (settings.language) {
+                    setLanguageState(settings.language);
+                    i18n.changeLanguage(settings.language); // Sync with i18next
+                }
+                if (settings.currency) {
+                    setCurrencyState(settings.currency);
+                }
+                return; // Use settings from database
+            } catch (e) {
+                console.error('Failed to parse user_settings:', e);
+            }
+        }
+
+        // Fallback to legacy localStorage keys
         const savedLang = localStorage.getItem('userLanguage') as Language;
         const savedCurr = localStorage.getItem('userCurrency') as Currency;
 
-        if (savedLang) setLanguageState(savedLang);
+        if (savedLang) {
+            setLanguageState(savedLang);
+            i18n.changeLanguage(savedLang);
+        }
         if (savedCurr) setCurrencyState(savedCurr);
+    }, []);
+
+    // Listen for language/currency changes from SettingsContext
+    useEffect(() => {
+        const handleLanguageChange = (e: CustomEvent) => {
+            const newLang = e.detail as Language;
+            setLanguageState(newLang);
+            i18n.changeLanguage(newLang);
+        };
+
+        const handleCurrencyChange = (e: CustomEvent) => {
+            const newCurr = e.detail as Currency;
+            setCurrencyState(newCurr);
+        };
+
+        window.addEventListener('languageChange', handleLanguageChange as EventListener);
+        window.addEventListener('currencyChange', handleCurrencyChange as EventListener);
+
+        return () => {
+            window.removeEventListener('languageChange', handleLanguageChange as EventListener);
+            window.removeEventListener('currencyChange', handleCurrencyChange as EventListener);
+        };
     }, []);
 
     const setLanguage = (lang: Language) => {
         setLanguageState(lang);
         localStorage.setItem('userLanguage', lang);
+        i18n.changeLanguage(lang); // Sync with i18next
     };
 
     const setCurrency = (curr: Currency) => {
