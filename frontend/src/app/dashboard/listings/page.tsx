@@ -1,389 +1,272 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useMyListings, useDeleteProperty, useUpdateProperty, useUpdatePropertyStatus } from '@/hooks/api';
+import { LoadingSkeleton } from '@/components/LoadingSkeleton';
+import { NoPropertiesFound } from '@/components/EmptyState';
+import PropertyCard from '@/components/PropertyCard';
+import { formatCurrency } from '@/lib/currency';
 import {
-  Search,
-  Filter,
-  MapPin,
-  Bed,
-  Bath,
-  Square,
-  Heart,
-  Eye,
-  Home,
-  Building2,
-  TrendingUp,
-  DollarSign,
-  SlidersHorizontal,
-  X,
-  ChevronDown,
-  Star,
-  CheckCircle,
-  Sparkles,
-  Map,
-  List,
-  ArrowUpDown,
+  Plus,
+  Grid,
+  List as ListIcon,
   Edit,
   Trash2,
+  Eye,
+  BarChart3,
+  Play,
+  Pause,
   MoreVertical,
   Calendar,
-  Users,
-  MessageCircle,
-  Phone,
-  Mail,
-  Clock,
-  AlertCircle,
-  CheckCircle2,
-  XCircle,
-  Pause,
-  Play,
-  Plus,
-  BarChart3,
-  Camera,
-  Share2
-} from 'lucide-react'
-import PropertyCard from '@/components/PropertyCard'
-import { useSellerSubscription } from '@/contexts/SellerSubscriptionContext'
-import { backendApi } from '@/lib/backendApi'
-import { useAuth } from '@/contexts/AuthContext'
-import toast from 'react-hot-toast'
+  MapPin,
+  Home,
+} from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function MyListingsPage() {
-  const router = useRouter()
-  const { canAddListing } = useSellerSubscription()
-  const { user } = useAuth()
-  const [listings, setListings] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  const [showFilters, setShowFilters] = useState(false)
-  const [filters, setFilters] = useState({
-    status: 'all',
-    propertyType: 'all',
-    listingType: 'all',
-    priceRange: 'all',
-    sortBy: 'newest'
-  })
+  const router = useRouter();
+  const { data: listings, isLoading, error } = useMyListings();
+  const deleteProperty = useDeleteProperty();
+  const updateStatus = useUpdatePropertyStatus();
 
-  useEffect(() => {
-    const fetchListings = async () => {
-      if (!user) return
-      try {
-        setLoading(true)
-        const response = await backendApi.properties.getUserProperties(user.uid)
-        if (response.success) {
-          setListings(response.properties || [])
-        }
-      } catch (error) {
-        console.error('Error fetching listings:', error)
-        toast.error('Failed to load listings')
-      } finally {
-        setLoading(false)
-      }
-    }
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'PENDING' | 'VERIFIED' | 'ACTIVE' | 'SOLD'>('all');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
-    fetchListings()
-  }, [user])
-
-  const handleAddListing = () => {
-    if (canAddListing()) {
-      router.push('/dashboard/listings/new')
-    } else {
-      router.push('/dashboard/seller-pricing')
-    }
-  }
-
-  // Sample seller listings data with rental properties included
-  const [filteredListings, setFilteredListings] = useState<any[]>([])
-
-  useEffect(() => {
-    let result = [...listings]
-
-    if (filters.status !== 'all') {
-      result = result.filter(l => l.status === filters.status)
-    }
-    if (filters.propertyType !== 'all') {
-      result = result.filter(l => l.propertyType?.toLowerCase() === filters.propertyType.toLowerCase())
-    }
-    if (filters.listingType !== 'all') {
-      result = result.filter(l => l.listingType === filters.listingType)
-    }
-
-    setFilteredListings(result)
-  }, [listings, filters])
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-green-100 text-green-800 border-green-200'
-      case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200'
-      case 'sold': return 'bg-blue-100 text-blue-800 border-blue-200'
-      case 'paused': return 'bg-amber-100 text-amber-800 border-amber-200'
-      case 'cancelled': return 'bg-gray-100 text-gray-800 border-gray-200'
-      case 'deleted': return 'bg-red-900 text-white border-red-700'
-      case 'inactive': return 'bg-gray-100 text-gray-800 border-gray-200'
-      default: return 'bg-gray-100 text-gray-800 border-gray-200'
-    }
-  }
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'active': return <CheckCircle2 size={14} />
-      case 'pending': return <Clock size={14} />
-      case 'sold': return <CheckCircle size={14} />
-      case 'paused': return <Pause size={14} />
-      case 'cancelled': return <XCircle size={14} />
-      case 'deleted': return <Trash2 size={14} />
-      case 'inactive': return <AlertCircle size={14} />
-      default: return <AlertCircle size={14} />
-    }
-  }
-
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this listing?')) return
-
+  const handleDelete = async (propertyId: string) => {
     try {
-      const response = await backendApi.properties.delete(id)
-      if (response.success) {
-        toast.success('Listing deleted successfully')
-        setListings(listings.filter(l => (l._id || l.id) !== id))
-      }
+      await deleteProperty.mutateAsync(propertyId);
+      toast.success('Property deleted successfully');
+      setShowDeleteConfirm(null);
     } catch (error) {
-      console.error('Error deleting listing:', error)
-      toast.error('Failed to delete listing')
+      toast.error('Failed to delete property');
     }
+  };
+
+  const handleToggleStatus = async (propertyId: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    try {
+      await updateStatus.mutateAsync({ propertyId, status: newStatus });
+      toast.success(`Property ${newStatus === 'ACTIVE' ? 'activated' : 'paused'}`);
+    } catch (error) {
+      toast.error('Failed to update status');
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const badges = {
+      PENDING: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+      VERIFIED: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+      ACTIVE: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+      SOLD: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
+      INACTIVE: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400',
+    };
+    return badges[status as keyof typeof badges] || badges.PENDING;
+  };
+
+  const filteredListings = statusFilter === 'all'
+    ? listings
+    : listings?.filter((listing: any) => listing.status === statusFilter);
+
+  if (isLoading) {
+    return (
+      <div className="max-w-7xl mx-auto p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold">My Listings</h1>
+        </div>
+        <LoadingSkeleton variant="card" count={6} />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto p-6">
+        <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
+          <p className="text-red-600 dark:text-red-400">Failed to load listings</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-7xl mx-auto p-6 space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white flex items-center">
-            <Home className="mr-3 text-green-500" size={28} />
-            My Listings
-          </h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">My Listings</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Manage your <span className="font-semibold text-gray-900 dark:text-white">{listings.length}</span> property listings
+            {listings?.length || 0} {listings?.length === 1 ? 'property' : 'properties'}
           </p>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={handleAddListing}
-            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center space-x-2 shadow-lg"
-          >
-            <Plus size={18} />
-            <span>Add New Listing</span>
-          </button>
+        <button
+          onClick={() => router.push('/dashboard/listings/new')}
+          className="flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white px-6 py-3 rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl"
+        >
+          <Plus size={20} />
+          Add Property
+        </button>
+      </div>
 
+      {/* Filters */}
+      <div className="flex items-center justify-between gap-4">
+        {/* Status Filter */}
+        <div className="flex gap-2 flex-wrap">
+          {['all', 'PENDING', 'VERIFIED', 'ACTIVE', 'SOLD'].map((status) => (
+            <button
+              key={status}
+              onClick={() => setStatusFilter(status as any)}
+              className={`px-4 py-2 rounded-lg font-semibold transition-colors ${statusFilter === status
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                }`}
+            >
+              {status === 'all' ? 'All' : status}
+            </button>
+          ))}
+        </div>
+
+        {/* View Mode Toggle */}
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setViewMode('grid')}
-            className={`p-2 rounded-lg transition-all ${viewMode === 'grid'
-              ? 'bg-green-600 text-white'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+            className={`p-2 rounded-lg transition-colors ${viewMode === 'grid'
+                ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
+                : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
               }`}
           >
-            <Building2 size={20} />
+            <Grid size={20} />
           </button>
           <button
             onClick={() => setViewMode('list')}
-            className={`p-2 rounded-lg transition-all ${viewMode === 'list'
-              ? 'bg-green-600 text-white'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+            className={`p-2 rounded-lg transition-colors ${viewMode === 'list'
+                ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
+                : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
               }`}
           >
-            <List size={20} />
+            <ListIcon size={20} />
           </button>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-800">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Total Listings</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{listings.length}</p>
+      {/* Listings Grid */}
+      {!filteredListings || filteredListings.length === 0 ? (
+        <NoPropertiesFound
+          message="No listings found"
+          onBrowse={() => router.push('/dashboard/listings/new')}
+          buttonText="Add Property"
+        />
+      ) : (
+        <div
+          className={
+            viewMode === 'grid'
+              ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+              : 'space-y-4'
+          }
+        >
+          {filteredListings.map((listing: any) => (
+            <div key={listing.id} className="relative group">
+              <PropertyCard property={listing} />
+
+              {/* Status Badge */}
+              <div className="absolute top-3 left-3">
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadge(listing.status)}`}>
+                  {listing.status}
+                </span>
+              </div>
+
+              {/* Action Menu */}
+              <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() => router.push(`/dashboard/listings/${listing.id}`)}
+                    className="p-2 bg-white dark:bg-gray-800 rounded-full shadow-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                    title="Edit"
+                  >
+                    <Edit size={16} className="text-blue-600 dark:text-blue-400" />
+                  </button>
+
+                  <button
+                    onClick={() => router.push(`/dashboard/analytics?property=${listing.id}`)}
+                    className="p-2 bg-white dark:bg-gray-800 rounded-full shadow-lg hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
+                    title="Analytics"
+                  >
+                    <BarChart3 size={16} className="text-purple-600 dark:text-purple-400" />
+                  </button>
+
+                  <button
+                    onClick={() => handleToggleStatus(listing.id, listing.status)}
+                    className="p-2 bg-white dark:bg-gray-800 rounded-full shadow-lg hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors"
+                    title={listing.status === 'ACTIVE' ? 'Pause' : 'Activate'}
+                  >
+                    {listing.status === 'ACTIVE' ? (
+                      <Pause size={16} className="text-orange-600 dark:text-orange-400" />
+                    ) : (
+                      <Play size={16} className="text-green-600 dark:text-green-400" />
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => setShowDeleteConfirm(listing.id)}
+                    className="p-2 bg-white dark:bg-gray-800 rounded-full shadow-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 size={16} className="text-red-600 dark:text-red-400" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Stats Overlay */}
+              <div className="absolute bottom-3 left-3 right-3 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-lg p-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-1">
+                    <Eye size={14} className="text-gray-600 dark:text-gray-400" />
+                    <span className="text-gray-900 dark:text-white font-semibold">
+                      {listing.viewCount || 0}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Calendar size={14} className="text-gray-600 dark:text-gray-400" />
+                    <span className="text-gray-900 dark:text-white">
+                      {new Date(listing.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
-              <Home className="text-green-600" size={24} />
+          ))}
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+              Delete Property?
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              This action cannot be undone. The property will be permanently removed.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(null)}
+                className="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDelete(showDeleteConfirm)}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>
-
-        <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-800">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Active Listings</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {listings.filter(l => l.status === 'active').length}
-              </p>
-            </div>
-            <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-              <CheckCircle2 className="text-blue-600" size={24} />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-800">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Total Views</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {listings.reduce((sum, l) => sum + l.views, 0).toLocaleString()}
-              </p>
-            </div>
-            <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
-              <Eye className="text-purple-600" size={24} />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-800">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Total Inquiries</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {listings.reduce((sum, l) => sum + l.inquiries, 0)}
-              </p>
-            </div>
-            <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center">
-              <MessageCircle className="text-orange-600" size={24} />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Search & Filter Bar */}
-      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-800 p-4">
-        <div className="flex flex-col lg:flex-row gap-4">
-          {/* Search */}
-          <div className="flex-1 relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-            <input
-              type="text"
-              placeholder="Search your listings..."
-              className="w-full pl-12 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-            />
-          </div>
-
-          {/* Quick Filters */}
-          <div className="flex gap-2 overflow-x-auto">
-            <select
-              className="px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-green-500"
-              value={filters.listingType}
-              onChange={(e) => setFilters({ ...filters, listingType: e.target.value })}
-            >
-              <option value="all">Sale & Rent</option>
-              <option value="sale">For Sale</option>
-              <option value="rent">For Rent</option>
-            </select>
-
-            <select
-              className="px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-green-500"
-              value={filters.status}
-              onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-            >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="pending">Pending</option>
-              <option value="sold">Sold</option>
-              <option value="paused">Paused</option>
-              <option value="cancelled">Cancelled</option>
-              <option value="deleted">Deleted</option>
-              <option value="inactive">Inactive</option>
-            </select>
-
-            <select
-              className="px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-green-500"
-              value={filters.propertyType}
-              onChange={(e) => setFilters({ ...filters, propertyType: e.target.value })}
-            >
-              <option value="all">All Types</option>
-              <option value="apartment">Apartment</option>
-              <option value="villa">Villa</option>
-              <option value="house">House</option>
-            </select>
-
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center space-x-2 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-all"
-            >
-              <SlidersHorizontal size={20} />
-              <span className="hidden sm:inline">More Filters</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Results Count */}
-      <div className="flex items-center justify-between">
-        <p className="text-gray-600 dark:text-gray-400">
-          Showing <span className="font-semibold text-gray-900 dark:text-white">{filteredListings.length}</span> listings
-        </p>
-        <div className="flex items-center space-x-2">
-          <button className="text-green-600 hover:text-green-700 font-medium flex items-center space-x-1 transition-colors">
-            <BarChart3 size={18} />
-            <span>Analytics</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Listings Grid/List */}
-      <div className={viewMode === 'grid'
-        ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6'
-        : 'space-y-6'
-      }>
-        {filteredListings.map((listing) => (
-          <div key={listing._id || listing.id} className="relative group">
-            <PropertyCard
-                viewMode={viewMode}
-                property={{
-                ...listing,
-                id: listing._id || listing.id,
-                image: listing.photos?.[0] || listing.image,
-                beds: listing.bedrooms || listing.beds || 0,
-                baths: listing.bathrooms || listing.baths || 0,
-                area: listing.area || listing.size || 'N/A',
-                views: listing.views || 0,
-                rating: listing.rating || 4.5
-                }}
-            />
-            {/* Seller Actions Overlay */}
-            <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                 {listing.status === 'active' && (
-                    <Link
-                        href={`/dashboard/listings/${listing._id || listing.id}/edit`}
-                        className="p-2 bg-white text-gray-700 hover:text-green-600 rounded-full shadow-lg transition-colors"
-                        title="Edit Listing"
-                    >
-                        <Edit size={16} />
-                    </Link>
-                )}
-                {listing.status !== 'deleted' && (
-                    <button
-                        onClick={(e) => {
-                            e.preventDefault();
-                            handleDelete(listing._id || listing.id);
-                        }}
-                        className="p-2 bg-white text-gray-700 hover:text-red-600 rounded-full shadow-lg transition-colors"
-                        title="Delete Listing"
-                    >
-                        <Trash2 size={16} />
-                    </button>
-                )}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Load More */}
-      <div className="flex justify-center pt-6">
-        <button className="bg-white dark:bg-gray-900 border-2 border-green-600 text-green-600 hover:bg-green-600 hover:text-white px-8 py-3 rounded-lg font-semibold transition-all">
-          Load More Listings
-        </button>
-      </div>
+      )}
     </div>
-  )
+  );
 }

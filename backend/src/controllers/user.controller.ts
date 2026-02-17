@@ -19,6 +19,11 @@ export const getProfile = async (req: Request, res: Response) => {
             }
         });
 
+        // Check if user is soft deleted
+        if (user?.deletedAt) {
+            return res.status(404).json({ success: false, error: 'User not found' });
+        }
+
         if (user) {
             return res.json({
                 success: true,
@@ -64,6 +69,11 @@ export const getStats = async (req: Request, res: Response) => {
             }
         });
 
+        // Check if user is soft deleted
+        if (user?.deletedAt) {
+            return res.status(404).json({ success: false, error: 'User not found' });
+        }
+
         if (!user) {
             return res.status(404).json({ success: false, error: 'User not found in database' });
         }
@@ -76,8 +86,8 @@ export const getStats = async (req: Request, res: Response) => {
             receivedBids,
             unreadNotificationsCount
         ] = await Promise.all([
-            prisma.property.count({ where: { sellerId: userId, status: 'active' } }),
-            prisma.property.findMany({ where: { sellerId: userId } }),
+            prisma.property.count({ where: { sellerId: userId, status: 'active', deletedAt: null } }),
+            prisma.property.findMany({ where: { sellerId: userId, deletedAt: null } }),
             prisma.bid.count({ where: { buyerId: userId } }),
             prisma.bid.findMany({ where: { sellerId: userId } }),
             prisma.notification.count({ where: { userId, isRead: false } })
@@ -120,6 +130,100 @@ export const getStats = async (req: Request, res: Response) => {
             success: false,
             error: 'Failed to get stats',
             details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+};
+
+// @desc    Soft delete a user
+// @route   DELETE /api/v1/users/:id
+// @access  Private (Admin only)
+export const softDeleteUser = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const adminId = (req as any).user?.uid;
+
+        // Verify user exists
+        const user = await prisma.user.findUnique({
+            where: { uid: id },
+            select: { uid: true, deletedAt: true, email: true },
+        });
+
+        if (!user || user.deletedAt) {
+            return res.status(404).json({
+                success: false,
+                error: 'User not found',
+            });
+        }
+
+        // Soft delete the user
+        const updatedUser = await prisma.user.update({
+            where: { uid: id },
+            data: {
+                deletedAt: new Date(),
+                deletedBy: adminId,
+            },
+        });
+
+        res.json({
+            success: true,
+            message: 'User deleted successfully',
+            data: { uid: updatedUser.uid, email: updatedUser.email },
+        });
+    } catch (error: any) {
+        console.error('softDeleteUser error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to delete user',
+        });
+    }
+};
+
+// @desc    Restore a soft-deleted user
+// @route   POST /api/v1/users/:id/restore
+// @access  Private (Admin only)
+export const restoreUser = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+
+        // Verify user exists and is deleted
+        const user = await prisma.user.findUnique({
+            where: { uid: id },
+            select: { uid: true, deletedAt: true, email: true },
+        });
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                error: 'User not found',
+            });
+        }
+
+        if (!user.deletedAt) {
+            return res.status(400).json({
+                success: false,
+                error: 'User is not deleted',
+            });
+        }
+
+        // Restore the user
+        const restoredUser = await prisma.user.update({
+            where: { uid: id },
+            data: {
+                deletedAt: null,
+                deletedBy: null,
+            },
+        });
+
+        res.json({
+            success: true,
+            message: 'User restored successfully',
+            data: { uid: restoredUser.uid, email: restoredUser.email },
+        });
+    } catch (error: any) {
+        console.error('restoreUser error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to restore user',
         });
     }
 };

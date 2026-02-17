@@ -31,4 +31,8 @@ router.post(
 );
 router.get('/user/:userId', authenticate, propertyController.getUserProperties);
 
+// Soft delete and restore routes
+router.delete('/:id', authenticate, propertyController.softDeleteProperty);
+router.post('/:id/restore', authenticate, propertyController.restoreProperty);
+
 export default router;

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { prisma } from '../utils/database';
+import { prisma } from '../utils/prisma';
 import ipGeolocationService from '../utils/ipGeolocation.service';
 
 /**
@@ -166,7 +166,7 @@ export const getMyRequest = async (req: Request, res: Response) => {
 export const checkUserLocation = async (req: Request, res: Response) => {
     try {
         const ipAddress = req.ip || req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || '';
-        
+
         const location = await ipGeolocationService.getLocation(ipAddress);
         const isInOperatingCity = await ipGeolocationService.isInOperatingCity(ipAddress);
 
@@ -268,7 +268,7 @@ export const getPriorityRequests = async (req: Request, res: Response) => {
 
         const stats = await prisma.expandRequest.groupBy({
             by: ['city', 'state'],
-            where: { 
+            where: {
                 priority: true,
                 status: 'pending'
             },
@@ -332,7 +332,7 @@ export const setPriority = async (req: Request, res: Response) => {
     try {
         const userId = (req as any).user?.userId || (req as any).user?.id;
         const userRole = (req as any).user?.role;
-        
+
         if (userRole !== 'employee' && userRole !== 'admin') {
             return res.status(403).json({
                 success: false,
@@ -351,8 +351,8 @@ export const setPriority = async (req: Request, res: Response) => {
 
         // Set priority for all requests from this city
         const result = await prisma.expandRequest.updateMany({
-            where: { 
-                city: city.trim(), 
+            where: {
+                city: city.trim(),
                 state: state.trim(),
                 status: 'pending'
             },
@@ -385,7 +385,7 @@ export const setPriority = async (req: Request, res: Response) => {
 export const removePriority = async (req: Request, res: Response) => {
     try {
         const userRole = (req as any).user?.role;
-        
+
         if (userRole !== 'employee' && userRole !== 'admin') {
             return res.status(403).json({
                 success: false,
@@ -404,8 +404,8 @@ export const removePriority = async (req: Request, res: Response) => {
 
         // Remove priority for all requests from this city
         const result = await prisma.expandRequest.updateMany({
-            where: { 
-                city: city.trim(), 
+            where: {
+                city: city.trim(),
                 state: state.trim()
             },
             data: {

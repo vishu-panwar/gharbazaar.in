@@ -1,11 +1,8 @@
-
 import { Server, Socket } from 'socket.io';
 import { getSocketUser } from '../auth.middleware';
-import Ticket from '../../models/ticket.model';
-import TicketMessage from '../../models/ticketMessage.model';
-import { isMongoDBAvailable } from '../../utils/memoryStore';
+import { prisma } from '../../utils/prisma';
 
-// In-memory state for live chat (moved to a separate module if needed)
+// In-memory state for live chat queue (this is acceptable for realtime state)
 export const waitingQueue: any[] = [];
 export const activeSessions = new Map<string, any>();
 export const agents = new Map<string, any>();
@@ -57,7 +54,6 @@ export const registerAgentHandlers = (io: Server, socket: Socket) => {
         const queueIndex = waitingQueue.findIndex(item => item.id === sessionId);
 
         if (queueIndex === -1) {
-            // Already accepted by someone else or removed
             socket.emit('error', { message: 'Session no longer in queue' });
             return;
         }
@@ -80,25 +76,25 @@ export const registerAgentHandlers = (io: Server, socket: Socket) => {
         socket.join(sessionId);
 
         // Update database ticket status
-        if (isMongoDBAvailable()) {
-            try {
-                await Ticket.findByIdAndUpdate(sessionId, {
-                    status: 'assigned',
+        try {
+            await prisma.ticket.update({
+                where: { id: sessionId },
+                data: {
+                    status: 'in_progress',
                     assignedTo: user.userId,
-                    assignedToName: user.name || user.email.split('@')[0]
-                });
-            } catch (error) {
-                console.error('Error updating ticket in DB:', error);
-            }
+                    assignedAt: new Date()
+                }
+            });
+        } catch (error) {
+            console.error('Error updating ticket in DB:', error);
         }
 
         // Notify customer that agent joined
-        // Customer should be in the room 'sessionId'
         io.to(sessionId).emit('ticket:assigned', {
             ticketId: sessionId,
             agentName: user.name || user.email.split('@')[0],
             status: 'assigned',
-            userId: sessionData.userId // For SupportChatbot.tsx frontend check
+            userId: sessionData.userId
         });
 
         // Broadcast updated queue to all other agents
@@ -107,7 +103,7 @@ export const registerAgentHandlers = (io: Server, socket: Socket) => {
         console.log(`✅ Agent ${user.email} accepted chat ${sessionId}`);
     });
 
-    socket.on('agent_send_message', (data: { sessionId: string; message: string }) => {
+    socket.on('agent_send_message', async (data: { sessionId: string; message: string }) => {
         const session = activeSessions.get(data.sessionId);
         if (!session) {
             console.warn(`⚠️ Attempted to send message to inactive session: ${data.sessionId}`);
@@ -125,14 +121,17 @@ export const registerAgentHandlers = (io: Server, socket: Socket) => {
         session.messages.push(messageData);
 
         // Save to Database
-        if (isMongoDBAvailable()) {
-            TicketMessage.create({
-                ticketId: data.sessionId,
-                senderId: user.userId,
-                senderType: 'employee',
-                message: data.message,
-                timestamp: new Date()
-            }).catch(err => console.error('Error saving agent message to DB:', err));
+        try {
+            await prisma.ticketMessage.create({
+                data: {
+                    ticketId: data.sessionId,
+                    senderId: user.userId,
+                    content: data.message,
+                    isInternal: false
+                }
+            });
+        } catch (err) {
+            console.error('Error saving agent message to DB:', err);
         }
 
         // Send to room (customer + agent)
@@ -161,11 +160,16 @@ export const registerAgentHandlers = (io: Server, socket: Socket) => {
             activeSessions.delete(data.sessionId);
 
             // Update ticket in DB
-            if (isMongoDBAvailable()) {
-                await Ticket.findByIdAndUpdate(data.sessionId, {
-                    status: data.resolved ? 'resolved' : 'closed',
-                    closedAt: new Date()
+            try {
+                await prisma.ticket.update({
+                    where: { id: data.sessionId },
+                    data: {
+                        status: data.resolved ? 'resolved' : 'closed',
+                        closedAt: new Date()
+                    }
                 });
+            } catch (error) {
+                console.error('Error closing ticket in DB:', error);
             }
 
             // Notify all in room
@@ -192,7 +196,7 @@ export const registerAgentHandlers = (io: Server, socket: Socket) => {
  * Called from Ticket Controller or Ticket Handler.
  */
 export const addToWaitingQueue = (ticket: any, userData: { name: string, email: string }, io: Server) => {
-    const ticketId = ticket._id?.toString() || ticket.id;
+    const ticketId = ticket.id || ticket._id?.toString();
 
     // Check if already in queue
     if (waitingQueue.some(item => item.id === ticketId)) return;
@@ -202,7 +206,7 @@ export const addToWaitingQueue = (ticket: any, userData: { name: string, email: 
         userId: ticket.userId,
         userName: userData.name || 'Customer',
         userEmail: userData.email || '',
-        reason: ticket.problem,
+        reason: ticket.problem || ticket.subject || 'Support request',
         priority: 'standard',
         addedAt: new Date().toISOString(),
         conversationHistory: []

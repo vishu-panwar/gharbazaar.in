@@ -22,6 +22,7 @@ import { useFavorites } from '@/contexts/FavoritesContext'
 import { usePayment } from '@/contexts/PaymentContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { useSocket } from '@/contexts/SocketContext'
+import { useLocale } from '@/contexts/LocaleContext'
 
 // Property Interface
 export interface Property {
@@ -63,9 +64,13 @@ export default function PropertyCard({
     const { hasPaid, hasFeature } = usePayment()
     const { user } = useAuth()
     const { onPropertyViewUpdate } = useSocket()
+    const { formatPrice } = useLocale()
     const [liveViews, setLiveViews] = useState(property.views || 0)
 
     const propertyId = property._id || property.id
+
+    // Format price using LocaleContext if priceValue exists
+    const displayPrice = property.priceValue ? formatPrice(property.priceValue) : property.price
 
     // Update live views count from socket
     useEffect(() => {
@@ -175,10 +180,10 @@ export default function PropertyCard({
 
                             {property.status && property.status !== 'active' && (
                                 <div className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 shadow-md ${property.status === 'pending' ? 'bg-yellow-500 text-white' :
-                                        property.status === 'rejected' ? 'bg-red-500 text-white' :
-                                            property.status === 'inactive' || property.status === 'paused' ? 'bg-amber-500 text-white' :
-                                                property.status === 'cancelled' ? 'bg-gray-600 text-white' :
-                                                    'bg-gray-500 text-white'
+                                    property.status === 'rejected' ? 'bg-red-500 text-white' :
+                                        property.status === 'inactive' || property.status === 'paused' ? 'bg-amber-500 text-white' :
+                                            property.status === 'cancelled' ? 'bg-gray-600 text-white' :
+                                                'bg-gray-500 text-white'
                                     }`}>
                                     {property.status === 'pending' ? <Clock size={12} /> :
                                         property.status === 'rejected' ? <XCircle size={12} /> :
@@ -224,7 +229,7 @@ export default function PropertyCard({
                         <div className="flex justify-between items-center border-t pt-4">
                             <div>
                                 <p className="text-xs text-gray-500">Price</p>
-                                <p className="text-xl font-bold text-blue-600">{property.price}</p>
+                                <p className="text-xl font-bold text-blue-600">{displayPrice}</p>
                             </div>
                             <span className="bg-blue-600 text-white px-6 py-2 rounded-lg">
                                 View Details
@@ -262,10 +267,10 @@ export default function PropertyCard({
                 <div className="absolute top-3 left-3 flex flex-col gap-2">
                     {property.status && property.status !== 'active' && (
                         <div className={`px-2 py-1 rounded-lg text-[10px] font-black tracking-wider flex items-center gap-1 shadow-lg ${property.status === 'pending' ? 'bg-yellow-500 text-white' :
-                                property.status === 'rejected' ? 'bg-red-500 text-white' :
-                                    property.status === 'inactive' || property.status === 'paused' ? 'bg-amber-500 text-white' :
-                                        property.status === 'cancelled' ? 'bg-gray-600 text-white' :
-                                            'bg-gray-500 text-white'
+                            property.status === 'rejected' ? 'bg-red-500 text-white' :
+                                property.status === 'inactive' || property.status === 'paused' ? 'bg-amber-500 text-white' :
+                                    property.status === 'cancelled' ? 'bg-gray-600 text-white' :
+                                        'bg-gray-500 text-white'
                             }`}>
                             {property.status === 'pending' ? <Clock size={10} /> :
                                 property.status === 'rejected' ? <XCircle size={10} /> :
@@ -319,7 +324,7 @@ export default function PropertyCard({
                 <div className="flex justify-between items-center border-t pt-4">
                     <div>
                         <p className="text-xs text-gray-500">Price</p>
-                        <p className="text-xl font-bold text-blue-600">{property.price}</p>
+                        <p className="text-xl font-bold text-blue-600">{displayPrice}</p>
                     </div>
                     <span className="bg-blue-600 text-white px-6 py-2 rounded-lg">
                         View Details

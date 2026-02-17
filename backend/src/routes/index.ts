@@ -25,6 +25,9 @@ import serviceProviderRoutes from './serviceProvider.routes';
 import kycRoutes from './kyc.routes';
 import locationRequestRoutes from './locationRequest.routes';
 import expandRequestRoutes from './expandRequest.routes';
+import settingsRoutes from './settings.routes';
+import propertyInquiryRoutes from './propertyInquiry.routes';
+import partnerMetricsRoutes from './partnerMetrics.routes';
 
 const router = express.Router();
 
@@ -54,6 +57,11 @@ router.use('/service-providers', serviceProviderRoutes);
 router.use('/kyc', kycRoutes);
 router.use('/location-requests', locationRequestRoutes);
 router.use('/expand-requests', expandRequestRoutes);
+router.use('/settings', settingsRoutes);
+
+// Phase 2 Routes
+router.use('/', propertyInquiryRoutes); // Includes /properties/:id/inquiries and /inquiries
+router.use('/', partnerMetricsRoutes); // Includes /partners/:id/metrics and /metrics/leaderboard
 
 router.get('/health', (req, res) => {
     res.json({ success: true, message: 'API is healthy', timestamp: new Date().toISOString() });

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { prisma } from '../utils/database';
+import { prisma } from '../utils/prisma';
 import { getNextEmployeeId } from '../utils/idGenerator';
 import crypto from 'crypto';
 import fs from 'fs';
@@ -329,7 +329,7 @@ export const importDatabase = async (req: Request, res: Response) => {
         // WARNING: This is a destructive operation!
         // For Prisma/PostgreSQL, we should be very careful.
         // This is a simplified implementation.
-        
+
         await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
             // Delete in order to respect dependencies
             await tx.serviceProvider.deleteMany({});
@@ -398,7 +398,7 @@ export const restoreBackup = async (req: Request, res: Response) => {
         }
 
         const backupData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-        
+
         await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
             // Destructive restore
             await tx.subscription.deleteMany({});

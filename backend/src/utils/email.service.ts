@@ -3,7 +3,8 @@ import config from '../config';
 import logger from './logger'; // Using centralized logger
 
 export const sendEmail = async (options: {
-    email: string;
+    email?: string;
+    to?: string;
     subject: string;
     message: string;
     html?: string;
@@ -23,7 +24,7 @@ export const sendEmail = async (options: {
         // Define email options
         const mailOptions = {
             from: `"${config.appName}" <${process.env.SMTP_USER}>`,
-            to: options.email,
+            to: options.to || options.email,
             subject: options.subject,
             text: options.message,
             html: options.html,
@@ -42,9 +43,9 @@ export const sendEmail = async (options: {
         if (error.code) console.error(`Code: ${error.code}`);
         if (error.command) console.error(`Command: ${error.command}`);
         console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        
+
         logger.error(`Error sending email: ${error.message}`);
-        
+
         // In development, we still return null to avoid crashing the whole process, 
         // but we don't throw away the error's visibility.
         if (process.env.NODE_ENV === 'development') {
@@ -169,7 +170,7 @@ export const sendContactFormEmails = async (data: any) => {
 
     // 3. Send both in parallel (allSettled ensures both are attempted)
     logger.info(`📧 Attempting to send dual contact emails to: Admin(${config.adminEmail}) and Client(${data.userEmail})`);
-    
+
     const results = await Promise.allSettled([
         sendEmail(adminMailOptions as any),
         sendEmail(userMailOptions)
@@ -178,7 +179,7 @@ export const sendContactFormEmails = async (data: any) => {
     results.forEach((result, index) => {
         const type = index === 0 ? 'Admin' : 'Client';
         const target = index === 0 ? config.adminEmail : data.userEmail;
-        
+
         if (result.status === 'fulfilled') {
             logger.info(`✅ ${type} email delivered successfully to ${target}`);
         } else {

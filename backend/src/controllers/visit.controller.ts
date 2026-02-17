@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { prisma } from '../utils/database';
+import { prisma } from '../utils/prisma';
 
 export const createVisit = async (req: Request, res: Response) => {
     try {
@@ -155,7 +155,7 @@ export const updateVisit = async (req: Request, res: Response) => {
         const visit = await prisma.visit.findUnique({
             where: { id }
         });
-        
+
         if (!visit) return res.status(404).json({ success: false, message: 'Visit not found' });
 
         // Check if user is buyer, seller, or partner
@@ -164,7 +164,7 @@ export const updateVisit = async (req: Request, res: Response) => {
         }
 
         const { status, scheduledAt, notes, partnerId, feedback } = req.body;
-        
+
         const updatedVisit = await prisma.visit.update({
             where: { id },
             data: {

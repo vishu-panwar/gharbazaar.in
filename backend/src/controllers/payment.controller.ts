@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
-import PaymentTransaction from '../models/paymentTransaction.model';
+import { prisma } from '../utils/prisma';
 
 const generateOrderId = () => `order_demo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
@@ -18,22 +18,25 @@ export const createPayment = async (req: Request, res: Response) => {
         const userId = (req as any).user?.userId;
         if (!userId) return res.status(401).json({ success: false, message: 'User not authenticated' });
 
-        const { amount, currency = 'INR', contractId, serviceId, metadata } = req.body;
+        const { amount, currency = 'INR', type, planId, propertyId, notes } = req.body;
         if (!amount) {
             return res.status(400).json({ success: false, message: 'amount is required' });
         }
 
         const orderId = generateOrderId();
 
-        const payment = await PaymentTransaction.create({
-            userId,
-            contractId,
-            serviceId,
-            amount,
-            currency,
-            status: 'created',
-            razorpayOrderId: orderId,
-            metadata
+        const payment = await prisma.paymentTransaction.create({
+            data: {
+                userId,
+                amount,
+                currency,
+                type: type || 'subscription',
+                planId,
+                propertyId,
+                status: 'pending',
+                razorpayOrderId: orderId,
+                notes
+            }
         });
 
         res.status(201).json({
@@ -42,7 +45,7 @@ export const createPayment = async (req: Request, res: Response) => {
                 orderId,
                 amount,
                 currency,
-                paymentId: payment._id
+                paymentId: payment.id
             }
         });
     } catch (error: any) {
@@ -69,17 +72,27 @@ export const verifyPayment = async (req: Request, res: Response) => {
             return res.status(400).json({ success: false, message: 'Invalid payment verification' });
         }
 
-        const payment = await PaymentTransaction.findOneAndUpdate(
-            { razorpayOrderId: orderId, userId },
-            {
+        const payment = await prisma.paymentTransaction.updateMany({
+            where: {
+                razorpayOrderId: orderId,
+                userId
+            },
+            data: {
                 status: 'captured',
                 razorpayPaymentId: paymentId,
                 razorpaySignature: signature
-            },
-            { new: true }
-        );
+            }
+        });
 
-        res.json({ success: true, data: payment });
+        // Fetch the updated payment to return
+        const updatedPayment = await prisma.paymentTransaction.findFirst({
+            where: {
+                razorpayOrderId: orderId,
+                userId
+            }
+        });
+
+        res.json({ success: true, data: updatedPayment });
     } catch (error: any) {
         console.error('verifyPayment error:', error);
         res.status(500).json({ success: false, message: 'Failed to verify payment', error: error.message });
@@ -91,7 +104,11 @@ export const listPayments = async (req: Request, res: Response) => {
         const userId = (req as any).user?.userId;
         if (!userId) return res.status(401).json({ success: false, message: 'User not authenticated' });
 
-        const payments = await PaymentTransaction.find({ userId }).sort({ createdAt: -1 });
+        const payments = await prisma.paymentTransaction.findMany({
+            where: { userId },
+            orderBy: { createdAt: 'desc' }
+        });
+
         res.json({ success: true, data: payments });
     } catch (error: any) {
         console.error('listPayments error:', error);
@@ -130,15 +147,14 @@ export const handleWebhook = async (req: Request, res: Response) => {
         if (event === 'payment.failed') status = 'failed';
 
         if (status) {
-            await PaymentTransaction.findOneAndUpdate(
-                { razorpayOrderId: orderId },
-                {
+            await prisma.paymentTransaction.updateMany({
+                where: { razorpayOrderId: orderId },
+                data: {
                     status,
                     razorpayPaymentId: paymentId,
-                    metadata: payment
-                },
-                { upsert: true }
-            );
+                    paidAt: new Date()
+                }
+            });
         }
 
         res.json({ success: true });

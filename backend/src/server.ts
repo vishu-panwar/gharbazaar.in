@@ -4,7 +4,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import config, { validateConfig } from './config';
-import { connectDatabase } from './utils/database';
+import { prisma } from './utils/prisma';
 import { initializeSocket } from './socket';
 import apiRoutes from './routes';
 import { auditMiddleware } from './middleware/audit.middleware';
@@ -14,11 +14,13 @@ const startServer = async () => {
         console.log('\n🔧 Validating configuration...');
         validateConfig();
 
-        console.log('\n💾 Attempting to connect to database...');
+        console.log('\n💾 Connecting to PostgreSQL database...');
         try {
-            await connectDatabase();
+            await prisma.$connect();
+            console.log('✅ PostgreSQL connected successfully');
         } catch (error) {
-            console.warn('⚠️  Continuing without database - Socket.IO will work but data won\'t persist');
+            console.error('❌ Database connection failed:', error);
+            throw error;
         }
 
         const app = express();
@@ -130,8 +132,12 @@ const startServer = async () => {
                     console.log('📴 Socket.IO closed');
                 });
 
-                const { disconnectDatabase } = await import('./utils/database');
-                await disconnectDatabase();
+                try {
+                    await prisma.$disconnect();
+                    console.log('✅ Database disconnected');
+                } catch (error) {
+                    console.error('❌ Error disconnecting:', error);
+                }
 
                 console.log('✅ Graceful shutdown complete');
                 process.exit(0);

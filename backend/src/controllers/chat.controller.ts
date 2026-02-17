@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { prisma } from '../utils/database';
+import { prisma } from '../utils/prisma';
 import { sanitizeMessage, isSpam } from '../utils/sanitization';
 
 // Helper to sanitize HTML content for snippets
@@ -215,7 +215,7 @@ export const createConversation = async (req: Request, res: Response) => {
                         isRead: false
                     }
                 });
-                
+
                 // Update last message in conversation
                 await prisma.conversation.update({
                     where: { id: conversation.id },

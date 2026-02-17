@@ -1,10 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { prisma } from '../utils/database';
+import { prisma } from '../utils/prisma';
 import { Decimal } from '@prisma/client/runtime/library';
-import { isDatabaseAvailable } from '../utils/memoryStore';
-
-// For internal transition, we can alias or just use the new better name
-const isMongoDBAvailable = isDatabaseAvailable;
 
 /**
  * Plan Guard Middleware
@@ -24,7 +20,7 @@ export const requireActivePlan = (options: PlanGuardOptions) => {
     return async (req: Request, res: Response, next: NextFunction) => {
         try {
             const user = (req as any).user;
-            
+
             if (!user || !user.userId) {
                 return res.status(401).json({
                     success: false,
@@ -32,21 +28,10 @@ export const requireActivePlan = (options: PlanGuardOptions) => {
                 });
             }
 
-            // Skip plan check if Database not available (demo/memory mode)
-            const dbAvailable = await isDatabaseAvailable();
-            if (!dbAvailable) {
-                console.log(`⚠️  Plan check skipped (memory mode) for ${user.email}`);
-                (req as any).userPlan = {
-                    demo: true,
-                    unlimited: true
-                };
-                return next();
-            }
-
             // Find active plan via Subscription
             const subscription = await prisma.subscription.findFirst({
                 where: {
-                    userId: user.id || user.userId, 
+                    userId: user.id || user.userId,
                     status: 'active',
                     endDate: { gt: new Date() }
                 },
@@ -88,8 +73,8 @@ export const requireActivePlan = (options: PlanGuardOptions) => {
                 // Check usage limits
                 if (typeof featureValue === 'number') {
                     const usageKey = (options.incrementUsage || options.feature.replace('Limit', 'Used')) as string;
-                    const currentUsage = ((subscription.usageStats as any) || {}) [usageKey] || 0;
-                    
+                    const currentUsage = ((subscription.usageStats as any) || {})[usageKey] || 0;
+
                     if (currentUsage >= featureValue) {
                         return res.status(403).json({
                             success: false,
@@ -170,7 +155,7 @@ export const incrementPlanUsage = (usageField: string) => {
 export const checkPlanOptional = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const user = (req as any).user;
-        
+
         const subscription = await prisma.subscription.findFirst({
             where: {
                 userId: user.id || user.userId,

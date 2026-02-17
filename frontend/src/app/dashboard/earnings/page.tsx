@@ -1,250 +1,328 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
+import { useState } from 'react';
+import { useEarnings, usePayouts, useRequestPayout, useTransactions } from '@/hooks/api';
+import { LoadingSkeleton } from '@/components/LoadingSkeleton';
+import { EmptyState } from '@/components/EmptyState';
+import { formatCurrency, convertCurrency } from '@/lib/currency';
+import { StatsCard, StatsGrid } from '@/components/StatsCard';
 import {
-  DollarSign,
+  Wallet,
   TrendingUp,
-  TrendingDown,
+  DollarSign,
   Calendar,
   Download,
-  Filter,
-  Home,
-  CreditCard,
-  Wallet,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Eye,
   ArrowUpRight,
   ArrowDownRight,
-  CheckCircle,
-  Clock,
-  AlertCircle,
-  Eye,
-  BarChart3,
-  PieChart,
-  Building2,
-  Key,
-  Users,
-  Target,
-  Percent,
-  Receipt,
-  FileText,
-  Star,
-  MapPin
-} from 'lucide-react'
+  Filter,
+} from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function EarningsPage() {
-  const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | '1y' | 'all'>('30d')
-  const [viewMode, setViewMode] = useState<'overview' | 'transactions'>('overview')
-  const [userRole, setUserRole] = useState<'seller' | 'renter'>('seller')
+  const { data: earnings, isLoading: earningsLoading } = useEarnings();
+  const { data: payouts, isLoading: payoutsLoading } = usePayouts();
+  const { data: transactions, isLoading: transactionsLoading } = useTransactions();
+  const requestPayout = useRequestPayout();
 
-  // No earnings for now
-  const sellerEarningsStats = [
-    { label: 'Total Sales Revenue', value: '₹0', change: '0%', trend: 'up', icon: DollarSign, color: 'green', description: 'Total property sales value' },
-    { label: 'Commission Earned', value: '₹0', change: '0%', trend: 'up', icon: TrendingUp, color: 'blue', description: 'Your commission (5%)' },
-    { label: 'Properties Sold', value: '0', change: '0', trend: 'up', icon: Building2, color: 'purple', description: 'This month' },
-    { label: 'Avg Deal Value', value: '₹0', change: '0%', trend: 'up', icon: Target, color: 'orange', description: 'Per property' }
-  ]
+  const [showPayoutModal, setShowPayoutModal] = useState(false);
+  const [payoutAmount, setPayoutAmount] = useState('');
+  const [selectedTab, setSelectedTab] = useState<'overview' | 'transactions' | 'payouts'>('overview');
 
-  // No rental income for now
-  const renterEarningsStats = [
-    { label: 'Total Rental Income', value: '₹0', change: '0%', trend: 'up', icon: DollarSign, color: 'green', description: 'Monthly rental collection' },
-    { label: 'Occupancy Rate', value: '0%', change: '0%', trend: 'up', icon: Users, color: 'blue', description: 'Properties occupied' },
-    { label: 'Active Properties', value: '0', change: '0', trend: 'up', icon: Key, color: 'purple', description: 'Rental properties' },
-    { label: 'Avg Rent/SqFt', value: '₹0', change: '0%', trend: 'up', icon: Target, color: 'orange', description: 'Per square foot' }
-  ]
-
-  const currentStats = userRole === 'seller' ? sellerEarningsStats : renterEarningsStats
-
-  const formatCurrency = (amount: number) => {
-    if (amount >= 10000000) {
-      return `₹${(amount / 10000000).toFixed(1)}Cr`
-    } else if (amount >= 100000) {
-      return `₹${(amount / 100000).toFixed(1)}L`
-    } else {
-      return `₹${(amount / 1000).toFixed(0)}K`
+  const handleRequestPayout = async () => {
+    if (!payoutAmount || parseFloat(payoutAmount) <= 0) {
+      toast.error('Enter a valid amount');
+      return;
     }
-  }
+
+    if (parseFloat(payoutAmount) > (earnings?.availableBalance || 0)) {
+      toast.error('Insufficient balance');
+      return;
+    }
+
+    try {
+      await requestPayout.mutateAsync({ amount: parseFloat(payoutAmount) });
+      toast.success('Payout request submitted!');
+      setShowPayoutModal(false);
+      setPayoutAmount('');
+    } catch (error) {
+      toast.error('Failed to request payout');
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     const badges = {
-      completed: { color: 'green', icon: CheckCircle, label: 'Completed' },
-      pending: { color: 'yellow', icon: Clock, label: 'Pending' },
-      failed: { color: 'red', icon: AlertCircle, label: 'Failed' },
-      active: { color: 'green', icon: CheckCircle, label: 'Active' },
-      vacant: { color: 'gray', icon: AlertCircle, label: 'Vacant' }
-    }
-    const badge = badges[status as keyof typeof badges]
+      PENDING: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+      COMPLETED: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+      FAILED: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+    };
+    return badges[status as keyof typeof badges] || badges.PENDING;
+  };
+
+  const isLoading = earningsLoading || payoutsLoading || transactionsLoading;
+
+  if (isLoading) {
     return (
-      <div className={`flex items-center space-x-1 bg-${badge.color}-100 dark:bg-${badge.color}-900/30 text-${badge.color}-600 dark:text-${badge.color}-400 px-3 py-1 rounded-full text-xs font-semibold`}>
-        <badge.icon size={12} />
-        <span>{badge.label}</span>
+      <div className="max-w-7xl mx-auto p-6 space-y-6">
+        <h1 className="text-3xl font-bold">Earnings</h1>
+        <LoadingSkeleton variant="dashboard" />
       </div>
-    )
+    );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-7xl mx-auto p-6 space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white flex items-center">
-            <DollarSign className="mr-3 text-green-500" size={28} />
-            {userRole === 'seller' ? 'Sales Earnings' : 'Rental Income'}
-          </h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Earnings</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            {userRole === 'seller'
-              ? 'Track your property sales and commissions'
-              : 'Monitor your rental income and property performance'
-            }
+            Track your income and request payouts
           </p>
         </div>
 
-        <div className="flex items-center space-x-3">
-          {/* User Role Selector */}
-          <select
-            value={userRole}
-            onChange={(e) => setUserRole(e.target.value as 'seller' | 'renter')}
-            className="px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white"
-          >
-            <option value="seller">🏢 Property Seller</option>
-            <option value="renter">🏠 Property Owner</option>
-          </select>
-
-          <select
-            value={timeRange}
-            onChange={(e) => setTimeRange(e.target.value as any)}
-            className="px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg focus:ring-2 focus:ring-green-500 text-gray-900 dark:text-white"
-          >
-            <option value="7d">Last 7 Days</option>
-            <option value="30d">Last 30 Days</option>
-            <option value="90d">Last 90 Days</option>
-            <option value="1y">Last Year</option>
-            <option value="all">All Time</option>
-          </select>
-
-          <button className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-all">
-            <Download size={18} />
-            <span>Export</span>
-          </button>
-        </div>
+        <button
+          onClick={() => setShowPayoutModal(true)}
+          disabled={!earnings?.availableBalance || earnings.availableBalance <= 0}
+          className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-6 py-3 rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Wallet size={20} />
+          Request Payout
+        </button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-        {currentStats.map((stat, index) => (
-          <div key={index} className="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-800 p-6 hover:shadow-xl transition-all">
-            <div className="flex items-center justify-between mb-4">
-              <div className={`w-12 h-12 bg-${stat.color}-100 dark:bg-${stat.color}-900/30 rounded-xl flex items-center justify-center`}>
-                <stat.icon className={`text-${stat.color}-600`} size={24} />
-              </div>
-              <div className={`flex items-center space-x-1 ${stat.trend === 'up' ? 'text-green-600' : 'text-red-600'
-                }`}>
-                {stat.trend === 'up' ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
-                <span className="text-sm font-semibold">{stat.change}</span>
-              </div>
-            </div>
+      {/* Stats */}
+      <StatsGrid cols={4}>
+        <StatsCard
+          title="Total Earnings"
+          value={formatCurrency(earnings?.totalEarnings || 0)}
+          icon={<TrendingUp size={24} />}
+          change={{ value: 15, trend: 'up', label: 'vs last month' }}
+        />
+        <StatsCard
+          title="Available Balance"
+          value={formatCurrency(earnings?.availableBalance || 0)}
+          icon={<Wallet size={24} />}
+        />
+        <StatsCard
+          title="Pending Payouts"
+          value={formatCurrency(earnings?.pendingPayouts || 0)}
+          icon={<Clock size={24} />}
+        />
+        <StatsCard
+          title="This Month"
+          value={formatCurrency(earnings?.thisMonth || 0)}
+          icon={<Calendar size={24} />}
+          change={{ value: 8, trend: 'up', label: 'vs last month' }}
+        />
+      </StatsGrid>
 
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{stat.label}</p>
-            <p className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{stat.value}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-500">{stat.description}</p>
+      {/* Tabs */}
+      <div className="flex gap-4 border-b border-gray-200 dark:border-gray-700">
+        <button
+          onClick={() => setSelectedTab('overview')}
+          className={`pb-3 px-1 font-semibold transition-colors ${
+            selectedTab === 'overview'
+              ? 'text-green-600 dark:text-green-400 border-b-2 border-green-600 dark:border-green-400'
+              : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+          }`}
+        >
+          Overview
+        </button>
+        <button
+          onClick={() => setSelectedTab('transactions')}
+          className={`pb-3 px-1 font-semibold transition-colors ${
+            selectedTab === 'transactions'
+              ? 'text-green-600 dark:text-green-400 border-b-2 border-green-600 dark:border-green-400'
+              : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+          }`}
+        >
+          Transactions
+        </button>
+        <button
+          onClick={() => setSelectedTab('payouts')}
+          className={`pb-3 px-1 font-semibold transition-colors ${
+            selectedTab === 'payouts'
+              ? 'text-green-600 dark:text-green-400 border-b-2 border-green-600 dark:border-green-400'
+              : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+          }`}
+        >
+          Payouts
+        </button>
+      </div>
+
+      {/* Content */}
+      {selectedTab === 'overview' && (
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6">
+          <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
+            Earnings Breakdown
+          </h3>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Property Sales</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {formatCurrency(earnings?.fromSales || 0)}
+                </p>
+              </div>
+              <ArrowUpRight className="text-green-500" size={32} />
+            </div>
+            
+            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Commissions</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {formatCurrency(earnings?.fromCommissions || 0)}
+                </p>
+              </div>
+              <DollarSign className="text-blue-500" size={32} />
+            </div>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
 
-      {/* Performance Insights */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {userRole === 'seller' ? (
-          <>
-            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-800 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Commission Rate</h3>
-                <Percent className="text-green-500" size={24} />
+      {selectedTab === 'transactions' && (
+        <div className="space-y-4">
+          {!transactions || transactions.length === 0 ? (
+            <EmptyState
+              icon={<DollarSign size={48} />}
+              title="No transactions yet"
+              description="Your transaction history will appear here"
+            />
+          ) : (
+            transactions.map((transaction: any) => (
+              <div
+                key={transaction.id}
+                className="bg-white dark:bg-gray-800 rounded-2xl p-6 flex items-center justify-between"
+              >
+                <div className="flex items-center gap-4">
+                  <div className={`p-3 rounded-full ${
+                    transaction.type === 'CREDIT' 
+                      ? 'bg-green-100 dark:bg-green-900/30' 
+                      : 'bg-red-100 dark:bg-red-900/30'
+                  }`}>
+                    {transaction.type === 'CREDIT' ? (
+                      <ArrowDownRight className="text-green-600 dark:text-green-400" size={24} />
+                    ) : (
+                      <ArrowUpRight className="text-red-600 dark:text-red-400" size={24} />
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900 dark:text-white">
+                      {transaction.description}
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {new Date(transaction.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className={`text-xl font-bold ${
+                    transaction.type === 'CREDIT' 
+                      ? 'text-green-600 dark:text-green-400' 
+                      : 'text-red-600 dark:text-red-400'
+                  }`}>
+                    {transaction.type === 'CREDIT' ? '+' : '-'}{formatCurrency(transaction.amount)}
+                  </p>
+                </div>
               </div>
-              <p className="text-3xl font-bold text-green-600 mb-2">0%</p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Average commission earned</p>
-            </div>
+            ))
+          )}
+        </div>
+      )}
 
-            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-800 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Closing Time</h3>
-                <Clock className="text-blue-500" size={24} />
+      {selectedTab === 'payouts' && (
+        <div className="space-y-4">
+          {!payouts || payouts.length === 0 ? (
+            <EmptyState
+              icon={<Wallet size={48} />}
+              title="No payouts yet"
+              description="Request a payout to see it here"
+            />
+          ) : (
+            payouts.map((payout: any) => (
+              <div
+                key={payout.id}
+                className="bg-white dark:bg-gray-800 rounded-2xl p-6"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                      {formatCurrency(payout.amount)}
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {new Date(payout.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadge(payout.status)}`}>
+                    {payout.status}
+                  </span>
+                </div>
+                
+                {payout.bankDetails && (
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    <p>Bank: {payout.bankDetails.bankName}</p>
+                    <p>Account: ****{payout.bankDetails.accountNumber?.slice(-4)}</p>
+                  </div>
+                )}
               </div>
-              <p className="text-3xl font-bold text-blue-600 mb-2">0 days</p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Average deal closure</p>
-            </div>
+            ))
+          )}
+        </div>
+      )}
 
-            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-800 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Success Rate</h3>
-                <Target className="text-purple-500" size={24} />
-              </div>
-              <p className="text-3xl font-bold text-purple-600 mb-2">0%</p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Deal conversion rate</p>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-800 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Rental Yield</h3>
-                <TrendingUp className="text-green-500" size={24} />
-              </div>
-              <p className="text-3xl font-bold text-green-600 mb-2">0%</p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Annual rental yield</p>
-            </div>
-
-            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-800 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Lease Duration</h3>
-                <Calendar className="text-blue-500" size={24} />
-              </div>
-              <p className="text-3xl font-bold text-blue-600 mb-2">0 months</p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Average lease period</p>
-            </div>
-
-            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-800 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Tenant Retention</h3>
-                <Users className="text-purple-500" size={24} />
-              </div>
-              <p className="text-3xl font-bold text-purple-600 mb-2">0%</p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Renewal success rate</p>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Action Card */}
-      <div className={`bg-gradient-to-r ${userRole === 'seller'
-          ? 'from-green-600 to-emerald-600'
-          : 'from-blue-600 to-indigo-600'
-        } rounded-xl p-6 text-white`}>
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <div>
-            <h3 className="text-xl font-bold mb-2">
-              {userRole === 'seller' ? 'Available for Withdrawal' : 'Rental Collection Summary'}
+      {/* Payout Request Modal */}
+      {showPayoutModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+              Request Payout
             </h3>
-            <p className={userRole === 'seller' ? 'text-green-100' : 'text-blue-100'}>
-              {userRole === 'seller'
-                ? 'Your commission earnings are ready to be withdrawn'
-                : 'This month\'s rental income collection status'
-              }
-            </p>
-          </div>
-          <div className="flex items-center space-x-6">
-            <div className="text-center">
-              <p className="text-4xl font-bold">
-                ₹0
+            
+            <div className="mb-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                Available Balance
               </p>
-              <p className={`text-sm ${userRole === 'seller' ? 'text-green-100' : 'text-blue-100'}`}>
-                {userRole === 'seller' ? 'Pending Amount' : 'This Month'}
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                {formatCurrency(earnings?.availableBalance || 0)}
               </p>
             </div>
-            <button className={`bg-white ${userRole === 'seller' ? 'text-green-600 hover:bg-green-50' : 'text-blue-600 hover:bg-blue-50'
-              } px-8 py-3 rounded-lg font-semibold transition-all shadow-lg`}>
-              {userRole === 'seller' ? 'Withdraw Now' : 'View Details'}
-            </button>
+
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                Amount to Withdraw
+              </label>
+              <input
+                type="number"
+                value={payoutAmount}
+                onChange={(e) => setPayoutAmount(e.target.value)}
+                placeholder="Enter amount"
+                max={earnings?.availableBalance || 0}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowPayoutModal(false)}
+                className="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRequestPayout}
+                disabled={requestPayout.isPending}
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors disabled:opacity-50"
+              >
+                {requestPayout.isPending ? 'Processing...' : 'Request'}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
-  )
+  );
 }

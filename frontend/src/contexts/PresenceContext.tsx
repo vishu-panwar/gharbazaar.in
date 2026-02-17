@@ -58,14 +58,13 @@ export const PresenceProvider: React.FC<PresenceProviderProps> = ({ children }) 
     useEffect(() => {
         if (!socket || !connected || !user) return;
 
-        // Listen for user online events
-        socket.on('presence:user-online', (data: { userId: string; status: 'online' }) => {
+        // Define named handlers for proper cleanup
+        const handleUserOnline = (data: { userId: string; status: 'online' }) => {
             setOnlineUsers(prev => new Set(prev).add(data.userId));
             setUserStatus(prev => ({ ...prev, [data.userId]: 'online' }));
-        });
+        };
 
-        // Listen for user offline events
-        socket.on('presence:user-offline', (data: { userId: string; status: 'offline'; lastSeen: string }) => {
+        const handleUserOffline = (data: { userId: string; status: 'offline'; lastSeen: string }) => {
             setOnlineUsers(prev => {
                 const newSet = new Set(prev);
                 newSet.delete(data.userId);
@@ -73,10 +72,9 @@ export const PresenceProvider: React.FC<PresenceProviderProps> = ({ children }) 
             });
             setUserStatus(prev => ({ ...prev, [data.userId]: 'offline' }));
             setLastSeen(prev => ({ ...prev, [data.userId]: new Date(data.lastSeen) }));
-        });
+        };
 
-        // Listen for status changes
-        socket.on('presence:status-changed', (data: { userId: string; status: 'online' | 'away' | 'offline' }) => {
+        const handleStatusChanged = (data: { userId: string; status: 'online' | 'away' | 'offline' }) => {
             setUserStatus(prev => ({ ...prev, [data.userId]: data.status }));
 
             if (data.status === 'offline') {
@@ -88,10 +86,9 @@ export const PresenceProvider: React.FC<PresenceProviderProps> = ({ children }) 
             } else {
                 setOnlineUsers(prev => new Set(prev).add(data.userId));
             }
-        });
+        };
 
-        // Listen for status responses
-        socket.on('presence:status-response', (data: { users: UserPresence[] }) => {
+        const handleStatusResponse = (data: { users: UserPresence[] }) => {
             const newStatus: Record<string, 'online' | 'away' | 'offline'> = {};
             const newLastSeen: Record<string, Date> = {};
             const newOnline = new Set<string>();
@@ -109,7 +106,19 @@ export const PresenceProvider: React.FC<PresenceProviderProps> = ({ children }) 
             setUserStatus(prev => ({ ...prev, ...newStatus }));
             setLastSeen(prev => ({ ...prev, ...newLastSeen }));
             setOnlineUsers(prev => new Set([...prev, ...newOnline]));
-        });
+        };
+
+        // Remove any existing listeners first to prevent duplicates
+        socket.off('presence:user-online', handleUserOnline);
+        socket.off('presence:user-offline', handleUserOffline);
+        socket.off('presence:status-changed', handleStatusChanged);
+        socket.off('presence:status-response', handleStatusResponse);
+
+        // Listen for user events
+        socket.on('presence:user-online', handleUserOnline);
+        socket.on('presence:user-offline', handleUserOffline);
+        socket.on('presence:status-changed', handleStatusChanged);
+        socket.on('presence:status-response', handleStatusResponse);
 
         // Send heartbeat every 30 seconds
         const heartbeatInterval = setInterval(() => {
@@ -120,10 +129,10 @@ export const PresenceProvider: React.FC<PresenceProviderProps> = ({ children }) 
 
         return () => {
             clearInterval(heartbeatInterval);
-            socket.off('presence:user-online');
-            socket.off('presence:user-offline');
-            socket.off('presence:status-changed');
-            socket.off('presence:status-response');
+            socket.off('presence:user-online', handleUserOnline);
+            socket.off('presence:user-offline', handleUserOffline);
+            socket.off('presence:status-changed', handleStatusChanged);
+            socket.off('presence:status-response', handleStatusResponse);
         };
     }, [socket, connected, user]);
 

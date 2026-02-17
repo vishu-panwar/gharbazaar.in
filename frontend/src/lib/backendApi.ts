@@ -39,7 +39,7 @@ async function authApiCall(endpoint: string, options: RequestInit = {}) {
         // Build full URL - endpoint should start with /
         // normalizedBase is now http://localhost:5001/api/v1
         const normalizedBase = `${baseUrl}/api/v1`;
-        
+
         const url = `${normalizedBase}${endpoint}`;
 
         console.log(`📡 [auth-v6] Calling: ${url}`);
@@ -716,19 +716,19 @@ export const backendApi = {
             });
         },
         getMyRequest: async () => {
-             return backendApiCall('/location-requests/me');
+            return backendApiCall('/location-requests/me');
         },
         getStats: async () => {
-             return backendApiCall('/location-requests/stats');
+            return backendApiCall('/location-requests/stats');
         },
         sendToAdmin: async (city: string) => {
-             return backendApiCall('/location-requests/send-to-admin', {
+            return backendApiCall('/location-requests/send-to-admin', {
                 method: 'POST',
                 body: JSON.stringify({ city }),
             });
         },
         getAdminRequests: async () => {
-             return backendApiCall('/location-requests/admin-requests');
+            return backendApiCall('/location-requests/admin-requests');
         },
     },
 
@@ -1083,7 +1083,7 @@ export const backendApi = {
         },
 
         verify: async (paymentData: {
-            orderId: string;
+            orderId?: string;
             paymentId: string;
             signature?: string;
         }) => {
@@ -1095,6 +1095,61 @@ export const backendApi = {
 
         list: async () => {
             return backendApiCall('/payments');
+        },
+
+        getAll: async (filters?: { period?: string; status?: string; type?: string }) => {
+            const params = new URLSearchParams();
+            if (filters?.period) params.append('period', filters.period);
+            if (filters?.status) params.append('status', filters.status);
+            if (filters?.type) params.append('type', filters.type);
+            const query = params.toString() ? `?${params.toString()}` : '';
+            return backendApiCall(`/payments${query}`);
+        },
+
+        getById: async (paymentId: string) => {
+            return backendApiCall(`/payments/${paymentId}`);
+        },
+
+        getEarnings: async (filters?: { period?: string; status?: string; type?: string }) => {
+            const params = new URLSearchParams();
+            if (filters?.period) params.append('period', filters.period);
+            if (filters?.status) params.append('status', filters.status);
+            if (filters?.type) params.append('type', filters.type);
+            const query = params.toString() ? `?${params.toString()}` : '';
+            return backendApiCall(`/payments/earnings${query}`);
+        },
+
+        getPartnerEarnings: async (filters?: { period?: string; status?: string; type?: string }) => {
+            const params = new URLSearchParams();
+            if (filters?.period) params.append('period', filters.period);
+            if (filters?.status) params.append('status', filters.status);
+            if (filters?.type) params.append('type', filters.type);
+            const query = params.toString() ? `?${params.toString()}` : '';
+            return backendApiCall(`/payments/partner-earnings${query}`);
+        },
+
+        getPayouts: async () => {
+            return backendApiCall('/payments/payouts');
+        },
+
+        create: async (data: {
+            amount: number;
+            propertyId?: string;
+            contractId?: string;
+            type: 'property' | 'subscription' | 'service' | 'payout';
+            method?: string;
+        }) => {
+            return backendApiCall('/payments', {
+                method: 'POST',
+                body: JSON.stringify(data),
+            });
+        },
+
+        requestPayout: async (data: { amount: number; method?: string; accountDetails?: any }) => {
+            return backendApiCall('/payments/payouts/request', {
+                method: 'POST',
+                body: JSON.stringify(data),
+            });
         },
     },
 
@@ -1473,7 +1528,7 @@ export const backendApi = {
             return await response.json();
         },
     },
-    
+
     // KYC endpoints
     kyc: {
         submit: async (formData: FormData) => {
@@ -1531,12 +1586,12 @@ export const backendApi = {
         getMyProfile: async () => {
             return backendApiCall('/service-providers/me');
         },
-        
-        list: async (params: { 
-            category?: string; 
-            verified?: boolean; 
-            available?: boolean; 
-            location?: string; 
+
+        list: async (params: {
+            category?: string;
+            verified?: boolean;
+            available?: boolean;
+            location?: string;
             sortBy?: string;
         } = {}) => {
             const query = new URLSearchParams(params as any).toString();
@@ -1554,6 +1609,27 @@ export const backendApi = {
         }) => {
             const query = new URLSearchParams(params as any).toString();
             return backendApiCall(`/service-providers/search${query ? `?${query}` : ''}`);
+        },
+    },
+
+    // Settings endpoints
+    settings: {
+        get: async () => {
+            return backendApiCall('/settings');
+        },
+
+        update: async (data: {
+            theme?: 'light' | 'dark' | 'system';
+            language?: 'en' | 'hi' | 'mr';
+            currency?: string;
+            timezone?: string;
+            emailFrequency?: 'instant' | 'daily' | 'weekly';
+            notificationPreferences?: any;
+        }) => {
+            return backendApiCall('/settings', {
+                method: 'PUT',
+                body: JSON.stringify(data),
+            });
         },
     },
 

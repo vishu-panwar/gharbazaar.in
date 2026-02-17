@@ -6,6 +6,7 @@ import { Toaster } from 'react-hot-toast'
 import { useState } from 'react'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { LoaderProvider } from '@/components/GlobalLoader'
+import { SettingsProvider } from '@/contexts/SettingsContext'
 import { FavoritesProvider } from '@/contexts/FavoritesContext'
 import { PaymentProvider } from '@/contexts/PaymentContext'
 import { SellerSubscriptionProvider } from '@/contexts/SellerSubscriptionContext'
@@ -32,21 +33,23 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <LocaleProvider>
           <LoaderProvider>
             <AuthProvider loadingComponent={<LoadingScreen />}>
-              <FavoritesProvider>
-                <PaymentProvider>
-                  <SellerSubscriptionProvider>
-                    <SocketProvider>
-                      <ToastProvider>
-                        <ModalProvider>
-                          <NotificationProvider>
-                            {children}
-                          </NotificationProvider>
-                        </ModalProvider>
-                      </ToastProvider>
-                    </SocketProvider>
-                  </SellerSubscriptionProvider>
-                </PaymentProvider>
-              </FavoritesProvider>
+              <SettingsProvider>
+                <FavoritesProvider>
+                  <PaymentProvider>
+                    <SellerSubscriptionProvider>
+                      <SocketProvider>
+                        <ToastProvider>
+                          <ModalProvider>
+                            <NotificationProvider>
+                              {children}
+                            </NotificationProvider>
+                          </ModalProvider>
+                        </ToastProvider>
+                      </SocketProvider>
+                    </SellerSubscriptionProvider>
+                  </PaymentProvider>
+                </FavoritesProvider>
+              </SettingsProvider>
               <Toaster position="top-right" />
             </AuthProvider>
           </LoaderProvider>

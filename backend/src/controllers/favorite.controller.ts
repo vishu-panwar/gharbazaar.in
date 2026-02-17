@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { prisma } from '../utils/database';
+import { prisma } from '../utils/prisma';
 
 export const toggleFavorite = async (req: Request, res: Response) => {
     try {
@@ -51,7 +51,7 @@ export const getFavorites = async (req: Request, res: Response) => {
                 property: true
             }
         });
-        
+
         // Map to return cleaner property data
         const properties = favorites
             .filter(f => f.property) // Ensure property still exists
@@ -100,7 +100,7 @@ export const syncFavorites = async (req: Request, res: Response) => {
                 property: true
             }
         });
-        
+
         const properties = updatedFavorites
             .filter(f => f.property)
             .map(f => f.property);

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { prisma } from '../utils/database';
+import { prisma } from '../utils/prisma';
 
 // Get all service providers with optional filters
 export const getAllProviders = async (req: Request, res: Response) => {
@@ -187,7 +187,7 @@ export const updateProvider = async (req: Request, res: Response) => {
         // Clean up data for update
         const updateData = { ...req.body };
         delete updateData.userId; // Don't allow updating internal userId
-        
+
         if (updateData.rating) updateData.rating = parseFloat(updateData.rating);
         if (updateData.reviews) updateData.reviews = parseInt(updateData.reviews);
         if (updateData.completedProjects) updateData.completedProjects = parseInt(updateData.completedProjects);
@@ -259,14 +259,14 @@ export const deleteProvider = async (req: Request, res: Response) => {
 // Search providers with advanced filtering
 export const searchProviders = async (req: Request, res: Response) => {
     try {
-        const { 
-            search, 
-            category, 
-            minRating, 
-            maxRate, 
-            verified, 
+        const {
+            search,
+            category,
+            minRating,
+            maxRate,
+            verified,
             available,
-            skills 
+            skills
         } = req.query;
 
         const where: any = {};
@@ -468,7 +468,7 @@ export const bookProvider = async (req: Request, res: Response) => {
 
         // Get internal IDs
         const buyer = await prisma.user.findUnique({ where: { uid: buyerId } });
-        const provider = await prisma.serviceProvider.findUnique({ 
+        const provider = await prisma.serviceProvider.findUnique({
             where: { id: providerId },
             include: { user: true }
         });

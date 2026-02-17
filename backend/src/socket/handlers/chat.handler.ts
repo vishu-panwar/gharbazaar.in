@@ -1,7 +1,7 @@
 
 import { Server, Socket } from 'socket.io';
 import { getSocketUser } from '../auth.middleware';
-import { prisma } from '../../utils/database';
+import { prisma } from '../../utils/prisma';
 import { v4 as uuidv4 } from 'uuid';
 import { socketRateLimiter } from '../../middleware/rateLimiter.middleware';
 import { sanitizeMessage, isSpam } from '../../utils/sanitization';
@@ -141,7 +141,7 @@ export const registerChatHandlers = (io: Server, socket: Socket) => {
             };
 
             io.to(conversationId).emit('new_message', messageData);
-            
+
             // Notify participants who are NOT in the room via generic notification system
             const participants = await prisma.conversationParticipant.findMany({
                 where: { conversationId },
@@ -217,7 +217,7 @@ export const registerChatHandlers = (io: Server, socket: Socket) => {
     socket.on('edit_message', async (data: { messageId: string; content: string }) => {
         try {
             const { messageId, content } = data;
-            
+
             const message = await prisma.message.findUnique({
                 where: { id: messageId }
             });
@@ -256,7 +256,7 @@ export const registerChatHandlers = (io: Server, socket: Socket) => {
     socket.on('delete_message', async (data: { messageId: string }) => {
         try {
             const { messageId } = data;
-            
+
             const message = await prisma.message.findUnique({
                 where: { id: messageId }
             });
