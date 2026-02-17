@@ -146,12 +146,22 @@ export function useVerifyPayment() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ paymentId, transactionId }: { paymentId: string; transactionId: string }) => {
-      return await backendApi.payments.verify(paymentId, transactionId);
+    mutationFn: async (paymentData: { orderId?: string; paymentId: string; signature?: string }) => {
+      return await backendApi.payments.verify(paymentData);
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: paymentKeys.detail(variables.paymentId) });
+      if (variables.orderId) {
+        queryClient.invalidateQueries({ queryKey: paymentKeys.detail(variables.orderId) });
+      }
       queryClient.invalidateQueries({ queryKey: paymentKeys.list() });
     },
   });
+}
+
+/**
+ * Hook to fetch transactions (alias for usePayments)
+ * Used for transaction history display
+ */
+export function useTransactions(filters?: PaymentFilters) {
+  return usePayments(filters);
 }

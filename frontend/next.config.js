@@ -37,6 +37,10 @@ const nextConfig = {
   experimental: {
     // optimizeCss: true, // Temporarily disabled due to critters dependency issue
     // optimizePackageImports: ['lucide-react'],
+    turbo: {
+      // Set turbopack root to silence warnings
+      root: process.cwd(),
+    },
   },
   
   // Compression

@@ -4,7 +4,7 @@
     "description": "Socket.IO + Express backend for GharBazaar real-time chat and ticketing",
     "main": "dist/server.js",
     "scripts": {
-        "dev": "nodemon src/server.ts",
+        "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
         "build": "tsc",
         "start": "node dist/server.js",
         "seed": "ts-node src/scripts/seed.ts",
@@ -53,6 +53,7 @@
         "@types/nodemailer": "^7.0.5",
         "nodemon": "^3.0.2",
         "ts-node": "^10.9.2",
+        "ts-node-dev": "^2.0.0",
         "typescript": "^5.3.3"
     }
 }

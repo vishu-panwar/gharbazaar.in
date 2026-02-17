@@ -1083,7 +1083,7 @@ export const backendApi = {
         },
 
         verify: async (paymentData: {
-            orderId: string;
+            orderId?: string;
             paymentId: string;
             signature?: string;
         }) => {
@@ -1095,6 +1095,61 @@ export const backendApi = {
 
         list: async () => {
             return backendApiCall('/payments');
+        },
+
+        getAll: async (filters?: { period?: string; status?: string; type?: string }) => {
+            const params = new URLSearchParams();
+            if (filters?.period) params.append('period', filters.period);
+            if (filters?.status) params.append('status', filters.status);
+            if (filters?.type) params.append('type', filters.type);
+            const query = params.toString() ? `?${params.toString()}` : '';
+            return backendApiCall(`/payments${query}`);
+        },
+
+        getById: async (paymentId: string) => {
+            return backendApiCall(`/payments/${paymentId}`);
+        },
+
+        getEarnings: async (filters?: { period?: string; status?: string; type?: string }) => {
+            const params = new URLSearchParams();
+            if (filters?.period) params.append('period', filters.period);
+            if (filters?.status) params.append('status', filters.status);
+            if (filters?.type) params.append('type', filters.type);
+            const query = params.toString() ? `?${params.toString()}` : '';
+            return backendApiCall(`/payments/earnings${query}`);
+        },
+
+        getPartnerEarnings: async (filters?: { period?: string; status?: string; type?: string }) => {
+            const params = new URLSearchParams();
+            if (filters?.period) params.append('period', filters.period);
+            if (filters?.status) params.append('status', filters.status);
+            if (filters?.type) params.append('type', filters.type);
+            const query = params.toString() ? `?${params.toString()}` : '';
+            return backendApiCall(`/payments/partner-earnings${query}`);
+        },
+
+        getPayouts: async () => {
+            return backendApiCall('/payments/payouts');
+        },
+
+        create: async (data: {
+            amount: number;
+            propertyId?: string;
+            contractId?: string;
+            type: 'property' | 'subscription' | 'service' | 'payout';
+            method?: string;
+        }) => {
+            return backendApiCall('/payments', {
+                method: 'POST',
+                body: JSON.stringify(data),
+            });
+        },
+
+        requestPayout: async (data: { amount: number; method?: string; accountDetails?: any }) => {
+            return backendApiCall('/payments/payouts/request', {
+                method: 'POST',
+                body: JSON.stringify(data),
+            });
         },
     },
 
