@@ -7,9 +7,17 @@
   --font-manrope: 'Manrope', 'Inter', sans-serif;
 }
 
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
 @layer base {
   body {
-    @apply bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100;
+    @apply bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors duration-300;
+    overflow-x: hidden;
+    position: relative;
+    width: 100%;
   }
 
   /* Fix text clipping issues globally */
@@ -145,7 +153,7 @@
 }
 
 .animate-slide-infinite {
-  animation: slide-infinite 60s linear infinite;
+  animation: slide-infinite 30s linear infinite;
 }
 
 /* Pause animation on hover for better UX */
@@ -545,4 +553,62 @@
 
 :where(html:not(.dark)) .home-glow {
   color: #059669;
+}
+
+/* ====================================================================
+   MOBILE CONTENT SCALING (max-width: 1023px)
+   ==================================================================== */
+@media (max-width: 1023px) {
+
+  /* Aggressive mobile content scaling */
+  :root {
+    font-size: 14px;
+  }
+
+  /* Condense section spacings significantly */
+  section {
+    padding-top: 1.5rem !important;
+    padding-bottom: 1.5rem !important;
+  }
+
+  /* Specific hero section adjustments */
+  .hero-section {
+    padding-top: 4rem !important;
+    padding-bottom: 2rem !important;
+  }
+
+  /* Condensed typography for a more premium mobile feel */
+  h1 {
+    @apply text-2xl font-black !important;
+    line-height: 1.1 !important;
+  }
+
+  h2 {
+    @apply text-xl font-bold !important;
+    line-height: 1.2 !important;
+  }
+
+  h3 {
+    @apply text-lg font-bold !important;
+  }
+
+  p {
+    @apply text-xs !important;
+    line-height: 1.4 !important;
+    color: rgba(255, 255, 255, 0.7) !important;
+  }
+
+  /* Component specific mobile scaling */
+  .card {
+    @apply p-4 !important;
+  }
+
+  .container-mobile {
+    @apply px-4 !important;
+  }
+
+  /* Prevent content overlap with fixed bottom nav */
+  main {
+    padding-bottom: 80px !important;
+  }
 }

@@ -88,7 +88,7 @@ export default function EmployeeLoginPage() {
           <div className="mb-0">
             <div className="flex items-center space-x-3 mb-4">
               <img
-                src="/images/gharbazaar-logo.jpg"
+                src="/logo.jpeg"
                 alt="GharBazaar Logo"
                 className="h-12 w-auto"
               />
@@ -234,18 +234,6 @@ export default function EmployeeLoginPage() {
                 'Sign In to Employee Portal'
               )}
             </button>
-
-            {/* Demo Credentials */}
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
-              <p className="text-sm text-blue-800 dark:text-blue-300 font-medium mb-2">
-                🔐 Demo Employee Account
-              </p>
-              <p className="text-xs text-blue-600 dark:text-blue-400">
-                Email: Gharbazaarofficial@zohomail.in<br />
-                Password: employee123<br />
-                Staff ID: EMP001
-              </p>
-            </div>
 
             {/* Apply Link */}
             <div className="text-center pt-4 border-t border-gray-200 dark:border-gray-800">

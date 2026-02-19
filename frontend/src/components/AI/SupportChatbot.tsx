@@ -391,11 +391,11 @@ export default function SupportChatbot({ userRole = 'buyer' }: SupportChatbotPro
                 <button
                     onClick={handleOpen}
                     data-chatbot-trigger
-                    className={`fixed bottom-6 right-6 w-16 h-16 bg-gradient-to-br from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-110 z-50 ${isBlinking ? 'animate-pulse' : ''
+                    className={`fixed bottom-6 right-6 w-12 h-12 lg:w-16 lg:h-16 bg-gradient-to-br from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-110 z-50 ${isBlinking ? 'animate-pulse' : ''
                         }`}
                     aria-label="Open Support Chat"
                 >
-                    <MessageCircle size={28} />
+                    <MessageCircle className="w-6 h-6 lg:w-7 lg:h-7" />
                     {hasUnreadMessage && (
                         <span className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold">
                             1
@@ -407,7 +407,7 @@ export default function SupportChatbot({ userRole = 'buyer' }: SupportChatbotPro
             {/* Chat Window */}
             {isOpen && (
                 <div
-                    className={`fixed bottom-4 right-4 w-[400px] bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden z-50 transition-all duration-300 ${isMinimized ? 'h-14' : 'h-[550px]'
+                    className={`fixed bottom-4 right-4 w-[min(320px,calc(100vw-24px))] lg:w-[400px] bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden z-50 transition-all duration-300 ${isMinimized ? 'h-14' : 'h-[400px] lg:h-[550px]'
                         }`}
                 >
                     {/* Header */}

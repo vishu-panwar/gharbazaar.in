@@ -256,6 +256,65 @@ export default function SellerDashboardPricingPage() {
             </div>
           </div>
 
+          {/* User Details Form */}
+          <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-xl border border-gray-200 dark:border-gray-700 mb-8">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+              <User className="w-6 h-6 mr-3 text-blue-500" />
+              Your Details
+            </h2>
+
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                  Full Name *
+                </label>
+                <input
+                  type="text"
+                  value={userDetails.name}
+                  onChange={(e) => setUserDetails({ ...userDetails, name: e.target.value })}
+                  className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-all duration-200"
+                  placeholder="Enter your full name"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                  Email Address *
+                </label>
+                <input
+                  type="email"
+                  value={userDetails.email}
+                  onChange={(e) => setUserDetails({ ...userDetails, email: e.target.value })}
+                  className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-all duration-200"
+                  placeholder="your@email.com"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                  Phone Number *
+                </label>
+                <input
+                  type="tel"
+                  value={userDetails.phone}
+                  onChange={(e) => setUserDetails({ ...userDetails, phone: e.target.value })}
+                  className="w-full px-4 py-4 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-all duration-200"
+                  placeholder="+91 98765 43210"
+                  required
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                  <Lock className="w-3 h-3" />
+                  <span>Your information is secure and will only be used for payment processing</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Payment Form */}
           <PaymentForm
             amount={currentPlan?.price || 0}

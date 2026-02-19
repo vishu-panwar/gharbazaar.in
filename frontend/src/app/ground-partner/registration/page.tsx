@@ -175,7 +175,7 @@ export default function GroundPartnerRegistrationPage() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
             <img
-              src="/images/gharbazaar-logo.jpg"
+              src="/logo.jpeg"
               alt="GharBazaar Logo"
               className="h-16 w-16 rounded-2xl shadow-lg object-cover"
             />

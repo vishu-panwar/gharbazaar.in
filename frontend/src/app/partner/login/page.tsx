@@ -94,7 +94,7 @@ export default function PartnerLoginPage() {
           <div className="flex items-center space-x-4 mb-12">
             <div className="relative">
               <img
-                src="/images/gharbazaar-logo.jpg"
+                src="/logo.jpeg"
                 alt="GharBazaar Logo"
                 className="h-16 w-16 rounded-3xl shadow-2xl object-cover border-4 border-white/20"
               />
@@ -185,7 +185,7 @@ export default function PartnerLoginPage() {
           {/* Mobile Logo */}
           <div className="lg:hidden flex items-center justify-center space-x-3 mb-8">
             <img
-              src="/images/gharbazaar-logo.jpg"
+              src="/logo.jpeg"
               alt="GharBazaar Logo"
               className="h-12 w-12 rounded-2xl shadow-lg object-cover"
             />
@@ -314,25 +314,7 @@ export default function PartnerLoginPage() {
             </button>
           </form>
 
-          {/* Demo Login Button */}
-          <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 text-center">
-            <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
-              🎯 Quick Demo Access
-            </p>
-            <button
-              onClick={() => {
-                localStorage.setItem('demo_mode', 'true');
-                const user = { uid: 'demo-partner', email: 'partner@demo.com', displayName: 'Demo Promoter Partner', role: 'partner' };
-                localStorage.setItem('demo_user', JSON.stringify(user));
-                localStorage.setItem('auth_token', `demo-token:${user.role}:${user.uid}`);
-                localStorage.setItem('userRole', user.role);
-                router.push('/partner');
-              }}
-              className="w-full py-4 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-2xl text-sm font-semibold hover:bg-green-100 dark:hover:bg-green-900/30 transition-all border border-green-200 dark:border-green-800 flex items-center justify-center space-x-2"
-            >
-              <span>📢 Enter as Promoter Partner Demo</span>
-            </button>
-          </div>
+
 
           {/* Sign Up Link */}
           <div className="text-center mt-8">

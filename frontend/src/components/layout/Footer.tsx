@@ -31,7 +31,7 @@ export function Footer() {
           <div className="lg:col-span-1">
             <div className="flex items-center space-x-3 mb-6">
               <img
-                src="/images/gharbazaar-logo.jpg"
+                src="/logo.jpeg"
                 alt="GharBazaar Logo"
                 className="h-16 w-auto object-contain rounded-lg shadow-lg"
               />

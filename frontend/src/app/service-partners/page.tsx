@@ -100,6 +100,10 @@ export default function ServicePartnersDashboard() {
   const [recentTasks, setRecentTasks] = useState<RecentCase[]>([])
   const [serviceProviders, setServiceProviders] = useState<ServiceProvider[]>([])
   const [providerProfile, setProviderProfile] = useState<any>(null)
+  const [kycInfo, setKycInfo] = useState<{ status: string | null; hasRequest: boolean }>({
+    status: null,
+    hasRequest: false,
+  })
   const [user, setUser] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
@@ -119,6 +123,15 @@ export default function ServicePartnersDashboard() {
         const profileResponse = await backendApi.serviceProvider.getMyProfile()
         if (profileResponse?.success) {
           setProviderProfile(profileResponse.data)
+        }
+
+        // Fetch KYC status for partner portal visibility
+        const kycResponse = await backendApi.kyc.getStatus()
+        if (kycResponse?.success) {
+          setKycInfo({
+            status: kycResponse.data?.status || null,
+            hasRequest: Boolean(kycResponse.data?.request),
+          })
         }
 
         // Fetch real tasks
@@ -257,6 +270,19 @@ export default function ServicePartnersDashboard() {
               <p className="text-blue-100 text-sm">
                 <span className="text-yellow-300 font-semibold">{stats?.activeTasks} active tasks</span> • <span className="text-yellow-300 font-semibold">{stats?.pendingReview} priority reviews</span>
               </p>
+              {kycInfo.status === 'approved' && (
+                <p className="mt-1 text-xs font-semibold text-emerald-300">KYC approved</p>
+              )}
+              {kycInfo.hasRequest && (kycInfo.status === 'pending' || kycInfo.status === 'submitted') && (
+                <Link href="/service-partners/kyc" className="mt-1 inline-block text-xs font-semibold text-amber-200 hover:text-amber-100 underline underline-offset-2">
+                  KYC pending employee approval
+                </Link>
+              )}
+              {kycInfo.status === 'rejected' && (
+                <Link href="/service-partners/kyc" className="mt-1 inline-block text-xs font-semibold text-red-200 hover:text-red-100 underline underline-offset-2">
+                  KYC rejected. Resubmit documents
+                </Link>
+              )}
             </div>
           </div>
 

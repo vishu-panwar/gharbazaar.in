@@ -18,7 +18,7 @@ import {
   X,
   Clock
 } from 'lucide-react'
-import { backendApi } from '@/lib/backendApi'
+import { backendApi, isBackendUnavailableError } from '@/lib/backendApi'
 import toast from 'react-hot-toast'
 
 interface KycFormProps {
@@ -28,7 +28,14 @@ interface KycFormProps {
 export default function KycForm({ onSuccess }: KycFormProps) {
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
-  const [kycStatus, setKycStatus] = useState<any>(null)
+  const [statusLoading, setStatusLoading] = useState(true)
+  const [kycStatus, setKycStatus] = useState<any>({
+    status: 'not_submitted',
+    kycId: null,
+    isVerified: false,
+    user: null,
+    request: null,
+  })
   
   const [formData, setFormData] = useState({
     fullName: '',
@@ -50,13 +57,31 @@ export default function KycForm({ onSuccess }: KycFormProps) {
   }, [])
 
   const fetchKycStatus = async () => {
+    setStatusLoading(true)
     try {
       const response = await backendApi.kyc.getStatus()
       if (response.success) {
-        setKycStatus(response.data)
+        setKycStatus(response.data || {
+          status: 'not_submitted',
+          kycId: null,
+          isVerified: false,
+          user: null,
+          request: null,
+        })
       }
     } catch (error) {
-      console.error('Failed to fetch KYC status:', error)
+      if (!isBackendUnavailableError(error)) {
+        console.error('Failed to fetch KYC status:', error)
+      }
+      setKycStatus({
+        status: 'not_submitted',
+        kycId: null,
+        isVerified: false,
+        user: null,
+        request: null,
+      })
+    } finally {
+      setStatusLoading(false)
     }
   }
 
@@ -112,7 +137,7 @@ export default function KycForm({ onSuccess }: KycFormProps) {
   }
 
   // Loading state
-  if (kycStatus === null) {
+  if (statusLoading) {
     return (
       <div className="flex flex-col items-center justify-center p-12 bg-white dark:bg-gray-900 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-800">
         <Loader2 className="h-8 w-8 text-blue-600 animate-spin mb-4" />
@@ -142,7 +167,7 @@ export default function KycForm({ onSuccess }: KycFormProps) {
   }
 
   // If pending review
-  if (kycStatus.status === 'submitted') {
+  if (['submitted', 'pending'].includes(kycStatus.status) && kycStatus.request) {
     return (
       <motion.div 
         initial={{ opacity: 0, y: 20 }}

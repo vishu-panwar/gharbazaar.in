@@ -1,7 +1,7 @@
 'use client'
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
 import toast from 'react-hot-toast'
-import { backendApi } from '@/lib/backendApi'
+import { backendApi, isBackendUnavailableError } from '@/lib/backendApi'
 import { useSocket } from './SocketContext'
 import { useAuth } from './AuthContext'
 
@@ -59,7 +59,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
             const response = await backendApi.notifications.getAll()
 
             if (response && response.success) {
-                const data = response.data ?? {}
+                const data = response.data ?? response
 
                 // defensive checks in case API returns unexpected shape
                 const notificationsFromApi = Array.isArray(data.notifications) ? data.notifications : []
@@ -73,6 +73,11 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
                 else if (!response.success) console.warn('fetchNotifications: response.success is false', response)
             }
         } catch (error) {
+            if (isBackendUnavailableError(error)) {
+                setNotifications([])
+                setUnreadCount(0)
+                return
+            }
             console.error('Error fetching notifications:', error)
         } finally {
             setLoading(false)
@@ -94,6 +99,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
                 setUnreadCount((prev: number) => Math.max(0, prev - 1))
             }
         } catch (error) {
+            if (isBackendUnavailableError(error)) return
             console.error('Error marking notification as read:', error)
         }
     }, [])
@@ -113,6 +119,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
                 toast.success('All notifications marked as read')
             }
         } catch (error) {
+            if (isBackendUnavailableError(error)) return
             console.error('Error marking all notifications as read:', error)
             toast.error('Failed to mark notifications as read')
         }
@@ -134,6 +141,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
                 await fetchNotifications()
             }
         } catch (error) {
+            if (isBackendUnavailableError(error)) return
             console.error('Error creating notification:', error)
         }
     }, [fetchNotifications])

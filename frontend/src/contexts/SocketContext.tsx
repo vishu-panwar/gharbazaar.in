@@ -1,10 +1,9 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { Socket } from 'socket.io-client';
 import { getOrCreateSocket, disconnectSocket } from '@/lib/socket';
 import { useAuth } from './AuthContext';
-import { CONFIG } from '@/config';
 
 interface Message {
     id: string;
@@ -41,81 +40,93 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     const { user } = useAuth();
     const [socket, setSocket] = useState<Socket | null>(null);
     const [connected, setConnected] = useState(false);
+    const currentUserIdRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        currentUserIdRef.current = user?.uid || null;
+    }, [user?.uid]);
+
+    const handleSocketConnect = useCallback(() => {
+        console.log('Socket connected');
+        setConnected(true);
+    }, []);
+
+    const handleSocketDisconnect = useCallback(() => {
+        console.log('Socket disconnected');
+        setConnected(false);
+    }, []);
+
+    const handleSocketError = useCallback((error: any) => {
+        console.error('Socket error:', error);
+    }, []);
+
+    const handleForceLogout = useCallback((data: { userId: string }) => {
+        if (currentUserIdRef.current && data.userId === currentUserIdRef.current) {
+            console.warn('Force logout triggered by admin');
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('cached_user');
+            window.location.href = '/login?reason=deleted';
+        }
+    }, []);
 
     useEffect(() => {
         if (!user) {
-            // Disconnect if no user
-            if (socket) {
-                disconnectSocket();
-                setSocket(null);
-                setConnected(false);
-            }
+            disconnectSocket();
+            setSocket(null);
+            setConnected(false);
             return;
         }
 
-        // Get auth token from localStorage
-        const initSocket = async () => {
-            try {
-                // Get token from localStorage (set by backend login)
-                const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+        let activeSocket: Socket | null = null;
 
-                // Allow connections without token for demo mode
-                if (!token) {
-                    console.warn('No auth token found, connecting in demo mode');
-                }
+        try {
+            const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
 
-                const newSocket = getOrCreateSocket(token || undefined);
-
-                // Attach client-side listeners just once
-                newSocket.on('connect', () => {
-                    console.log('✅ Socket connected');
-                    setConnected(true);
-                });
-
-                newSocket.on('disconnect', () => {
-                    console.log('❌ Socket disconnected');
-                    setConnected(false);
-                });
-
-                newSocket.on('error', (error: any) => {
-                    console.error('Socket error:', error);
-                });
-
-                newSocket.on('admin:force_logout', async (data: { userId: string }) => {
-                    if (user && data.userId === user.uid) {
-                        console.warn('⚠️ Force logout triggered by admin');
-                        localStorage.removeItem('auth_token');
-                        localStorage.removeItem('user');
-                        localStorage.removeItem('cached_user');
-                        window.location.href = '/login?reason=deleted';
-                    }
-                });
-
-                setSocket(newSocket);
-            } catch (error) {
-                console.error('Failed to initialize socket:', error);
+            if (!token) {
+                console.warn('No auth token found, connecting in demo mode');
             }
-        };
 
-        initSocket();
+            const newSocket = getOrCreateSocket(token || undefined);
+            activeSocket = newSocket;
+
+            // Prevent duplicate listeners in React Strict Mode.
+            newSocket.off('connect', handleSocketConnect);
+            newSocket.off('disconnect', handleSocketDisconnect);
+            newSocket.off('error', handleSocketError);
+            newSocket.off('admin:force_logout', handleForceLogout);
+
+            newSocket.on('connect', handleSocketConnect);
+            newSocket.on('disconnect', handleSocketDisconnect);
+            newSocket.on('error', handleSocketError);
+            newSocket.on('admin:force_logout', handleForceLogout);
+
+            setSocket(newSocket);
+            setConnected(newSocket.connected);
+        } catch (error) {
+            console.error('Failed to initialize socket:', error);
+        }
 
         return () => {
-            // Do not forcibly disconnect shared socket here — other providers may need it.
-            setSocket((s) => s);
+            if (!activeSocket) return;
+            activeSocket.off('connect', handleSocketConnect);
+            activeSocket.off('disconnect', handleSocketDisconnect);
+            activeSocket.off('error', handleSocketError);
+            activeSocket.off('admin:force_logout', handleForceLogout);
         };
-    }, [user]);
+    }, [user, handleSocketConnect, handleSocketDisconnect, handleSocketError, handleForceLogout]);
 
     const joinConversation = useCallback((conversationId: string) => {
         if (socket && connected) {
             socket.emit('join_conversation', conversationId);
-            console.log(`📨 Joined conversation: ${conversationId}`);
+            console.log(`Joined conversation: ${conversationId}`);
         }
     }, [socket, connected]);
 
     const leaveConversation = useCallback((conversationId: string) => {
         if (socket && connected) {
             socket.emit('leave_conversation', conversationId);
-            console.log(`📤 Left conversation: ${conversationId}`);
+            console.log(`Left conversation: ${conversationId}`);
         }
     }, [socket, connected]);
 

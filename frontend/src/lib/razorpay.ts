@@ -137,7 +137,7 @@ export const initiateRazorpayPayment = async (
       currency: 'INR',
       name: 'GharBazaar',
       description: paymentData.serviceName,
-      image: '/images/gharbazaar-logo.jpg',
+      image: '/logo.jpeg',
       order_id: backendOrderId,
       prefill: {
         name: paymentData.userDetails.name,
@@ -367,7 +367,7 @@ export const RAZORPAY_CONFIG = {
   currency: 'INR',
   theme_color: '#14b8a6',
   company_name: 'GharBazaar',
-  company_logo: '/images/gharbazaar-logo.jpg',
+  company_logo: '/logo.jpeg',
   timeout: 300, // 5 minutes
   retry: {
     enabled: true,

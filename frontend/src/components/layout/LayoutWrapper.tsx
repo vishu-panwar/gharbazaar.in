@@ -1,10 +1,10 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { Header } from './Header'
-import { Footer } from './Footer'
 import FloatingNavbar from '../FloatingNavbar'
+import MobileBottomNav from './MobileBottomNav'
 import PageTransition from '../PageTransition'
+import { Footer } from './Footer'
 
 export function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -42,10 +42,10 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex flex-col min-h-screen">
       <FloatingNavbar />
-      <Header />
-      <main className="flex-1">
+      <main className="flex-1 overflow-x-hidden">
         <PageTransition>{children}</PageTransition>
       </main>
+      <MobileBottomNav />
       <Footer />
     </div>
   )

@@ -146,7 +146,7 @@ export default function SignupPage() {
             <div className="w-16 h-16 lg:w-24 lg:h-24 mx-auto mb-4 lg:mb-6">
               <div className="w-full h-full bg-white/20 backdrop-blur-md rounded-2xl lg:rounded-3xl flex items-center justify-center shadow-2xl overflow-hidden border border-white/30">
                 <img
-                  src="/images/gharbazaar-logo.jpg"
+                  src="/logo.jpeg"
                   alt="GharBazaar Logo"
                   className="w-full h-full object-cover"
                 />
@@ -203,7 +203,7 @@ export default function SignupPage() {
             <div className="inline-flex items-center justify-center space-x-3 mb-4">
               <div className="w-12 h-12 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-xl overflow-hidden p-1">
                 <img
-                  src="/images/gharbazaar-logo.jpg"
+                  src="/logo.jpeg"
                   alt="GharBazaar Logo"
                   className="w-full h-full object-cover rounded-xl"
                 />

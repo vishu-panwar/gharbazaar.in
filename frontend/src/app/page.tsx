@@ -30,8 +30,7 @@ import {
   Heart,
   Target,
   Gift,
-  Eye,
-  UserCheck
+  Search,
 } from 'lucide-react'
 import Image from 'next/image'
 
@@ -61,13 +60,14 @@ export default function HomePage() {
       <section className="relative h-screen overflow-hidden">
         {/* Background - User's Uploaded Villa Image */}
         <InteractiveBackground
-          imageUrl="/images/hero-home.jpg"
+          imageUrl="/home-hero.jpeg"
           brightness={0.5}
-          glowColor="rgba(20,184,166,0.08)"
+          glowColor="rgba(20,184,166,0.15)"
+          position="right"
         />
 
         {/* Very Light Gradient - Just to make text readable */}
-        <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-transparent to-transparent z-[1]"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent z-[1]"></div>
 
         {/* Content */}
         <div className="relative z-10 h-full max-w-[1400px] mx-auto px-8">
@@ -86,7 +86,7 @@ export default function HomePage() {
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.05 }}
-                className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black leading-tight"
+                className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black leading-tight text-center lg:text-left"
               >
                 <span className="block text-white mb-1">Let us find a place</span>
                 <span className="block">
@@ -95,22 +95,55 @@ export default function HomePage() {
                 </span>
               </motion.h1>
 
+              {/* Mobile Category Grid (lg:hidden) */}
+              <div className="lg:hidden grid grid-cols-4 gap-4 py-4">
+                {[
+                  { icon: Building2, label: 'Buy' },
+                  { icon: Home, label: 'Rent' },
+                  { icon: Target, label: 'Plot' },
+                  { icon: Award, label: 'Comm' }
+                ].map((cat, idx) => (
+                  <div key={idx} className="flex flex-col items-center space-y-1">
+                    <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/10">
+                      <cat.icon className="text-emerald-400" size={20} />
+                    </div>
+                    <span className="text-[10px] text-gray-300">{cat.label}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Mobile Search Bar (lg:hidden) */}
+              <div className="lg:hidden relative flex items-center">
+                <input 
+                  type="text" 
+                  placeholder="Search City, Locality, Project..." 
+                  className="w-full bg-white dark:bg-gray-900 border-none rounded-2xl py-4 pl-12 pr-14 text-sm shadow-xl focus:ring-2 focus:ring-emerald-500"
+                />
+                <Search className="absolute left-4 text-gray-400" size={18} />
+                <Link 
+                  href="/login"
+                  className="absolute right-2 bg-emerald-500 text-white p-2.5 rounded-xl hover:bg-emerald-600 transition-colors shadow-lg active:scale-95"
+                >
+                  <Search size={18} />
+                </Link>
+              </div>
+
               {/* Subtext - Smaller */}
               <motion.p
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.1 }}
-                className="text-xs sm:text-sm text-gray-400 max-w-lg"
+                className="text-xs sm:text-sm text-gray-400 max-w-lg text-center lg:text-left mx-auto lg:mx-0"
               >
                 Transparent pricing. Zero pressure. Optional assistance. Built for India.
               </motion.p>
 
-              {/* CTAs */}
+              {/* CTAs - Hidden on mobile if redundant with search, or kept minimal */}
               <motion.div
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.35, delay: 0.15 }}
-                className="flex flex-wrap gap-3"
+                className="hidden lg:flex flex-wrap gap-3"
               >
                 <Link href="/dashboard" className="btn-emerald inline-flex items-center space-x-2 px-6 py-2.5 text-sm">
                   <span>Explore Properties</span>
@@ -122,24 +155,20 @@ export default function HomePage() {
                 </Link>
               </motion.div>
 
-              {/* Minimal Trust Indicators */}
+              {/* Minimal Trust Indicators - Centered on mobile */}
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.35, delay: 0.2 }}
-                className="flex flex-wrap items-center justify-center lg:justify-start gap-4 pt-8"
+                className="flex flex-wrap items-center justify-center lg:justify-start gap-2 lg:gap-4 pt-4 lg:pt-8"
               >
-                <div className="flex items-center space-x-2 px-4 py-2 bg-emerald-500/10 backdrop-blur-sm rounded-full border border-emerald-400/30">
-                  <Verified className="text-emerald-400" size={16} />
-                  <span className="text-white text-xs font-semibold">Verified Properties</span>
+                <div className="flex items-center space-x-2 px-3 py-1.5 bg-emerald-500/10 backdrop-blur-sm rounded-full border border-emerald-400/30">
+                  <Verified className="text-emerald-400" size={14} />
+                  <span className="text-white text-[10px] lg:text-xs font-semibold">Verified Properties</span>
                 </div>
-                <div className="flex items-center space-x-2 px-4 py-2 bg-emerald-500/10 backdrop-blur-sm rounded-full border border-emerald-400/30">
-                  <Shield className="text-emerald-400" size={16} />
-                  <span className="text-white text-xs font-semibold">100% Secure</span>
-                </div>
-                <div className="flex items-center space-x-2 px-4 py-2 bg-emerald-500/10 backdrop-blur-sm rounded-full border border-emerald-400/30">
-                  <Heart className="text-emerald-400" size={16} />
-                  <span className="text-white text-xs font-semibold">Trusted Platform</span>
+                <div className="flex items-center space-x-2 px-3 py-1.5 bg-emerald-500/10 backdrop-blur-sm rounded-full border border-emerald-400/30">
+                  <Shield className="text-emerald-400" size={14} />
+                  <span className="text-white text-[10px] lg:text-xs font-semibold">100% Secure</span>
                 </div>
               </motion.div>
             </motion.div>
@@ -157,7 +186,7 @@ export default function HomePage() {
 
 
       {/* What is GharBazaar */}
-      <section className="py-20 bg-white dark:bg-gray-950">
+      <section className="py-10 lg:py-20 bg-white dark:bg-gray-950">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div className="order-2 lg:order-1">
@@ -166,11 +195,11 @@ export default function HomePage() {
                 <span className="text-teal-700 dark:text-teal-300 font-semibold">WHAT IS GHARBAZAAR</span>
               </div>
 
-              <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-6">
+              <h2 className="text-2xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-4 lg:mb-6">
                 India's Most Transparent Property Platform
               </h2>
 
-              <p className="text-lg text-gray-600 dark:text-gray-300 mb-8 leading-relaxed">
+              <p className="text-base lg:text-lg text-gray-600 dark:text-gray-300 mb-6 lg:mb-8 leading-relaxed">
                 GharBazaar is built to remove confusion, pressure, and unfair commissions from Indian real estate.
                 We believe every family deserves a transparent, affordable way to find their dream home.
               </p>
@@ -214,7 +243,7 @@ export default function HomePage() {
                   <div className="aspect-square relative z-10 flex items-center justify-center">
                     <div className="w-full h-full bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20 shadow-2xl relative overflow-hidden group">
                       <Image
-                        src="/images/gharbazaar-logo.jpg"
+                        src="/logo.jpeg"
                         alt="GharBazaar Logo"
                         width={400}
                         height={400}
@@ -236,25 +265,25 @@ export default function HomePage() {
 
 
       {/* Why Choose GharBazaar */}
-      < section className="py-20 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800" >
+      <section className="py-10 lg:py-20 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800" >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center space-x-2 bg-emerald-100 dark:bg-emerald-900/30 px-4 py-2 rounded-full mb-6">
+          <div className="text-center mb-8 lg:mb-16">
+            <div className="inline-flex items-center space-x-2 bg-emerald-100 dark:bg-emerald-900/30 px-4 py-2 rounded-full mb-4 lg:mb-6">
               <Zap className="text-emerald-600 dark:text-emerald-400" size={20} />
               <span className="text-emerald-700 dark:text-emerald-300 font-semibold">WHY CHOOSE GHARBAZAAR</span>
             </div>
-            <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-6">
+            <h2 className="text-2xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-4 lg:mb-6">
               Why Choose GharBazaar?
             </h2>
-            <p className="text-xl text-gray-600 dark:text-gray-300 max-w-4xl mx-auto">
+            <p className="text-lg lg:text-xl text-gray-600 dark:text-gray-300 max-w-4xl mx-auto">
               Experience the future of real estate with our transparent, efficient platform
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             <div className="text-center p-8 bg-white dark:bg-gray-800 rounded-3xl shadow-lg hover:shadow-xl transition-all border border-gray-200 dark:border-gray-700">
-              <div className="w-16 h-16 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <Shield className="text-white" size={32} />
+              <div className="w-12 h-12 lg:w-16 lg:h-16 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4 lg:mb-6">
+                <Shield className="text-white" size={24} />
               </div>
               <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">No Hidden Charges</h3>
               <p className="text-gray-600 dark:text-gray-300">Complete transparency in pricing. What you see is what you pay - no surprise fees.</p>
@@ -316,7 +345,7 @@ export default function HomePage() {
       </section >
 
       {/* Testimonials Section */}
-      < section className="py-20 bg-white dark:bg-gray-950 relative overflow-hidden" >
+      <section className="py-10 lg:py-20 bg-white dark:bg-gray-950 relative overflow-hidden" >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-6">
@@ -328,129 +357,87 @@ export default function HomePage() {
           </div>
 
           <div className="relative">
-            <div className="flex animate-slide space-x-8">
-              {/* Testimonial Cards */}
-              {[
-                {
-                  name: "Rajesh Kumar",
-                  location: "Mumbai",
-                  rating: 5,
-                  text: "Found my dream apartment without any broker hassle. The ₹1000 listing fee saved me lakhs compared to traditional brokers.",
-                  avatar: "RK"
-                },
-                {
-                  name: "Priya Sharma",
-                  location: "Delhi",
-                  rating: 5,
-                  text: "Transparent pricing and direct contact with owners made the entire process stress-free. Highly recommended!",
-                  avatar: "PS"
-                },
-                {
-                  name: "Amit Patel",
-                  location: "Bangalore",
-                  rating: 5,
-                  text: "Listed my property and got genuine buyers within a week. No pressure tactics, just honest service.",
-                  avatar: "AP"
-                },
-                {
-                  name: "Sneha Gupta",
-                  location: "Pune",
-                  rating: 5,
-                  text: "The verification process gave me confidence. Every property detail was accurate and up-to-date.",
-                  avatar: "SG"
-                },
-                {
-                  name: "Vikram Singh",
-                  location: "Hyderabad",
-                  rating: 5,
-                  text: "Best platform for property rental. Found tenants quickly with complete transparency in the process.",
-                  avatar: "VS"
-                },
-                {
-                  name: "Meera Joshi",
-                  location: "Chennai",
-                  rating: 5,
-                  text: "No hidden charges, no surprise fees. What they promise is exactly what you get. Excellent service!",
-                  avatar: "MJ"
-                }
-              ].concat([
-                {
-                  name: "Rajesh Kumar",
-                  location: "Mumbai",
-                  rating: 5,
-                  text: "Found my dream apartment without any broker hassle. The ₹1000 listing fee saved me lakhs compared to traditional brokers.",
-                  avatar: "RK"
-                },
-                {
-                  name: "Priya Sharma",
-                  location: "Delhi",
-                  rating: 5,
-                  text: "Transparent pricing and direct contact with owners made the entire process stress-free. Highly recommended!",
-                  avatar: "PS"
-                },
-                {
-                  name: "Amit Patel",
-                  location: "Bangalore",
-                  rating: 5,
-                  text: "Listed my property and got genuine buyers within a week. No pressure tactics, just honest service.",
-                  avatar: "AP"
-                },
-                {
-                  name: "Sneha Gupta",
-                  location: "Pune",
-                  rating: 5,
-                  text: "The verification process gave me confidence. Every property detail was accurate and up-to-date.",
-                  avatar: "SG"
-                },
-                {
-                  name: "Vikram Singh",
-                  location: "Hyderabad",
-                  rating: 5,
-                  text: "Best platform for property rental. Found tenants quickly with complete transparency in the process.",
-                  avatar: "VS"
-                },
-                {
-                  name: "Meera Joshi",
-                  location: "Chennai",
-                  rating: 5,
-                  text: "No hidden charges, no surprise fees. What they promise is exactly what you get. Excellent service!",
-                  avatar: "MJ"
-                }
-              ]).map((testimonial, index) => (
-                <div key={index} className="flex-shrink-0 w-80 p-6 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-3xl shadow-lg border border-gray-200 dark:border-gray-700 backdrop-blur-sm">
-                  <div className="flex items-center space-x-4 mb-4">
-                    <div className="w-12 h-12 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-full flex items-center justify-center">
-                      <span className="text-white font-bold text-sm">{testimonial.avatar}</span>
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-gray-900 dark:text-white">{testimonial.name}</h4>
-                      <p className="text-gray-500 dark:text-gray-400 text-sm">{testimonial.location}</p>
-                    </div>
-                    <div className="ml-auto">
-                      <div className="flex space-x-1">
-                        {[...Array(testimonial.rating)].map((_, i) => (
-                          <Star key={i} className="text-yellow-400 fill-current" size={16} />
-                        ))}
+            <div className="flex animate-slide-infinite space-x-8 w-max">
+              {/* Testimonial Cards - Duplicated for Infinite Loop */}
+              {[...Array(2)].map((_, groupIndex) => (
+                <div key={groupIndex} className="flex space-x-8">
+                  {[
+                    {
+                      name: "Rajesh Kumar",
+                      location: "Mumbai",
+                      rating: 5,
+                      text: "Found my dream apartment without any broker hassle. The ₹1000 listing fee saved me lakhs compared to traditional brokers.",
+                      avatar: "RK"
+                    },
+                    {
+                      name: "Priya Sharma",
+                      location: "Delhi",
+                      rating: 5,
+                      text: "Transparent pricing and direct contact with owners made the entire process stress-free. Highly recommended!",
+                      avatar: "PS"
+                    },
+                    {
+                      name: "Amit Patel",
+                      location: "Bangalore",
+                      rating: 5,
+                      text: "Listed my property and got genuine buyers within a week. No pressure tactics, just honest service.",
+                      avatar: "AP"
+                    },
+                    {
+                      name: "Sneha Gupta",
+                      location: "Pune",
+                      rating: 5,
+                      text: "The verification process gave me confidence. Every property detail was accurate and up-to-date.",
+                      avatar: "SG"
+                    },
+                    {
+                      name: "Vikram Singh",
+                      location: "Hyderabad",
+                      rating: 5,
+                      text: "Best platform for property rental. Found tenants quickly with complete transparency in the process.",
+                      avatar: "VS"
+                    },
+                    {
+                      name: "Meera Joshi",
+                      location: "Chennai",
+                      rating: 5,
+                      text: "No hidden charges, no surprise fees. What they promise is exactly what you get. Excellent service!",
+                      avatar: "MJ"
+                    }
+                  ].map((testimonial, index) => (
+                    <div key={index} className="flex-shrink-0 w-72 lg:w-80 p-6 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-3xl shadow-lg border border-gray-200 dark:border-gray-700 backdrop-blur-sm">
+                      <div className="flex items-center space-x-4 mb-4">
+                        <div className="w-12 h-12 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-full flex items-center justify-center">
+                          <span className="text-white font-bold text-sm">{testimonial.avatar}</span>
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-gray-900 dark:text-white">{testimonial.name}</h4>
+                          <p className="text-gray-500 dark:text-gray-400 text-sm">{testimonial.location}</p>
+                        </div>
+                        <div className="ml-auto">
+                          <div className="flex space-x-1">
+                            {[...Array(testimonial.rating)].map((_, i) => (
+                              <Star key={i} className="text-yellow-400 fill-current" size={16} />
+                            ))}
+                          </div>
+                        </div>
                       </div>
+                      <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">"{testimonial.text}"</p>
                     </div>
-                  </div>
-                  <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">"{testimonial.text}"</p>
+                  ))}
                 </div>
               ))}
             </div>
 
-            {/* Gradient Overlays */}
-            <div className="absolute left-0 top-0 w-32 h-full bg-gradient-to-r from-white dark:from-gray-950 to-transparent pointer-events-none"></div>
-            <div className="absolute right-0 top-0 w-32 h-full bg-gradient-to-l from-white dark:from-gray-950 to-transparent pointer-events-none"></div>
           </div>
         </div>
       </section >
 
       {/* Contact Section */}
-      < section className="py-20 bg-gradient-to-br from-teal-600 via-emerald-600 to-blue-600 relative overflow-hidden" >
+      <section className="py-10 lg:py-20 bg-gradient-to-br from-teal-600 via-emerald-600 to-blue-600 relative overflow-hidden" >
         <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
         <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl sm:text-5xl font-bold text-white mb-6">
+          <h2 className="text-3xl lg:text-5xl font-bold text-white mb-4 lg:mb-6">
             Ready to Get Started?
           </h2>
           <p className="text-xl text-teal-100 mb-8">

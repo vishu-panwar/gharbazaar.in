@@ -16,10 +16,10 @@ export const metadata: Metadata = {
   keywords: 'real estate, property, India, buy, sell, rent, plots, homes',
   icons: {
     icon: [
-      { url: '/images/gharbazaar-logo.jpg', type: 'image/jpeg' }
+      { url: '/logo.jpeg', type: 'image/jpeg' },
     ],
-    shortcut: '/images/gharbazaar-logo.jpg',
-    apple: '/images/gharbazaar-logo.jpg',
+    shortcut: '/logo.jpeg',
+    apple: '/logo.jpeg',
   },
   manifest: '/manifest.json',
   appleWebApp: {
@@ -32,7 +32,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 5,
+  maximumScale: 1,
+  userScalable: false,
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#2563eb' },
     { media: '(prefers-color-scheme: dark)', color: '#1e40af' }

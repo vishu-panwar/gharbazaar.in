@@ -1,0 +1,17 @@
+{
+  "name": "GharBazaar - Premium Local Real Estate Marketplace",
+  "short_name": "GharBazaar",
+  "description": "List, browse, and bid on properties across India.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/logo.jpeg",
+      "sizes": "192x192 512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}

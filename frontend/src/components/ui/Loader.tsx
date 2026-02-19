@@ -119,7 +119,7 @@ export default function Loader({
             {/* Logo Image */}
             <div className="relative w-16 h-16 lg:w-20 lg:h-20">
               <Image
-                src="/images/gharbazaar-logo.jpg"
+                src="/logo.jpeg"
                 alt="GharBazaar"
                 fill
                 className="object-contain rounded-xl"

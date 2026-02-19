@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { Property } from '@/components/PropertyCard'
-import { backendApi } from '@/lib/backendApi'
+import { backendApi, isBackendUnavailableError } from '@/lib/backendApi'
 import { useAuth } from '@/contexts/AuthContext'
 import toast from 'react-hot-toast'
 
@@ -32,6 +32,20 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
     const [favorites, setFavorites] = useState<Property[]>([])
     const [loading, setLoading] = useState(true)
     const [isLoaded, setIsLoaded] = useState(false)
+
+    const loadLocalFavorites = () => {
+        const stored = localStorage.getItem('gharbazaar_favorites')
+        if (!stored) return
+
+        try {
+            const parsed = JSON.parse(stored)
+            if (Array.isArray(parsed)) {
+                setFavorites(parsed)
+            }
+        } catch (error) {
+            console.warn('Failed to parse local favorites')
+        }
+    }
 
     // Initial Load
     useEffect(() => {
@@ -67,18 +81,15 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
                         }
                     }
                 } catch (error) {
-                    console.error('Error loading backend favorites:', error)
+                    if (!isBackendUnavailableError(error)) {
+                        console.error('Error loading backend favorites:', error)
+                    }
+                    // Graceful fallback when backend is unavailable.
+                    loadLocalFavorites()
                 }
             } else {
                 // 3. Fallback to localStorage for guest users
-                const stored = localStorage.getItem('gharbazaar_favorites')
-                if (stored) {
-                    try {
-                        setFavorites(JSON.parse(stored))
-                    } catch (error) {
-                        console.error('Error loading local favorites:', error)
-                    }
-                }
+                loadLocalFavorites()
             }
             
             setIsLoaded(true)
@@ -121,7 +132,9 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
                     }
                 }
             } catch (error) {
-                console.error('Error toggling favorite on backend:', error)
+                if (!isBackendUnavailableError(error)) {
+                    console.error('Error toggling favorite on backend:', error)
+                }
                 toast.error('Connection error')
             }
         }

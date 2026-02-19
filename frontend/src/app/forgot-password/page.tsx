@@ -72,7 +72,7 @@ export default function ForgotPasswordPage() {
                         <div className="inline-flex items-center justify-center space-x-3 mb-6">
                             <div className="w-14 h-14 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-xl overflow-hidden p-1">
                                 <img
-                                    src="/images/gharbazaar-logo.jpg"
+                                    src="/logo.jpeg"
                                     alt="GharBazaar Logo"
                                     className="w-12 h-12 object-contain rounded-lg"
                                 />

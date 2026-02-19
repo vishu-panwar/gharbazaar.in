@@ -57,14 +57,10 @@ export default function PartnerRegistrationPage() {
       router.push('/service-partners')
       return
     }
-    
-    // Pre-fill name from Google
-    if (parsedUser.name || parsedUser.displayName) {
-      setFormData(prev => ({ 
-        ...prev, 
-        name: parsedUser.name || parsedUser.displayName || '' 
-      }))
-    }
+
+    toast('Complete KYC verification first to continue onboarding.')
+    router.push('/service-partners/kyc')
+    return
   }, [router])
 
   const serviceCategories = [

@@ -40,6 +40,13 @@ import ModeChangeToast from '@/components/ModeChangeToast'
 import { useSellerSubscription } from '@/contexts/SellerSubscriptionContext'
 import SupportChatbot from '@/components/AI/SupportChatbot'
 import { ChatbotErrorBoundary } from '@/components/AI/ChatbotErrorBoundary'
+import {
+  isEmployeeRole,
+  isGroundPartnerRole,
+  isLegalPartnerRole,
+  isPromoterPartnerRole,
+  isServiceOrLegalPartnerRole,
+} from '@/lib/roleRouting'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -76,30 +83,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         setUser(user)
 
         // SAFETY REDIRECT: Kick partners out of client dashboard
-        const role = (user.role || '').toLowerCase();
-        const isRole = (val: string, targets: string[]) => targets.includes(val);
+        const role = user.role
 
-        if (isRole(role, ['ground_partner', 'ground-partner'])) {
-          console.log('🚪 Partitioning: Ground Partner detected in client dashboard, redirecting...');
-          router.push('/ground-partner');
-          return;
+        if (isGroundPartnerRole(role)) {
+          router.push('/ground-partner')
+          return
         }
-        if (isRole(role, ['promoter_partner', 'promoter-partner', 'promo-partner', 'partner'])) {
-          console.log('🚪 Partitioning: Promoter Partner detected in client dashboard, redirecting...');
-          router.push('/partner');
-          return;
+        if (isPromoterPartnerRole(role)) {
+          router.push('/partner')
+          return
         }
-        if (isRole(role, ['legal_partner', 'service-partners', 'service_partner'])) {
-          console.log('🚪 Partitioning: Service Partner detected in client dashboard, redirecting...');
-          router.push('/service-partners');
-          return;
+        if (isServiceOrLegalPartnerRole(role)) {
+          if (isLegalPartnerRole(role)) {
+            router.push('/legal-partner')
+          } else {
+            router.push('/service-partners')
+          }
+          return
         }
-        if (isRole(role, ['employee'])) {
-          console.log('🚪 Partitioning: Employee detected in client dashboard, redirecting...');
-          router.push('/employee');
-          return;
+        if (isEmployeeRole(role)) {
+          router.push('/employee')
+          return
         }
-
         // If demo mode, set mode based on role
         if (user.isDemo) {
           const role = user.role === 'seller' ? 'seller' : 'buyer'
@@ -130,11 +135,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // Sync with AuthContext user when it changes
   useEffect(() => {
-    if (authUser && (!user || user.uid !== authUser.uid || user.name !== authUser.name || user.email !== authUser.email)) {
-      console.log('DashboardLayout: Syncing with AuthContext user:', authUser.email)
-      setUser(authUser)
+    if (authUser) {
+      if (!user || user.uid !== authUser.uid || user.name !== authUser.name || user.email !== authUser.email) {
+        console.log('DashboardLayout: Syncing with AuthContext user:', authUser.email)
+        setUser(authUser)
+      }
+
+      // REACTIVE SAFETY REDIRECT: Immediately catch partners even after login
+      const role = authUser.role
+
+      if (isServiceOrLegalPartnerRole(role)) {
+        if (isLegalPartnerRole(role)) {
+          router.push('/legal-partner')
+        } else {
+          router.push('/service-partners')
+        }
+      } else if (isEmployeeRole(role)) {
+        router.push('/employee')
+      } else if (isGroundPartnerRole(role)) {
+        router.push('/ground-partner')
+      } else if (isPromoterPartnerRole(role)) {
+        router.push('/partner')
+      }
     }
-  }, [authUser, user])
+  }, [authUser, user, router])
 
   // Listen for mode changes from layout
   useEffect(() => {
@@ -175,14 +199,38 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }
 
+  // Navigation item interface
+  interface NavigationItem {
+    name: string
+    href: string
+    icon: any
+    subItems?: { name: string; href: string }[]
+  }
+
   // Buyer Navigation
-  const buyerNavigation = [
+  const buyerNavigation: NavigationItem[] = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'KYC Verification', href: '/dashboard/kyc', icon: ShieldCheck },
     { name: 'Browse Properties', href: '/dashboard/browse', icon: Eye },
     { name: 'My Proposals', href: '/dashboard/proposals', icon: Gavel },
     { name: 'Favorites', href: '/dashboard/favorites', icon: Heart },
-    { name: 'Services', href: '/dashboard/services', icon: Briefcase },
+    { 
+      name: 'Services', 
+      href: '/dashboard/services', 
+      icon: Briefcase,
+      subItems: [
+        { name: 'Property Lawyer', href: '/dashboard/services/lawyer' },
+        { name: 'Architect', href: '/dashboard/services/architect' },
+        { name: 'Interior Designer', href: '/dashboard/services/interior-designer' },
+        { name: 'Painter', href: '/dashboard/services/painter' },
+        { name: 'Civil Contractor', href: '/dashboard/services/contractor' },
+        { name: 'Property Inspector', href: '/dashboard/services/inspector' },
+        { name: 'Packers & Movers', href: '/dashboard/services/movers' },
+        { name: 'Electrician / Plumber', href: '/dashboard/services/electrician' },
+        { name: 'Modular Kitchen & Furniture', href: '/dashboard/services/furniture' },
+        { name: 'Surveyor / Valuation Expert', href: '/dashboard/services/surveyor' },
+      ]
+    },
     { name: 'Messages', href: '/dashboard/messages', icon: MessageSquare },
     { name: 'Pricing Plans', href: '/dashboard/pricing', icon: DollarSign },
     { name: 'Profile', href: '/dashboard/profile', icon: User },
@@ -190,7 +238,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   ]
 
   // Seller Navigation
-  const sellerNavigation = [
+  const sellerNavigation: NavigationItem[] = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'KYC Verification', href: '/dashboard/kyc', icon: ShieldCheck },
     { name: 'My Listings', href: '/dashboard/listings', icon: Home },
@@ -204,7 +252,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: 'Settings', href: '/dashboard/settings', icon: Settings },
   ]
 
-  const navigation = userMode === 'buyer' ? buyerNavigation : sellerNavigation
+  const navigation: NavigationItem[] = userMode === 'buyer' ? buyerNavigation : sellerNavigation
 
   // Don't render anything until mounted (prevents hydration issues)
   if (!mounted) {
@@ -248,7 +296,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="flex items-center justify-between px-6 py-5 border-b border-gray-200 dark:border-gray-800">
             <Link href="/" className="flex items-center space-x-2 sm:space-x-3">
               <img
-                src="/images/gharbazaar-logo.jpg"
+                src="/logo.jpeg"
                 alt="GharBazaar Logo"
                 className="h-8 sm:h-10 w-8 sm:w-10 object-contain rounded-lg"
                 onError={(e) => {
@@ -316,28 +364,54 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           {/* Navigation */}
           <nav className="flex-1 px-3 sm:px-4 py-6 space-y-1 overflow-y-auto">
-            {navigation.map((item) => {
-              const isActive = pathname === item.href
+            {navigation.map((item: NavigationItem) => {
+              const isActive = pathname === item.href || (item.subItems && item.subItems.some((sub: any) => pathname === sub.href))
               const activeColor = userMode === 'buyer' ? 'bg-blue-600 shadow-blue-600/30' : 'bg-green-600 shadow-green-600/30'
               return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  onClick={(e) => {
-                    console.log('Navigation clicked:', item.name, item.href)
-                    setSidebarOpen(false)
-                  }}
-                  className={`
-                    flex items-center space-x-2 sm:space-x-3 px-3 sm:px-4 py-3 rounded-xl transition-all text-sm sm:text-base cursor-pointer
-                    ${isActive
-                      ? `${activeColor} text-white shadow-lg`
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                    }
-                  `}
-                >
-                  <item.icon size={18} className="sm:w-5 sm:h-5 flex-shrink-0" />
-                  <span className="font-medium truncate">{item.name}</span>
-                </Link>
+                <div key={item.name} className="space-y-1">
+                  <Link
+                    href={item.href}
+                    onClick={(e) => {
+                      console.log('Navigation clicked:', item.name, item.href)
+                      setSidebarOpen(false)
+                    }}
+                    className={`
+                      flex items-center space-x-2 sm:space-x-3 px-3 sm:px-4 py-3 rounded-xl transition-all text-sm sm:text-base cursor-pointer
+                      ${isActive
+                        ? `${activeColor} text-white shadow-lg`
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                      }
+                    `}
+                  >
+                    <item.icon size={18} className="sm:w-5 sm:h-5 flex-shrink-0" />
+                    <span className="font-medium truncate">{item.name}</span>
+                  </Link>
+                  
+                  {/* Sub-items rendering */}
+                  {item.subItems && (
+                    <div className="ml-8 sm:ml-10 space-y-1 mt-1">
+                      {item.subItems.map((sub: any) => {
+                        const isSubActive = pathname === sub.href
+                        return (
+                          <Link
+                            key={sub.name}
+                            href={sub.href}
+                            onClick={() => setSidebarOpen(false)}
+                            className={`
+                              block px-3 py-2 rounded-lg text-xs sm:text-sm transition-all
+                              ${isSubActive
+                                ? 'text-blue-600 dark:text-blue-400 font-bold bg-blue-50 dark:bg-blue-900/20'
+                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
+                              }
+                            `}
+                          >
+                            {sub.name}
+                          </Link>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
               )
             })}
           </nav>

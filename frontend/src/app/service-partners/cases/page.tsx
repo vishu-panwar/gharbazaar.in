@@ -71,7 +71,7 @@ interface LegalCase {
   feedback?: string
 }
 
-import { backendApi } from '@/lib/backendApi'
+import { backendApi, isBackendUnavailableError } from '@/lib/backendApi'
 
 export default function LegalCasesPage() {
   const [cases, setCases] = useState<LegalCase[]>([])
@@ -103,12 +103,13 @@ export default function LegalCasesPage() {
 
   useEffect(() => {
     async function fetchData() {
+      setIsLoading(true)
+
       try {
-        setIsLoading(true)
         const response = await backendApi.partners.getCases()
         if (response?.success) {
           const caseData = response.data || []
-          
+
           const mappedCases: LegalCase[] = caseData.map((c: any) => ({
             id: c.id,
             title: c.description || 'Property Service Case',
@@ -143,9 +144,20 @@ export default function LegalCasesPage() {
 
           setCases(mappedCases)
           setFilteredCases(mappedCases)
+        } else {
+          setCases([])
+          setFilteredCases([])
         }
+      } catch (error) {
+        setCases([])
+        setFilteredCases([])
+        if (!isBackendUnavailableError(error)) {
+          console.error('Error fetching cases:', error)
+          toast.error('Failed to load cases')
+        }
+      }
 
-        // Fetch user profile for KYC status
+      try {
         const kycResponse = await backendApi.kyc.getStatus()
         if (kycResponse?.success) {
           setKycStatus(kycResponse.data.status)
@@ -158,10 +170,14 @@ export default function LegalCasesPage() {
             email: kycResponse.data.user?.email || '',
             address: profile.address || ''
           }))
+        } else {
+          setKycStatus(null)
         }
       } catch (error) {
-        console.error('Error fetching cases:', error)
-        toast.error('Failed to load cases')
+        setKycStatus(null)
+        if (!isBackendUnavailableError(error)) {
+          console.error('Error fetching KYC status:', error)
+        }
       } finally {
         setIsLoading(false)
       }
@@ -291,7 +307,8 @@ export default function LegalCasesPage() {
           address: serviceFormData.address
         })
       } else {
-        toast.error(response?.error || 'Failed to add service')
+        const details = response?.details ? ` ${response.details}` : ''
+        toast.error((response?.error || 'Failed to add service') + details)
       }
     } catch (error) {
       console.error('Error adding service:', error)
@@ -307,6 +324,9 @@ export default function LegalCasesPage() {
     { id: 'completed', label: 'Completed', count: cases.filter(c => c.status === 'completed').length },
     { id: 'urgent', label: 'Urgent', count: cases.filter(c => c.priority === 'urgent').length }
   ]
+  const handleAddServiceClick = () => {
+    setShowAddServiceModal(true)
+  }
 
   if (isLoading) {
     return (
@@ -329,37 +349,15 @@ export default function LegalCasesPage() {
             Manage your legal assignments and due diligence cases
           </p>
         </div>
-        {kycStatus === 'approved' && (
+        <div className="mt-4 sm:mt-0 flex flex-col sm:items-end gap-2">
           <button
-            onClick={() => setShowAddServiceModal(true)}
-            className="mt-4 sm:mt-0 flex items-center space-x-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-semibold shadow-md hover:bg-blue-700 transition-all"
+            onClick={handleAddServiceClick}
+            className="flex items-center space-x-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-semibold shadow-md hover:bg-blue-700 transition-all"
           >
             <Plus size={20} />
-            <span>Add Your Service</span>
+            <span>Add Service</span>
           </button>
-        )}
-        {kycStatus === 'pending' && (
-          <div className="mt-4 sm:mt-0 flex items-center space-x-2 px-4 py-2 bg-yellow-100 text-yellow-800 rounded-xl text-sm font-medium">
-            <AlertTriangle size={18} />
-            <span>KYC Pending. Complete KYC to add services.</span>
-          </div>
-        )}
-        {kycStatus === 'rejected' && (
-          <div className="mt-4 sm:mt-0 flex items-center space-x-2 px-4 py-2 bg-red-100 text-red-800 rounded-xl text-sm font-medium">
-            <AlertTriangle size={18} />
-            <span>KYC Rejected. Please contact support.</span>
-          </div>
-        )}
-        {kycStatus === null && !isLoading && ( // Show if KYC status is not loaded yet or not applicable
-          <button
-            onClick={() => toast.error('Please complete your KYC to add services.')}
-            className="mt-4 sm:mt-0 flex items-center space-x-2 px-5 py-2.5 bg-gray-300 text-gray-700 rounded-xl font-semibold cursor-not-allowed opacity-70"
-            disabled
-          >
-            <Plus size={20} />
-            <span>Add Your Service</span>
-          </button>
-        )}
+        </div>
       </div>
 
       {/* Stats Cards */}

@@ -34,6 +34,12 @@ import {
 } from 'lucide-react'
 import NotificationDropdown from '@/components/NotificationDropdown'
 import { AuthUtils } from '@/lib/firebase'
+import {
+  isAdminRole,
+  isLegalPartnerRole,
+  isServicePartnerRole,
+  resolveEffectiveRole,
+} from '@/lib/roleRouting'
 
 export default function LegalPartnerLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -58,36 +64,51 @@ export default function LegalPartnerLayout({ children }: { children: React.React
       return
     }
 
+    const requestedRole = typeof window !== 'undefined' ? localStorage.getItem('requested_role') : null
+    const hasLegalPortalAccess = (rawRole?: string | null) => {
+      const effectiveRole = resolveEffectiveRole(rawRole, requestedRole)
+      return isLegalPartnerRole(effectiveRole) || isServicePartnerRole(effectiveRole) || isAdminRole(effectiveRole)
+    }
+    const getResolvedRole = (rawRole?: string | null) => resolveEffectiveRole(rawRole, requestedRole) || rawRole
+
     // PRIORITY 1: Check demo mode first via AuthUtils
-    const demoUser = AuthUtils.getCachedUser();
+    const demoUser = AuthUtils.getCachedUser()
     if (demoUser && demoUser.isDemo) {
-      // Check if user is legal partner
-      const role = (demoUser.role || '').toLowerCase();
-      const isRole = (val: string, targets: string[]) => targets.includes(val);
-      
-      if (!isRole(role, ['legal-partner', 'legal_partner', 'service-partners', 'service_partner', 'admin'])) {
-        console.warn('Legal Partner Layout: Role mismatch for demo user, redirecting to dashboard');
+      if (!hasLegalPortalAccess(demoUser.role)) {
+        console.warn('Legal Partner Layout: Role mismatch for demo user, redirecting to dashboard')
         router.push('/dashboard')
         return
       }
-      setUser(demoUser)
+      setUser({
+        ...demoUser,
+        role: getResolvedRole(demoUser.role),
+      })
       return
     }
 
     // PRIORITY 2: Normal auth check
     const userData = AuthUtils.getCachedUser()
     if (userData) {
-      const role = (userData.role || '').toLowerCase();
-      const isRole = (val: string, targets: string[]) => targets.includes(val);
-      
-      if (!isRole(role, ['legal-partner', 'legal_partner', 'service-partners', 'service_partner', 'admin'])) {
-        console.warn('Legal Partner Layout: Role mismatch for user:', role);
+      if (!hasLegalPortalAccess(userData.role)) {
+        console.warn('Legal Partner Layout: Role mismatch for user:', userData.role)
         if (!isPublicPage) {
           router.push('/dashboard')
         }
         return
       }
-      setUser(userData)
+
+      const resolvedRole = getResolvedRole(userData.role)
+      if (resolvedRole && resolvedRole !== userData.role) {
+        const resolvedUserData = {
+          ...userData,
+          role: resolvedRole,
+        }
+        AuthUtils.cacheUser(resolvedUserData)
+        setUser(resolvedUserData)
+      } else {
+        setUser(userData)
+      }
+      localStorage.removeItem('requested_role')
     } else {
       console.log('Legal Partner Layout: No user found, redirecting to login');
       router.push('/legal-partner/login')
@@ -95,8 +116,7 @@ export default function LegalPartnerLayout({ children }: { children: React.React
   }, [router, pathname, isPublicPage])
 
   const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
+    AuthUtils.clearCache()
     router.push('/')
   }
 
@@ -174,7 +194,7 @@ export default function LegalPartnerLayout({ children }: { children: React.React
             <Link href="/" className="flex items-center space-x-4">
               <div className="relative">
                 <img
-                  src="/images/gharbazaar-logo.jpg"
+                  src="/logo.jpeg"
                   alt="GharBazaar Logo"
                   className="h-12 w-12 rounded-2xl shadow-lg object-cover bg-white dark:bg-transparent"
                   style={{ filter: 'none !important', mixBlendMode: 'normal', opacity: 1 }}

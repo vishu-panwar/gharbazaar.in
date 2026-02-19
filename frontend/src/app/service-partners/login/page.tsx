@@ -82,7 +82,7 @@ export default function ServicePartnerLoginPage() {
           <div className="mb-12">
             <div className="flex items-center space-x-4 mb-6">
               <img
-                src="/images/gharbazaar-logo.jpg"
+                src="/logo.jpeg"
                 alt="GharBazaar Logo"
                 className="h-16 w-16 rounded-2xl shadow-lg object-cover"
               />
@@ -132,7 +132,7 @@ export default function ServicePartnerLoginPage() {
           <div className="lg:hidden text-center mb-8">
             <div className="flex items-center justify-center mb-4">
               <img
-                src="/images/gharbazaar-logo.jpg"
+                src="/logo.jpeg"
                 alt="GharBazaar Logo"
                 className="h-16 w-16 rounded-2xl shadow-lg object-cover"
               />
@@ -256,25 +256,7 @@ export default function ServicePartnerLoginPage() {
               </button>
             </form>
 
-            {/* Demo Login Button */}
-            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800">
-              <p className="text-center text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
-                🎯 Quick Demo Access
-              </p>
-              <button
-                onClick={() => {
-                  localStorage.setItem('demo_mode', 'true');
-                  const user = { uid: 'demo-service', email: 'service@demo.com', displayName: 'Demo Service Partner', role: 'service-partners' };
-                  localStorage.setItem('demo_user', JSON.stringify(user));
-                  localStorage.setItem('auth_token', `demo-token:${user.role}:${user.uid}`);
-                  localStorage.setItem('userRole', user.role);
-                  router.push('/service-partners');
-                }}
-                className="w-full py-3 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-xl text-sm font-semibold hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-all border border-blue-200 dark:border-blue-800 flex items-center justify-center space-x-2"
-              >
-                <span>🛠️ Enter as Service Partner Demo</span>
-              </button>
-            </div>
+
 
             <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800">
               <p className="text-center text-sm text-gray-600 dark:text-gray-400">

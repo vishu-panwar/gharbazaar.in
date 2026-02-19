@@ -3474,7 +3474,6 @@ export const categoryMapping: Record<string, string[]> = {
   'interior-designer': ['Interior Designer'],
   'painter': ['Painter'],
   'contractor': ['Civil Contractor'],
-  'vastu': ['Vastu Consultant'],
   'inspector': ['Property Inspector'],
   'movers': ['Packers & Movers'],
   'electrician': ['Electrician'],

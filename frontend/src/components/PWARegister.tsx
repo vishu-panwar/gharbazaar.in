@@ -3,47 +3,52 @@
 import { useEffect, useState } from 'react'
 import PWAInstallModal from './PWAInstallModal'
 
+const INSTALL_PROMPT_SHOWN_KEY = 'pwaInstallPromptShown_v1'
+
 export default function PWARegister() {
   const [showModal, setShowModal] = useState(false)
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
+      return
+    }
 
-    // Register service worker
+    // Keep local development predictable and avoid stale cache issues.
+    if (process.env.NODE_ENV !== 'production') {
+      navigator.serviceWorker
+        .getRegistrations()
+        .then((registrations) => {
+          registrations.forEach((registration) => registration.unregister())
+        })
+        .catch(() => {
+          // Ignore cleanup errors in development.
+        })
+      return
+    }
+
     navigator.serviceWorker
       .register('/sw.js')
       .then((registration) => {
-        console.log('✅ PWA: Service Worker registered!', registration.scope);
-
-        // Diagnostic: Check if active
-        if (registration.active) {
-          console.log('✅ PWA: Service Worker is ACTIVE');
-        } else {
-          console.log('⏳ PWA: Service Worker is installing/waiting...');
-        }
+        console.log('PWA: Service worker registered', registration.scope)
       })
       .catch((error) => {
-        console.error('❌ PWA: Service Worker registration failed:', error);
-      });
+        console.error('PWA: Service worker registration failed', error)
+      })
 
-    const shownKey = 'pwaInstallPromptShown_v1'
-
-    // Handle install prompt
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault()
       ;(window as any).deferredPrompt = e
-      console.log('✅ PWA: Install prompt CAPTURED!')
+      console.log('PWA: Install prompt captured')
 
       try {
-        const alreadyShown = localStorage.getItem(shownKey)
+        const alreadyShown = localStorage.getItem(INSTALL_PROMPT_SHOWN_KEY)
         if (!alreadyShown) {
           setShowModal(true)
-          // we DON'T set the flag here — set it when user installs or explicitly dismisses
         } else {
-          console.log('PWA: install prompt previously shown; skipping modal')
+          console.log('PWA: Install prompt already shown; skipping modal')
         }
       } catch (err) {
-        // fallback: show once per session
+        // Fallback: show once per session when localStorage is unavailable.
         if (!(window as any).__pwa_prompt_fallback_shown) {
           setShowModal(true)
           ;(window as any).__pwa_prompt_fallback_shown = true
@@ -55,12 +60,12 @@ export default function PWARegister() {
 
     const handleAppInstalled = () => {
       try {
-        localStorage.setItem(shownKey, '1')
+        localStorage.setItem(INSTALL_PROMPT_SHOWN_KEY, '1')
       } catch (err) {
-        /* ignore */
+        // Ignore localStorage failures.
       }
       ;(window as any).deferredPrompt = null
-      console.log('✅ PWA: appinstalled event fired')
+      console.log('PWA: appinstalled event fired')
       setShowModal(false)
     }
 
@@ -79,34 +84,32 @@ export default function PWARegister() {
       setShowModal(false)
       return
     }
+
     promptEvent.prompt()
     try {
       const { outcome } = await promptEvent.userChoice
-      console.log('User response to the install prompt:', outcome)
+      console.log('PWA: User response to install prompt', outcome)
     } catch (err) {
-      console.warn('Error while awaiting userChoice', err)
+      console.warn('PWA: Error while awaiting userChoice', err)
     }
+
     ;(window as any).deferredPrompt = null
     try {
-      localStorage.setItem('pwaInstallPromptShown_v1', '1')
+      localStorage.setItem(INSTALL_PROMPT_SHOWN_KEY, '1')
     } catch (err) {
-      /* ignore */
+      // Ignore localStorage failures.
     }
     setShowModal(false)
   }
 
   const handleDismiss = () => {
     try {
-      localStorage.setItem('pwaInstallPromptShown_v1', '1')
+      localStorage.setItem(INSTALL_PROMPT_SHOWN_KEY, '1')
     } catch (err) {
-      /* ignore */
+      // Ignore localStorage failures.
     }
     setShowModal(false)
   }
 
-  return (
-    <>
-      <PWAInstallModal open={showModal} onInstall={handleInstall} onClose={handleDismiss} />
-    </>
-  )
+  return <PWAInstallModal open={showModal} onInstall={handleInstall} onClose={handleDismiss} />
 }

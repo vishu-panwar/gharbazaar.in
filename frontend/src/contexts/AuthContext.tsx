@@ -6,6 +6,16 @@ import toast from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
 import Loader from '@/components/ui/Loader'
 import { backendApi } from '@/lib/backendApi'
+import {
+  isAdminRole,
+  isEmployeeRole,
+  isGroundPartnerRole,
+  isLegalPartnerRole,
+  isPromoterPartnerRole,
+  isServiceOrLegalPartnerRole,
+  normalizeRole,
+  resolveEffectiveRole,
+} from '@/lib/roleRouting'
 
 // Simple User type (no Firebase dependency)
 interface SimpleUser {
@@ -66,8 +76,25 @@ export const AuthProvider = ({
         const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
 
         if (token) {
-          console.log('🎫 Found auth token, verifying...')
+          console.log('Found auth token, verifying...')
+          let verificationTimedOut = false
+          const verifyTimeout = setTimeout(() => {
+            verificationTimedOut = true
+            console.warn('Auth verification timed out. Falling back to cached session.')
+            const cached = AuthUtils.getCachedUser()
+            if (cached) {
+              setUser(cached)
+            }
+            setLoading(false)
+          }, 12000)
+
           await verifyTokenWithBackend(token)
+          clearTimeout(verifyTimeout)
+
+          if (verificationTimedOut) {
+            return
+          }
+
           // Note: verifyTokenWithBackend sets loading to false
           return
         }
@@ -131,9 +158,16 @@ export const AuthProvider = ({
 
       if (response.success && response.data) {
         const userData = response.data.user
-        console.log('✅ Token verified! User:', userData.name || userData.email)
-        setUser(userData)
-        AuthUtils.cacheUser(userData)
+        const cachedUser = AuthUtils.getCachedUser()
+        const requestedRole = typeof window !== 'undefined' ? localStorage.getItem('requested_role') : null
+        const effectiveRole = resolveEffectiveRole(userData?.role, requestedRole || cachedUser?.role || null)
+        const resolvedUserData =
+          effectiveRole && normalizeRole(userData?.role) !== effectiveRole
+            ? { ...userData, role: effectiveRole }
+            : userData
+        console.log('✅ Token verified! User:', resolvedUserData.name || resolvedUserData.email)
+        setUser(resolvedUserData)
+        AuthUtils.cacheUser(resolvedUserData)
       } else {
         console.warn('⚠️ Token verification failed:', response.error)
 
@@ -170,14 +204,14 @@ export const AuthProvider = ({
   const login = async (email: string, password: string, role?: string) => {
     try {
       setAuthLoading(true)
-      
+
       if (role) {
         localStorage.setItem('requested_role', role)
       } else {
         localStorage.removeItem('requested_role')
       }
 
-      const response = await backendApi.auth.login(email, password)
+      const response = await backendApi.auth.login(email, password, role)
 
       if (!response.success) {
         throw new Error(response.error || 'Login failed')
@@ -189,53 +223,63 @@ export const AuthProvider = ({
       localStorage.removeItem('demo_mode')
       localStorage.removeItem('demo_user')
 
+      const requestedRole = typeof window !== 'undefined' ? localStorage.getItem('requested_role') : null
+      const effectiveRole = resolveEffectiveRole(userData?.role, requestedRole)
+      const resolvedUserData =
+        effectiveRole && normalizeRole(userData?.role) !== effectiveRole
+          ? { ...userData, role: effectiveRole }
+          : userData
+
       // Cache user data
-      AuthUtils.cacheUser(userData)
-      setUser(userData)
+      AuthUtils.cacheUser(resolvedUserData)
+      setUser(resolvedUserData)
 
       toast.success('Welcome back!')
 
       // Navigate based on role and onboarding status
       setTimeout(() => {
-        const user = userData as any;
-        const role = (user?.role || '').toLowerCase();
-        console.log('🔮 Redirection logic - User role:', role);
-        
-        // Helper to check if role matches variations
-        const isRole = (val: string, targets: string[]) => targets.includes(val);
+        const user = resolvedUserData as any
+        const redirectRole = resolveEffectiveRole(user?.role, requestedRole)
+        console.log('Redirection logic - effective role:', redirectRole)
 
-        if (isRole(role, ['legal_partner', 'service-partners', 'service_partner'])) {
+        if (isServiceOrLegalPartnerRole(redirectRole)) {
           if (!user.onboardingCompleted) {
-            router.push('/service-partners/registration');
+            router.push('/service-partners/kyc')
           } else {
-            // Check for specific partner types if available
-            if (localStorage.getItem('gharbazaar_partner_type') === 'Lawyer' || user.partnerType === 'Lawyer') {
-              router.push('/legal-partner');
+            if (
+              localStorage.getItem('gharbazaar_partner_type') === 'Lawyer' ||
+              user.partnerType === 'Lawyer' ||
+              isLegalPartnerRole(redirectRole)
+            ) {
+              router.push('/legal-partner')
             } else {
-              router.push('/service-partners');
+              router.push('/service-partners')
             }
           }
-        } else if (isRole(role, ['employee'])) {
+        } else if (isEmployeeRole(redirectRole)) {
           if (!user.onboardingCompleted) {
-            router.push('/employee/onboarding');
+            router.push('/employee/onboarding')
           } else {
-            router.push('/employee');
+            router.push('/employee')
           }
-        } else if (isRole(role, ['ground_partner', 'ground-partner'])) {
-          router.push('/ground-partner');
-        } else if (isRole(role, ['promoter_partner', 'promoter-partner', 'promo-partner', 'partner'])) {
-          router.push('/partner');
-        } else if (isRole(role, ['admin'])) {
-          router.push('/dashboard'); // Admin usually goes to dashboard or admin panel if exists
+        } else if (isGroundPartnerRole(redirectRole)) {
+          router.push('/ground-partner')
+        } else if (isPromoterPartnerRole(redirectRole)) {
+          router.push('/partner')
+        } else if (isAdminRole(redirectRole)) {
+          router.push('/dashboard')
         } else {
-          console.warn('Unknown role, defaulting to dashboard:', role);
-          router.push('/dashboard');
+          console.warn('Unknown role, defaulting to dashboard:', redirectRole)
+          router.push('/dashboard')
         }
         setAuthLoading(false)
       }, 500)
 
     } catch (error: any) {
       setAuthLoading(false)
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('requested_role')
+      }
       console.error('Login error:', error)
       throw new Error(error.message || 'Failed to login')
     }
@@ -269,33 +313,34 @@ export const AuthProvider = ({
 
       // Navigate based on role and onboarding status
       setTimeout(() => {
-        const user = userData as any;
-        const role = (user?.role || '').toLowerCase();
-        console.log('🔮 Signup Redirection - User role:', role);
-        
-        // Helper to check if role matches variations
-        const isRole = (val: string, targets: string[]) => targets.includes(val);
+        const user = userData as any
+        const redirectRole = resolveEffectiveRole(user?.role)
+        console.log('Signup redirection - effective role:', redirectRole)
 
-        if (isRole(role, ['legal_partner', 'service-partners', 'service_partner'])) {
+        if (isServiceOrLegalPartnerRole(redirectRole)) {
           if (!user.onboardingCompleted) {
-            router.push('/service-partners/registration');
+            router.push('/service-partners/kyc')
           } else {
-            router.push('/service-partners');
+            if (isLegalPartnerRole(redirectRole)) {
+              router.push('/legal-partner')
+            } else {
+              router.push('/service-partners')
+            }
           }
-        } else if (isRole(role, ['employee'])) {
+        } else if (isEmployeeRole(redirectRole)) {
           if (!user.onboardingCompleted) {
-            router.push('/employee/onboarding');
+            router.push('/employee/onboarding')
           } else {
-            router.push('/employee');
+            router.push('/employee')
           }
-        } else if (isRole(role, ['ground_partner', 'ground-partner'])) {
-          router.push('/ground-partner');
-        } else if (isRole(role, ['promoter_partner', 'promoter-partner', 'promo-partner', 'partner'])) {
-          router.push('/partner');
-        } else if (isRole(role, ['admin'])) {
-          router.push('/dashboard');
+        } else if (isGroundPartnerRole(redirectRole)) {
+          router.push('/ground-partner')
+        } else if (isPromoterPartnerRole(redirectRole)) {
+          router.push('/partner')
+        } else if (isAdminRole(redirectRole)) {
+          router.push('/dashboard')
         } else {
-          router.push('/dashboard');
+          router.push('/dashboard')
         }
         setAuthLoading(false)
       }, 1500)
@@ -455,3 +500,4 @@ export const AuthProvider = ({
     </AuthContext.Provider>
   )
 }
+

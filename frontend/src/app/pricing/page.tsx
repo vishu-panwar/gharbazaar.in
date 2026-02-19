@@ -343,7 +343,7 @@ export default function PricingPage() {
         <PricingBackground />
 
         {/* Very Light Gradient - Just to make text readable */}
-        <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-transparent to-transparent z-[1]"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent z-[1]"></div>
 
         {/* Content */}
         <div className="relative z-10 h-full max-w-[1400px] mx-auto px-8">

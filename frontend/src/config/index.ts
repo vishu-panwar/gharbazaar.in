@@ -68,7 +68,16 @@ export const FIREBASE_CONFIG = {
     storageBucket: '', // process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || '',
     messagingSenderId: '', // process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '',
     appId: '', // process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '',
-    measurementId: '', // process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || '',
+    measurementId: process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || '',
+} as const
+
+// ==================== Google Configuration ====================
+
+/**
+ * Google OAuth Configuration
+ */
+export const GOOGLE_CONFIG = {
+    CLIENT_ID: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',
 } as const
 
 // ==================== Maps Configuration ====================
@@ -225,6 +234,18 @@ export const SOCIAL_CONFIG = {
     },
 } as const
 
+// ==================== Company Configuration ====================
+
+/**
+ * Company Information
+ */
+export const COMPANY_CONFIG = {
+    NAME: process.env.NEXT_PUBLIC_COMPANY_NAME || 'GharBazaar',
+    EMAIL: process.env.NEXT_PUBLIC_COMPANY_EMAIL || 'support@gharbazaar.in',
+    PHONE: process.env.NEXT_PUBLIC_COMPANY_PHONE || '+91 98000 12345',
+    LISTING_FEE: parseInt(process.env.NEXT_PUBLIC_LISTING_FEE || '1000', 10),
+} as const
+
 // ==================== Feature Flags ====================
 
 /**
@@ -236,7 +257,7 @@ export const FEATURE_FLAGS = {
     ENABLE_LIVE_CHAT: process.env.NEXT_PUBLIC_ENABLE_LIVE_CHAT === 'true',
     ENABLE_NOTIFICATIONS: process.env.NEXT_PUBLIC_ENABLE_NOTIFICATIONS === 'true',
     ENABLE_MAPS: MAPS_CONFIG.isConfigured,
-    ENABLE_PAYMENTS: PAYMENT_CONFIG.isConfigured,
+    ENABLE_PAYMENTS: process.env.NEXT_PUBLIC_ENABLE_PAYMENT === 'true' || PAYMENT_CONFIG.isConfigured,
 } as const
 
 // ==================== Environment Info ====================

@@ -133,9 +133,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className="flex items-center justify-between px-6 py-5 border-b border-purple-800">
             <Link href="/" className="flex items-center space-x-3">
               <img
-                src="/images/gharbazaar-logo.jpg"
+                src="/logo.jpeg"
                 alt="GharBazaar Logo"
-                className="h-10 w-auto brightness-0 invert"
+                className="h-10 w-auto"
               />
               <div>
                 <h1 className="text-lg font-bold text-white">GharBazaar</h1>

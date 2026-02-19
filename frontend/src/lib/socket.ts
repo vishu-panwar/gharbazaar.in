@@ -3,9 +3,15 @@
 
 import { io, Socket } from 'socket.io-client';
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5001';
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
 
-let socket: Socket | null = null;
+interface SocketGlobal {
+  __gharbazaarSocket?: Socket | null;
+}
+
+const socketGlobal = globalThis as typeof globalThis & SocketGlobal;
+
+let socket: Socket | null = socketGlobal.__gharbazaarSocket || null;
 
 // Get auth token from localStorage
 function getAuthToken(): string | null {
@@ -15,40 +21,52 @@ function getAuthToken(): string | null {
 
 // Get or create socket connection
 export const getOrCreateSocket = (token?: string): Socket => {
-  if (socket?.connected) {
+  const authToken = token || getAuthToken();
+
+  if (socket) {
+    socket.auth = authToken ? { token: authToken } : {};
+    if (socket.disconnected) {
+      socket.connect();
+    }
     return socket;
   }
 
-  const authToken = token || getAuthToken();
-
   socket = io(SOCKET_URL, {
-    autoConnect: true,
+    autoConnect: false,
     reconnection: true,
     reconnectionAttempts: 5,
     reconnectionDelay: 1000,
-    auth: authToken ? {
-      token: authToken,
-    } : undefined,
-    transports: ['websocket', 'polling'], // Must match backend
-    path: '/socket.io/', // Default path, but good to be explicit
-    withCredentials: true,
+    timeout: 10000,
+    auth: authToken
+      ? {
+          token: authToken,
+        }
+      : undefined,
+    // Prefer websocket first to avoid local polling/XHR CORS failures.
+    transports: ['websocket', 'polling'],
+    path: '/socket.io/',
+    // Auth is sent in the socket payload; cookies are not required.
+    withCredentials: false,
   });
 
   socket.on('connect', () => {
-    console.log('✅ Socket connected:', socket?.id);
+    console.log('Socket connected:', socket?.id);
   });
 
   socket.on('connect_error', (error) => {
-    console.error('❌ Socket connection error:', error.message);
+    console.error('Socket connection error:', error.message);
   });
 
   socket.on('disconnect', (reason) => {
-    console.log('📴 Socket disconnected:', reason);
+    console.log('Socket disconnected:', reason);
   });
 
   socket.on('error', (error) => {
-    console.error('❌ Socket error:', error);
+    console.error('Socket error:', error);
   });
+
+  socketGlobal.__gharbazaarSocket = socket;
+  socket.connect();
 
   return socket;
 };
@@ -58,7 +76,8 @@ export const disconnectSocket = (): void => {
   if (socket) {
     socket.disconnect();
     socket = null;
-    console.log('📴 Socket disconnected manually');
+    socketGlobal.__gharbazaarSocket = null;
+    console.log('Socket disconnected manually');
   }
 };
 
@@ -78,7 +97,11 @@ export const socketHelpers = {
   },
 
   // Send a message
-  sendMessage: (conversationId: string, content: string, type: 'text' | 'image' | 'file' = 'text') => {
+  sendMessage: (
+    conversationId: string,
+    content: string,
+    type: 'text' | 'image' | 'file' = 'text'
+  ) => {
     socket?.emit('send_message', { conversationId, content, type });
   },
 

@@ -3,6 +3,41 @@ import { CONFIG } from '@/config';
 
 const API_BASE_URL = CONFIG.API.FULL_URL;
 const AUTH_API_BASE_URL = CONFIG.AUTH_API.FULL_URL;
+const API_TIMEOUT_MS = Number(process.env.NEXT_PUBLIC_API_TIMEOUT_MS || 12000);
+const VERIFY_TIMEOUT_MS = Number(process.env.NEXT_PUBLIC_VERIFY_TIMEOUT_MS || 8000);
+
+const BACKEND_UNAVAILABLE_PATTERNS = [
+    'request timed out',
+    'backend request timed out',
+    'unable to connect to backend server',
+    'failed to fetch',
+];
+
+/**
+ * Wrap fetch with timeout so UI never hangs indefinitely on network/backend stalls.
+ */
+async function fetchWithTimeout(
+    input: RequestInfo | URL,
+    init: RequestInit = {},
+    timeoutMs: number = API_TIMEOUT_MS
+): Promise<Response> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+        return await fetch(input, {
+            ...init,
+            signal: init.signal || controller.signal,
+        });
+    } catch (error: any) {
+        if (error?.name === 'AbortError') {
+            throw new Error(`Request timed out after ${timeoutMs}ms`);
+        }
+        throw error;
+    } finally {
+        clearTimeout(timeout);
+    }
+}
 
 /**
  * Get authentication token for backend API requests
@@ -24,51 +59,75 @@ async function getAuthToken(): Promise<string | null> {
 /**
  * Make API call to external authentication API (Koyeb with SMTP)
  */
+function normalizeApiV1BaseUrl(rawUrl: string): string {
+    const trimmed = rawUrl.trim().replace(/\/+$/, '');
+
+    if (/\/api\/v1$/i.test(trimmed)) return trimmed;
+    if (/\/api$/i.test(trimmed)) return `${trimmed}/v1`;
+    return `${trimmed}/api/v1`;
+}
+
 async function authApiCall(endpoint: string, options: RequestInit = {}) {
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         ...(options.headers as Record<string, string>),
     };
 
-    try {
-        // Dynamic config lookup [auth-v6]
-        // Force use of NEXT_PUBLIC_API_URL from env if available to ensure port 5001
-        const envApiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
-        const baseUrl = envApiUrl.endsWith('/') ? envApiUrl.slice(0, -1) : envApiUrl;
+    const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
 
-        // Build full URL - endpoint should start with /
-        // normalizedBase is now http://localhost:5001/api/v1
-        const normalizedBase = `${baseUrl}/api/v1`;
-        
-        const url = `${normalizedBase}${endpoint}`;
+    // Prioritize env URL, then configured URL, then local development defaults.
+    const candidateBases = Array.from(new Set([
+        process.env.NEXT_PUBLIC_API_URL || '',
+        CONFIG.API.BASE_URL || '',
+        'http://localhost:5000',
+        'http://localhost:5001',
+    ].filter(Boolean).map(normalizeApiV1BaseUrl)));
 
-        console.log(`📡 [auth-v6] Calling: ${url}`);
+    let lastNetworkError: unknown = null;
 
-        const response = await fetch(url, {
-            ...options,
-            headers,
-            mode: 'cors',
-            credentials: 'omit',
-        });
+    for (const base of candidateBases) {
+        const url = `${base}${normalizedEndpoint}`;
+        try {
+            console.log(`[auth-v6] Calling: ${url}`);
 
-        console.log(`📡 [auth-v6] Status: ${response.status} from ${url}`);
+            const response = await fetchWithTimeout(url, {
+                ...options,
+                headers,
+                mode: 'cors',
+                credentials: 'omit',
+            }, API_TIMEOUT_MS);
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => null);
-            if (errorData) {
-                const message = errorData.message || errorData.error || errorData.detail;
-                if (message) {
-                    throw new Error(`[auth-v6] ${typeof message === 'string' ? message : JSON.stringify(message)}`);
+            console.log(`[auth-v6] Status: ${response.status} from ${url}`);
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                if (errorData) {
+                    const message = errorData.message || errorData.error || errorData.detail;
+                    if (message) {
+                        throw new Error(`[auth-v6] ${typeof message === 'string' ? message : JSON.stringify(message)}`);
+                    }
                 }
+                throw new Error(`[auth-v6] HTTP ${response.status}`);
             }
-            throw new Error(`[auth-v6] HTTP ${response.status}`);
-        }
 
-        return await response.json();
-    } catch (error) {
-        console.error('❌ [auth-v6] Error:', error);
-        throw error;
+            return await response.json();
+        } catch (error: any) {
+            const isNetworkError =
+                (error?.name === 'TypeError' && error?.message === 'Failed to fetch') ||
+                (typeof error?.message === 'string' && error.message.includes('timed out'));
+            if (isNetworkError) {
+                lastNetworkError = error;
+                console.warn(`[auth-v6] Network error for ${url}, trying next candidate...`);
+                continue;
+            }
+
+            console.error('[auth-v6] Error:', error);
+            throw error;
+        }
     }
+
+    const tried = candidateBases.join(', ');
+    throw new Error(`[auth-v6] Failed to fetch from all candidate API URLs. Tried: ${tried}. Last error: ${lastNetworkError instanceof Error ? lastNetworkError.message : 'unknown'}`);
 }
 
 /**
@@ -89,12 +148,12 @@ async function backendApiCall(endpoint: string, options: RequestInit = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
 
     try {
-        const response = await fetch(url, {
+        const response = await fetchWithTimeout(url, {
             ...options,
             headers,
             mode: 'cors',
             credentials: 'omit',
-        });
+        }, API_TIMEOUT_MS);
 
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
@@ -108,15 +167,35 @@ async function backendApiCall(endpoint: string, options: RequestInit = {}) {
         }
     } catch (error: any) {
         // Provide more helpful error messages
+        if (typeof error?.message === 'string' && error.message.includes('timed out')) {
+            const timeoutError = new Error(`Backend request timed out. Please check backend health at ${API_BASE_URL}`);
+            (timeoutError as any).code = 'BACKEND_TIMEOUT';
+            throw timeoutError;
+        }
         if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
             console.error(`❌ Failed to connect to backend at: ${API_BASE_URL}`);
             console.error('   Please ensure the backend server is running.');
             console.error('   To start the backend: cd gharbazaar.in/backend && npm run dev');
-            throw new Error(`Unable to connect to backend server. Please ensure the backend is running at ${API_BASE_URL}`);
+            const connectionError = new Error(`Unable to connect to backend server. Please ensure the backend is running at ${API_BASE_URL}`);
+            (connectionError as any).code = 'BACKEND_OFFLINE';
+            throw connectionError;
         }
         throw error;
     }
 }
+
+export const isBackendUnavailableError = (error: unknown): boolean => {
+    const errorCode = (error as any)?.code;
+    if (errorCode === 'BACKEND_TIMEOUT' || errorCode === 'BACKEND_OFFLINE') {
+        return true;
+    }
+
+    const message = (error as any)?.message;
+    if (typeof message !== 'string') return false;
+
+    const normalized = message.toLowerCase();
+    return BACKEND_UNAVAILABLE_PATTERNS.some((pattern) => normalized.includes(pattern));
+};
 
 /**
  * Backend API endpoints for property workflow and authentication
@@ -165,10 +244,14 @@ export const backendApi = {
          * Login user
          * Backend API endpoint: POST /api/v1/auth/login
          */
-        login: async (email: string, password: string) => {
+        login: async (email: string, password: string, role?: string) => {
             const response = await authApiCall('/auth/login', {
                 method: 'POST',
-                body: JSON.stringify({ email, password }),
+                body: JSON.stringify({
+                    email,
+                    password,
+                    ...(role ? { role } : {}),
+                }),
             });
 
             // Store token if returned
@@ -274,7 +357,7 @@ export const backendApi = {
                 for (const url of endpoints) {
                     try {
                         console.log(`📡 [auth-v6] Fetching: ${url}`);
-                        const response = await fetch(url, {
+                        const response = await fetchWithTimeout(url, {
                             method: 'GET',
                             headers: {
                                 'Authorization': `Bearer ${token}`,
@@ -282,7 +365,7 @@ export const backendApi = {
                             },
                             mode: 'cors',
                             credentials: 'omit'
-                        });
+                        }, VERIFY_TIMEOUT_MS);
 
                         if (response.ok) {
                             const data = await response.json();
@@ -1511,6 +1594,16 @@ export const backendApi = {
     // Service Provider endpoints
     serviceProvider: {
         create: async (data: any) => {
+            if (typeof FormData !== 'undefined' && data instanceof FormData) {
+                const token = await getAuthToken();
+                const response = await fetch(`${API_BASE_URL}/service-providers`, {
+                    method: 'POST',
+                    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                    body: data,
+                });
+                return await response.json();
+            }
+
             return backendApiCall('/service-providers', {
                 method: 'POST',
                 body: JSON.stringify(data),
@@ -1609,3 +1702,4 @@ export const backendApi = {
         },
     }
 };
+

@@ -196,7 +196,7 @@ export default function GroundPartnerDashboard() {
               <div className="flex items-center space-x-3">
                 <div className="p-3 bg-white/20 backdrop-blur-sm rounded-2xl">
                   <img
-                    src="/images/gharbazaar-logo.jpg"
+                    src="/logo.jpeg"
                     alt="GharBazaar Logo"
                     className="h-8 w-8 rounded-xl object-cover"
                   />

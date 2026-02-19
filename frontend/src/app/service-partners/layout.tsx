@@ -34,6 +34,11 @@ import {
 } from 'lucide-react'
 import NotificationDropdown from '@/components/NotificationDropdown'
 import { AuthUtils } from '@/lib/firebase'
+import {
+  isAdminRole,
+  isServiceOrLegalPartnerRole,
+  resolveEffectiveRole,
+} from '@/lib/roleRouting'
 
 export default function ServicePartnersLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -58,17 +63,25 @@ export default function ServicePartnersLayout({ children }: { children: React.Re
       return
     }
 
+    const requestedRole = typeof window !== 'undefined' ? localStorage.getItem('requested_role') : null
+    const hasServicePortalAccess = (rawRole?: string | null) => {
+      const effectiveRole = resolveEffectiveRole(rawRole, requestedRole)
+      return isServiceOrLegalPartnerRole(effectiveRole) || isAdminRole(effectiveRole)
+    }
+    const getResolvedRole = (rawRole?: string | null) => resolveEffectiveRole(rawRole, requestedRole) || rawRole
+
     // PRIORITY 1: Check demo mode first via AuthUtils
-    const demoUser = AuthUtils.getCachedUser();
+    const demoUser = AuthUtils.getCachedUser()
     if (demoUser && demoUser.isDemo) {
-      // For development, allow any demo user to access Service Partner portal if they have a compatible role
-      const role = demoUser.role?.toLowerCase() || ''
-      if (role !== 'service-partners' && role !== 'service_partners' && role !== 'service-partner' && role !== 'service_partner' && role !== 'legal_partner' && role !== 'legal-partner' && role !== 'admin') {
-         console.warn('Service Partner Layout: Role mismatch for demo user, redirecting to login');
-         router.push('/service-partners/login');
-         return;
+      if (!hasServicePortalAccess(demoUser.role)) {
+        console.warn('Service Partner Layout: Role mismatch for demo user, redirecting to login')
+        router.push('/service-partners/login')
+        return
       }
-      setUser(demoUser)
+      setUser({
+        ...demoUser,
+        role: getResolvedRole(demoUser.role),
+      })
       return
     }
 
@@ -76,31 +89,38 @@ export default function ServicePartnersLayout({ children }: { children: React.Re
     const userData = AuthUtils.getCachedUser()
     if (userData) {
       try {
-        // Check if user has service partner related roles
-        const role = (userData.role || '').toLowerCase();
-        const isRole = (val: string, targets: string[]) => targets.includes(val);
-        
-        if (!isRole(role, ['service-partners', 'service_partners', 'service-partner', 'service_partner', 'legal_partner', 'legal-partner', 'admin'])) {
-          console.warn('Service Partner Layout: Role mismatch for user:', role);
+        if (!hasServicePortalAccess(userData.role)) {
+          console.warn('Service Partner Layout: Role mismatch for user:', userData.role)
           if (!isPublicPage) {
-            router.push('/dashboard');
+            router.push('/service-partners/login')
           }
-          return;
+          return
         }
-        setUser(userData);
+
+        const resolvedRole = getResolvedRole(userData.role)
+        if (resolvedRole && resolvedRole !== userData.role) {
+          const resolvedUserData = {
+            ...userData,
+            role: resolvedRole,
+          }
+          AuthUtils.cacheUser(resolvedUserData)
+          setUser(resolvedUserData)
+        } else {
+          setUser(userData)
+        }
+        localStorage.removeItem('requested_role')
       } catch (e) {
-        console.error('Service Partner Layout: Parse error:', e);
-        router.push('/service-partners/login');
+        console.error('Service Partner Layout: Parse error:', e)
+        router.push('/service-partners/login')
       }
     } else {
-      console.log('Service Partner Layout: No user found, redirecting to login');
-      router.push('/service-partners/login');
+      console.log('Service Partner Layout: No user found, redirecting to login')
+      router.push('/service-partners/login')
     }
   }, [router, pathname, isPublicPage])
 
   const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
+    AuthUtils.clearCache()
     router.push('/')
   }
 
@@ -175,7 +195,7 @@ export default function ServicePartnersLayout({ children }: { children: React.Re
             <Link href="/" className="flex items-center space-x-4">
               <div className="relative">
                 <img
-                  src="/images/gharbazaar-logo.jpg"
+                  src="/logo.jpeg"
                   alt="GharBazaar Logo"
                   className="h-12 w-12 rounded-2xl shadow-lg object-cover bg-white dark:bg-transparent"
                   style={{ filter: 'none !important', mixBlendMode: 'normal', opacity: 1 }}

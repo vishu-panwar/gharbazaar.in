@@ -7,6 +7,24 @@ import { ChevronDown, Moon, Sun, Menu, X, Download } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useAuth } from '@/contexts/AuthContext'
 import NotificationDropdown from './NotificationDropdown'
+import {
+    isAdminRole,
+    isEmployeeRole,
+    isGroundPartnerRole,
+    isLegalPartnerRole,
+    isPromoterPartnerRole,
+    isServicePartnerRole,
+} from '@/lib/roleRouting'
+
+const getDashboardPathForRole = (role?: string | null): string => {
+    if (isAdminRole(role)) return '/admin'
+    if (isEmployeeRole(role)) return '/employee'
+    if (isGroundPartnerRole(role)) return '/ground-partner'
+    if (isLegalPartnerRole(role)) return '/legal-partner'
+    if (isServicePartnerRole(role)) return '/service-partners'
+    if (isPromoterPartnerRole(role)) return '/partner'
+    return '/dashboard'
+}
 
 export default function FloatingNavbar() {
     const pathname = usePathname()
@@ -87,11 +105,13 @@ export default function FloatingNavbar() {
     return (
         <>
             <nav className="navbar-floating-pill">
-                <Link href="/" className="flex items-center space-x-2">
-                    <span className="text-emerald-400 font-bold">GharBazaar</span>
+                {/* Logo Section - Logo hidden on mobile, Text visible */}
+                <Link href="/" className="flex items-center space-x-2 absolute left-1/2 -translate-x-1/2 lg:static lg:left-auto lg:translate-x-0">
+                    <img src="/logo.jpeg" alt="GharBazaar" className="hidden lg:block w-10 h-10 rounded-lg object-contain" />
+                    <span className="text-emerald-400 font-bold text-base">GharBazaar</span>
                 </Link>
 
-                {/* Desktop Navigation */}
+                {/* Desktop Navigation - Unchanged */}
                 <div className="hidden lg:flex items-center space-x-1">
                     <Link href="/" className={`nav-link ${pathname === '/' ? 'active' : ''}`}>Home</Link>
                     <Link href="/about" className={`nav-link ${pathname === '/about' ? 'active' : ''}`}>About</Link>
@@ -130,27 +150,21 @@ export default function FloatingNavbar() {
                 </div>
 
                 <div className="flex items-center space-x-2">
-                    {/* Theme Toggle */}
+                    {/* Theme Toggle (PC Only) */}
                     <button
                         onClick={() => {
-                            console.log('BUTTON CLICKED!');
                             const html = document.documentElement;
                             const isDark = html.classList.contains('dark');
-                            console.log('Current has dark class:', isDark);
-
                             if (isDark) {
                                 html.classList.remove('dark');
                                 localStorage.setItem('theme', 'light');
-                                console.log('Switched to LIGHT mode');
                             } else {
                                 html.classList.add('dark');
                                 localStorage.setItem('theme', 'dark');
-                                console.log('Switched to DARK mode');
                             }
                         }}
-                        className="p-2 rounded-full hover:bg-emerald-500/20 text-emerald-400 transition-all duration-200 hover:scale-110 cursor-pointer"
+                        className="hidden lg:block p-2 rounded-full hover:bg-emerald-500/20 text-emerald-400 transition-all duration-200 hover:scale-110 cursor-pointer"
                         aria-label="Toggle theme"
-                        style={{ zIndex: 9999, position: 'relative' }}
                     >
                         {mounted && (theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />)}
                     </button>
@@ -160,15 +174,7 @@ export default function FloatingNavbar() {
                         {user ? (
                             <div className="flex items-center space-x-3">
                                 <Link 
-                                    href={
-                                        user.role === 'admin' ? '/admin' :
-                                        user.role === 'employee' ? '/employee' :
-                                        user.role === 'ground-partner' || user.role === 'ground_partner' ? '/ground-partner' :
-                                        user.role === 'legal-partner' || user.role === 'legal_partner' ? '/legal-partner' :
-                                        user.role === 'service-partners' || user.role === 'service_partner' ? '/service-partners' :
-                                        user.role === 'promoter-partner' || user.role === 'promoter_partner' || user.role === 'partner' ? '/partner' :
-                                        '/dashboard'
-                                    } 
+                                    href={getDashboardPathForRole(user.role)}
                                     className="btn-emerald text-sm"
                                 >
                                     Dashboard
@@ -188,20 +194,19 @@ export default function FloatingNavbar() {
                         )}
                     </div>
 
-                    {/* Notification Bell */}
+                    {/* Notification Bell (Hidden on mobile header, now in bottom nav) */}
                     {user && (
-                        <div className="flex items-center">
+                        <div className="hidden lg:flex items-center">
                             <NotificationDropdown />
                         </div>
                     )}
 
-                    {/* Mobile Hamburger Button */}
+                    {/* Mobile Menu Icon (Right) - Hidden on Desktop */}
                     <button
                         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                         className="lg:hidden p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 transition-colors"
-                        aria-label="Toggle menu"
                     >
-                        {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                        <Menu size={24} />
                     </button>
                 </div>
             </nav>
@@ -211,8 +216,8 @@ export default function FloatingNavbar() {
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[1100] lg:hidden" onClick={() => setIsMobileMenuOpen(false)} />
             )}
 
-            {/* Mobile Menu Panel */}
-            <div className={`fixed top-0 right-0 h-full w-64 max-w-[85vw] bg-gray-900/98 backdrop-blur-xl border-l border-emerald-500/20 z-[1150] transform transition-transform duration-300 ease-in-out lg:hidden ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+            {/* Mobile Menu Panel - Opens from the Left */}
+            <div className={`fixed top-0 left-0 h-full w-64 max-w-[85vw] bg-gray-900/98 backdrop-blur-xl border-r border-emerald-500/20 z-[1150] transform transition-transform duration-300 ease-in-out lg:hidden ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                 <div className="flex flex-col h-full p-6">
                     {/* Mobile Menu Header */}
                     <div className="flex items-center justify-between mb-8">
@@ -225,10 +230,9 @@ export default function FloatingNavbar() {
                         </button>
                     </div>
 
-                    {/* Mobile Navigation Links */}
+                    {/* Mobile Navigation Links - Simplified */}
                     <div className="flex-1 overflow-y-auto space-y-2">
-                        <Link href="/" className={`block px-4 py-3 rounded-lg text-white hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors ${pathname === '/' ? 'bg-emerald-500/20 text-emerald-400' : ''}`}>Home</Link>
-                        <Link href="/about" className={`block px-4 py-3 rounded-lg text-white hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors ${pathname === '/about' ? 'bg-emerald-500/20 text-emerald-400' : ''}`}>About</Link>
+                        <Link href="/about" onClick={() => setIsMobileMenuOpen(false)} className={`block px-4 py-3 rounded-lg text-white hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors ${pathname === '/about' ? 'bg-emerald-500/20 text-emerald-400' : ''}`}>About</Link>
 
                         {/* Mobile Portals Section */}
                         <div>
@@ -257,10 +261,6 @@ export default function FloatingNavbar() {
                                 </div>
                             )}
                         </div>
-
-                        <Link href="/founder" className={`block px-4 py-3 rounded-lg text-white hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors ${pathname === '/founder' ? 'bg-emerald-500/20 text-emerald-400' : ''}`}>Founder</Link>
-                        <Link href="/pricing" className={`block px-4 py-3 rounded-lg text-white hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors ${pathname === '/pricing' ? 'bg-emerald-500/20 text-emerald-400' : ''}`}>Pricing</Link>
-                        <Link href="/contact" className={`block px-4 py-3 rounded-lg text-white hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors ${pathname === '/contact' ? 'bg-emerald-500/20 text-emerald-400' : ''}`}>Contact</Link>
                     </div>
 
                     {/* Mobile Auth Buttons */}
@@ -268,15 +268,7 @@ export default function FloatingNavbar() {
                         {user ? (
                             <>
                                 <Link 
-                                    href={
-                                        user.role === 'admin' ? '/admin' :
-                                        user.role === 'employee' ? '/employee' :
-                                        user.role === 'ground-partner' || user.role === 'ground_partner' ? '/ground-partner' :
-                                        user.role === 'legal-partner' || user.role === 'legal_partner' ? '/legal-partner' :
-                                        user.role === 'service-partners' || user.role === 'service_partner' ? '/service-partners' :
-                                        user.role === 'promoter-partner' || user.role === 'promoter_partner' || user.role === 'partner' ? '/partner' :
-                                        '/dashboard'
-                                    } 
+                                    href={getDashboardPathForRole(user.role)}
                                     className="btn-emerald w-full text-center block"
                                     onClick={() => setIsMobileMenuOpen(false)}
                                 >

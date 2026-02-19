@@ -73,7 +73,7 @@ export default function AdminLoginPage() {
           <div className="mb-8">
             <div className="flex items-center space-x-3 mb-4">
               <img
-                src="/images/gharbazaar-logo.jpg"
+                src="/logo.jpeg"
                 alt="GharBazaar Logo"
                 className="h-12 w-auto"
               />
@@ -205,16 +205,6 @@ export default function AdminLoginPage() {
               )}
             </button>
 
-            {/* Demo Credentials */}
-            <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-xl p-4">
-              <p className="text-sm text-purple-800 dark:text-purple-300 font-medium mb-2">
-                🔐 Demo Admin Account
-              </p>
-              <p className="text-xs text-purple-600 dark:text-purple-400">
-                Email: Gharbazaarofficial@zohomail.in<br />
-                Password: admin123
-              </p>
-            </div>
           </form>
         </div>
       </div>

@@ -172,7 +172,7 @@ export default function GroundPartnerLayout({ children }: { children: React.Reac
             <Link href="/" className="flex items-center space-x-4">
               <div className="relative">
                 <img
-                  src="/images/gharbazaar-logo.jpg"
+                  src="/logo.jpeg"
                   alt="GharBazaar Logo"
                   className="h-12 w-12 rounded-2xl shadow-lg object-cover bg-white dark:bg-transparent"
                   style={{ filter: 'none !important', mixBlendMode: 'normal', opacity: 1 }}

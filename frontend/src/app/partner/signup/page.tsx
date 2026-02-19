@@ -233,7 +233,7 @@ export default function PartnerSignupPage() {
           <div className="flex items-center space-x-4 mb-12">
             <div className="relative">
               <img
-                src="/images/gharbazaar-logo.jpg"
+                src="/logo.jpeg"
                 alt="GharBazaar Logo"
                 className="h-16 w-16 rounded-3xl shadow-2xl object-cover border-4 border-white/20"
               />
@@ -323,7 +323,7 @@ export default function PartnerSignupPage() {
           {/* Mobile Logo */}
           <div className="lg:hidden flex items-center justify-center space-x-3 mb-8">
             <img
-              src="/images/gharbazaar-logo.jpg"
+              src="/logo.jpeg"
               alt="GharBazaar Logo"
               className="h-12 w-12 rounded-2xl shadow-lg object-cover"
             />

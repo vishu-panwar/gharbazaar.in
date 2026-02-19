@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { 
   FileCheck,
   Search,
@@ -31,11 +31,11 @@ import {
 } from 'lucide-react'
 import { backendApi } from '@/lib/backendApi'
 import toast from 'react-hot-toast'
-import React, { useEffect } from 'react'
 
 export default function KYCVerificationPage() {
   const [requests, setRequests] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending')
   const [selectedKYC, setSelectedKYC] = useState<string | null>(null)
   const [reviewComments, setReviewComments] = useState('')
@@ -47,14 +47,22 @@ export default function KYCVerificationPage() {
 
   const fetchRequests = async () => {
     setLoading(true)
+    setErrorMessage(null)
     try {
-      const status = activeTab === 'all' ? undefined : activeTab
-      const response = await backendApi.kyc.getRequests(status)
-      if (response.success) {
-        setRequests(response.data)
+      const response = await backendApi.kyc.getRequests()
+      if (response?.success) {
+        setRequests(Array.isArray(response.data) ? response.data : [])
+      } else {
+        setRequests([])
+        const message = response?.error || 'Failed to fetch KYC requests'
+        setErrorMessage(message)
+        toast.error(message)
       }
-    } catch (error) {
-      toast.error('Failed to fetch KYC requests')
+    } catch (error: any) {
+      setRequests([])
+      const message = error?.message || 'Failed to fetch KYC requests'
+      setErrorMessage(message)
+      toast.error(message)
     } finally {
       setLoading(false)
     }
@@ -71,7 +79,7 @@ export default function KYCVerificationPage() {
         toast.success(`KYC ${status} successfully`)
         setReviewComments('')
         setSelectedKYC(null)
-        fetchRequests()
+        await fetchRequests()
       } else {
         toast.error(response.error || 'Failed to process review')
       }
@@ -82,24 +90,30 @@ export default function KYCVerificationPage() {
     }
   }
 
-  const filteredRequests = requests
+  const filteredRequests = activeTab === 'all'
+    ? requests
+    : requests.filter((r) => {
+        if (activeTab === 'pending') return r.status === 'pending' || r.status === 'submitted'
+        return r.status === activeTab
+      })
 
   const stats = {
-    all: requests.length, // This should ideally come from a stats API or be calculated from all
-    pending: requests.filter(r => r.status === 'pending').length,
-    approved: 0, // Since we delete on approval in the backend implementation, we might need to adjust logic
-    rejected: 0
+    all: requests.length,
+    pending: requests.filter(r => r.status === 'pending' || r.status === 'submitted').length,
+    approved: requests.filter(r => r.status === 'approved').length,
+    rejected: requests.filter(r => r.status === 'rejected').length
   }
 
   const selectedRequest = requests.find(r => r.id === selectedKYC)
 
   const getStatusBadge = (status: string) => {
+    const normalizedStatus = status === 'submitted' ? 'pending' : status
     const badges = {
       pending: { color: 'yellow', icon: Clock, label: 'Pending' },
       approved: { color: 'green', icon: CheckCircle, label: 'Approved' },
       rejected: { color: 'red', icon: XCircle, label: 'Rejected' }
     }
-    const badge = badges[status as keyof typeof badges]
+    const badge = badges[normalizedStatus as keyof typeof badges] || badges.pending
     return (
       <div className={`flex items-center space-x-1 ${
         badge.color === 'yellow' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400' :
@@ -120,6 +134,24 @@ export default function KYCVerificationPage() {
     }
     return (
       <span className={`inline-block w-2 h-2 rounded-full ${colors[priority as keyof typeof colors]}`} />
+    )
+  }
+
+  const getVerificationScore = (score: unknown) => {
+    const parsed = Number(score)
+    if (!Number.isFinite(parsed)) return 0
+    return Math.max(0, Math.min(100, parsed))
+  }
+  const selectedRequestScore = getVerificationScore(selectedRequest?.verificationScore)
+
+  if (loading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800 px-8 py-6 flex items-center space-x-3">
+          <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-gray-700 dark:text-gray-300 font-medium">Loading KYC requests...</p>
+        </div>
+      </div>
     )
   }
 
@@ -232,6 +264,16 @@ export default function KYCVerificationPage() {
           ))}
         </div>
 
+        {errorMessage && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl px-5 py-4 flex items-start space-x-3">
+            <AlertCircle className="text-red-600 dark:text-red-400 mt-0.5" size={18} />
+            <div>
+              <p className="text-red-700 dark:text-red-300 font-semibold">Unable to load latest KYC data</p>
+              <p className="text-red-600 dark:text-red-400 text-sm">{errorMessage}</p>
+            </div>
+          </div>
+        )}
+
         {/* Search & Filter Section */}
         <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-gray-200/50 dark:border-gray-700/50">
           <div className="flex items-center justify-between mb-8">
@@ -287,60 +329,70 @@ export default function KYCVerificationPage() {
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
           {/* KYC List */}
           <div className="xl:col-span-1 space-y-4 max-h-[800px] overflow-y-auto">
-            {filteredRequests.map((request) => (
-              <div
-                key={request.id}
-                onClick={() => setSelectedKYC(request.id)}
-                className={`group relative bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl p-6 shadow-lg border cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${
-                  selectedKYC === request.id
-                    ? 'border-blue-500 ring-2 ring-blue-500 shadow-2xl'
-                    : 'border-gray-200/50 dark:border-gray-700/50 hover:border-blue-300'
-                }`}
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center space-x-3">
-                    <span className="w-2 h-2 rounded-full bg-blue-500" />
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                      {request.fullName.charAt(0)}
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-gray-900 dark:text-white">{request.fullName}</h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">{request.partnerId}</p>
-                    </div>
-                  </div>
-                  {getStatusBadge(request.status)}
-                </div>
-
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                    <Mail size={14} className="mr-2" />
-                    <span className="truncate">{request.user?.email}</span>
-                  </div>
-                  <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                    <MapPin size={14} className="mr-2" />
-                    <span className="truncate">{request.address}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <span className="text-xs text-gray-500">
-                    {new Date(request.createdAt).toLocaleDateString()}
-                  </span>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-16 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full transition-all ${
-                          request.verificationScore >= 80 ? 'bg-green-500' :
-                          request.verificationScore >= 60 ? 'bg-yellow-500' : 'bg-red-500'
-                        }`}
-                        style={{ width: `${request.verificationScore}%` }}
-                      />
-                    </div>
-                    <span className="text-xs font-semibold text-gray-900 dark:text-white">{request.verificationScore}%</span>
-                  </div>
-                </div>
+            {filteredRequests.length === 0 && (
+              <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-gray-200/50 dark:border-gray-700/50">
+                <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
+                  No KYC requests found for this tab.
+                </p>
               </div>
-            ))}
+            )}
+            {filteredRequests.map((request) => {
+              const requestScore = getVerificationScore(request.verificationScore)
+              return (
+                <div
+                  key={request.id}
+                  onClick={() => setSelectedKYC(request.id)}
+                  className={`group relative bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl p-6 shadow-lg border cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${
+                    selectedKYC === request.id
+                      ? 'border-blue-500 ring-2 ring-blue-500 shadow-2xl'
+                      : 'border-gray-200/50 dark:border-gray-700/50 hover:border-blue-300'
+                  }`}
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <span className="w-2 h-2 rounded-full bg-blue-500" />
+                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+                        {request.fullName.charAt(0)}
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-gray-900 dark:text-white">{request.fullName}</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{request.partnerId}</p>
+                      </div>
+                    </div>
+                    {getStatusBadge(request.status)}
+                  </div>
+
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                      <Mail size={14} className="mr-2" />
+                      <span className="truncate">{request.user?.email}</span>
+                    </div>
+                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                      <MapPin size={14} className="mr-2" />
+                      <span className="truncate">{request.address}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <span className="text-xs text-gray-500">
+                      {new Date(request.createdAt).toLocaleDateString()}
+                    </span>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-16 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full transition-all ${
+                            requestScore >= 80 ? 'bg-green-500' :
+                            requestScore >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                          }`}
+                          style={{ width: `${requestScore}%` }}
+                        />
+                      </div>
+                      <span className="text-xs font-semibold text-gray-900 dark:text-white">{requestScore}%</span>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
           </div>
 
           {/* Detail View */}
@@ -443,28 +495,28 @@ export default function KYCVerificationPage() {
                         </span>
                       </div>
                       <span className="text-3xl font-black text-gray-900 dark:text-white">
-                        {selectedRequest.verificationScore}%
+                        {selectedRequestScore}%
                       </span>
                     </div>
                     <div className="w-full h-4 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                       <div 
                         className={`h-full transition-all duration-1000 ${
-                          selectedRequest.verificationScore >= 80 ? 'bg-gradient-to-r from-green-500 to-emerald-600' :
-                          selectedRequest.verificationScore >= 60 ? 'bg-gradient-to-r from-yellow-500 to-orange-600' : 
+                          selectedRequestScore >= 80 ? 'bg-gradient-to-r from-green-500 to-emerald-600' :
+                          selectedRequestScore >= 60 ? 'bg-gradient-to-r from-yellow-500 to-orange-600' : 
                           'bg-gradient-to-r from-red-500 to-pink-600'
                         }`}
-                        style={{ width: `${selectedRequest.verificationScore}%` }}
+                        style={{ width: `${selectedRequestScore}%` }}
                       />
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                      {selectedRequest.verificationScore >= 80 ? 'Excellent verification quality' :
-                       selectedRequest.verificationScore >= 60 ? 'Good verification quality' : 
+                      {selectedRequestScore >= 80 ? 'Excellent verification quality' :
+                       selectedRequestScore >= 60 ? 'Good verification quality' : 
                        'Requires manual review'}
                     </p>
                   </div>
 
                   {/* Actions */}
-                  {selectedRequest.status === 'pending' && (
+                  {(selectedRequest.status === 'pending' || selectedRequest.status === 'submitted') && (
                     <div className="space-y-6">
                       <div>
                         <label className="block text-lg font-bold text-gray-900 dark:text-white mb-3">
@@ -509,21 +561,21 @@ export default function KYCVerificationPage() {
                             {selectedRequest.status === 'approved' ? 'Approved' : 'Rejected'} by
                           </p>
                           <p className="text-xl font-bold text-gray-900 dark:text-white">
-                            {selectedRequest.verifiedBy}
+                            {selectedRequest.reviewedBy || 'Employee'}
                           </p>
                         </div>
                         <div className="text-right">
                           <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Date</p>
                           <p className="text-xl font-bold text-gray-900 dark:text-white">
-                            {new Date(selectedRequest.verifiedDate!).toLocaleDateString()}
+                            {new Date(selectedRequest.updatedAt || selectedRequest.createdAt).toLocaleDateString()}
                           </p>
                         </div>
                       </div>
-                      {selectedRequest.rejectionReason && (
+                      {selectedRequest.reviewComments && (
                         <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                           <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Rejection Reason:</p>
                           <p className="text-lg font-semibold text-red-600 dark:text-red-400">
-                            {selectedRequest.rejectionReason}
+                            {selectedRequest.reviewComments}
                           </p>
                         </div>
                       )}

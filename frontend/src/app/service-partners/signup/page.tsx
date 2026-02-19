@@ -195,7 +195,7 @@ export default function ServicePartnerSignupPage() {
       // Simulate Google OAuth
       await new Promise(resolve => setTimeout(resolve, 2000))
       toast.success('Google signup successful! Please complete your profile.')
-      router.push('/service-partners/registration')
+      router.push('/service-partners/kyc')
     } catch (error) {
       toast.error('Google signup failed. Please try again.')
     } finally {
@@ -245,7 +245,7 @@ export default function ServicePartnerSignupPage() {
           <div className="mb-8">
             <div className="flex items-center space-x-4 mb-6">
               <img
-                src="/images/gharbazaar-logo.jpg"
+                src="/logo.jpeg"
                 alt="GharBazaar Logo"
                 className="h-16 w-16 rounded-2xl shadow-lg object-cover"
               />
@@ -297,7 +297,7 @@ export default function ServicePartnerSignupPage() {
           <div className="lg:hidden text-center mb-8">
             <div className="flex items-center justify-center mb-4">
               <img
-                src="/images/gharbazaar-logo.jpg"
+                src="/logo.jpeg"
                 alt="GharBazaar Logo"
                 className="h-16 w-16 rounded-2xl shadow-lg object-cover"
               />
