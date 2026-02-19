@@ -1,0 +1,56 @@
+[
+  {
+    "id": "offline_1771502993692_6a8d4c10",
+    "userId": "gbclientbaf6377",
+    "category": "test",
+    "specialization": "TEST",
+    "rating": 0,
+    "reviews": 0,
+    "completedProjects": 0,
+    "hourlyRate": 7500,
+    "location": "HVB",
+    "verified": true,
+    "available": true,
+    "description": "B",
+    "skills": [
+      "TEST"
+    ],
+    "experience": 7,
+    "portfolio": [],
+    "profileImage": null,
+    "createdAt": "2026-02-19T12:09:53.692Z",
+    "updatedAt": "2026-02-19T12:09:53.692Z",
+    "user": {
+      "name": "Service Provider",
+      "email": "official.ksharma.in@gmail.com",
+      "phone": ""
+    }
+  },
+  {
+    "id": "offline_1771501202451_1c54a704",
+    "userId": "offline-user-1",
+    "category": "painter",
+    "specialization": "Painter",
+    "rating": 0,
+    "reviews": 0,
+    "completedProjects": 0,
+    "hourlyRate": 500,
+    "location": "Kolkata",
+    "verified": true,
+    "available": true,
+    "description": "Painter service provider available at Kolkata",
+    "skills": [
+      "Painter"
+    ],
+    "experience": 4,
+    "portfolio": [],
+    "profileImage": null,
+    "createdAt": "2026-02-19T11:40:02.451Z",
+    "updatedAt": "2026-02-19T11:40:02.451Z",
+    "user": {
+      "name": "Offline Provider",
+      "email": "buyer@demo.com",
+      "phone": ""
+    }
+  }
+]

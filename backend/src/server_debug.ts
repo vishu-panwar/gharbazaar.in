@@ -26,7 +26,14 @@ const startServer = async () => {
 
         app.use(helmet());
         app.use(cors({
-            origin: config.allowedOrigins,
+            origin: (origin, callback) => {
+                if (config.isOriginAllowed(origin)) {
+                    callback(null, true);
+                    return;
+                }
+                console.warn(`⚠️ Blocked CORS origin: ${origin}`);
+                callback(new Error('Not allowed by CORS'));
+            },
             credentials: true,
         }));
 

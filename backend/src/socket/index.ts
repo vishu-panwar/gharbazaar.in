@@ -13,14 +13,22 @@ export const initializeSocket = (httpServer: HTTPServer): Server => {
 
     const io = new Server(httpServer, {
         cors: {
-            origin: config.allowedOrigins,
+            origin: (origin, callback) => {
+                if (config.isOriginAllowed(origin)) {
+                    callback(null, true);
+                    return;
+                }
+                console.warn(`⚠️ Blocked Socket.IO origin: ${origin}`);
+                callback(new Error('Not allowed by CORS'));
+            },
             methods: ['GET', 'POST'],
             credentials: true,
         },
+        path: '/socket.io/',
         pingTimeout: config.socket.pingTimeout,
         pingInterval: config.socket.pingInterval,
         allowEIO3: true,
-        transports: ['websocket', 'polling'],
+        transports: ['polling', 'websocket'],
     });
 
     io.use(authenticateSocket);
@@ -51,8 +59,12 @@ export const initializeSocket = (httpServer: HTTPServer): Server => {
         });
     });
 
-    io.engine.on('connection_error', (err) => {
-        console.error('❌ Connection error:', err);
+    io.engine.on('connection_error', (err: any) => {
+        console.error('❌ Connection error:', {
+            code: err?.code,
+            message: err?.message,
+            context: err?.context,
+        });
     });
 
     console.log('✅ Socket.IO server initialized successfully');

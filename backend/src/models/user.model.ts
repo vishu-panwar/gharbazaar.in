@@ -5,7 +5,7 @@ export interface IUser extends Document {
     uid: string;
     email: string;
     name: string;
-    role: 'buyer' | 'seller' | 'admin' | 'employee' | 'legal_partner' | 'ground_partner' | 'promoter_partner';
+    role: 'buyer' | 'seller' | 'admin' | 'employee' | 'legal_partner' | 'ground_partner' | 'promoter_partner' | 'service_partner';
     buyerClientId?: string;
     sellerClientId?: string;
     // Stats for dashboards
@@ -50,7 +50,7 @@ const UserSchema: Schema = new Schema({
     role: {
         type: String,
         required: true,
-        enum: ['buyer', 'seller', 'admin', 'employee', 'legal_partner', 'ground_partner', 'promoter_partner'],
+        enum: ['buyer', 'seller', 'admin', 'employee', 'legal_partner', 'ground_partner', 'promoter_partner', 'service_partner'],
         default: 'buyer'
     },
     buyerClientId: { type: String, unique: true, sparse: true },

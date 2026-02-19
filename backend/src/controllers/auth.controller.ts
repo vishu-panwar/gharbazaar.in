@@ -24,6 +24,7 @@ const generateCustomId = (role: string): string => {
 
     if (role === 'employee') prefix = 'gbemployee';
     else if (role === 'legal_partner') prefix = 'gblegal';
+    else if (role === 'service_partner') prefix = 'gbservice';
     else if (role === 'ground_partner') prefix = 'gbground';
     else if (role === 'promoter_partner') prefix = 'gbpromoter';
 
@@ -69,7 +70,13 @@ export const login = async (req: Request, res: Response) => {
             return res.status(401).json({ success: false, error: 'Invalid credentials' });
         }
 
-        // Check if user should be admin
+        // AUTO-PATCH: If user has a service provider profile but role is still 'buyer', update it
+        // Fetch with profile to check
+        const userWithProfile = await prisma.user.findUnique({
+            where: { id: user.id },
+            include: { serviceProviderProfile: true }
+        });
+
         let finalRole = user.role;
         if (isAdminEmail(email) && user.role !== 'admin') {
             const updatedUser = await prisma.user.update({
@@ -77,6 +84,13 @@ export const login = async (req: Request, res: Response) => {
                 data: { role: 'admin' }
             });
             finalRole = 'admin';
+        } else if (user.role === 'buyer' && userWithProfile?.serviceProviderProfile) {
+            console.log(`🔄 Auto-patching role for ${user.email} to service_partner`);
+            await prisma.user.update({
+                where: { id: user.id },
+                data: { role: 'service_partner' }
+            });
+            finalRole = 'service_partner';
         }
 
         const userData = {
@@ -93,7 +107,7 @@ export const login = async (req: Request, res: Response) => {
             userId: userData.uid,
             email: userData.email,
             name: userData.displayName,
-            role: userData.role,
+            role: finalRole,
             onboardingCompleted: user.onboardingCompleted
         });
 
@@ -217,19 +231,32 @@ export const verifyToken = async (req: Request, res: Response) => {
         }
 
         // Fetch latest user data from DB to ensure onboarding status is up to date
+        // Include serviceProviderProfile to catch existing partners with buyer role
         const user = await prisma.user.findUnique({
-            where: { uid: decoded.userId }
+            where: { uid: decoded.userId },
+            include: { serviceProviderProfile: true }
         });
 
         if (!user) {
             return res.status(404).json({ success: false, error: 'User no longer exists' });
         }
 
+        // AUTO-PATCH: If user has a service provider profile but role is still 'buyer', update it
+        let effectiveRole = user.role;
+        if (user.role === 'buyer' && user.serviceProviderProfile) {
+            console.log(`🔄 Auto-patching role for ${user.email} to service_partner`);
+            await prisma.user.update({
+                where: { id: user.id },
+                data: { role: 'service_partner' }
+            });
+            effectiveRole = 'service_partner';
+        }
+
         const userData = {
             uid: user.uid,
             email: user.email,
             displayName: user.name,
-            role: user.role,
+            role: effectiveRole,
             onboardingCompleted: user.onboardingCompleted
         };
 
@@ -298,11 +325,17 @@ export const googleAuth = async (req: Request, res: Response) => {
         const buyerClientId = `gbclient${generateRandomHex()}`;
         const sellerClientId = `gbclient${generateRandomHex()}`;
 
+        // Check if user has a service provider profile to auto-set role
+        const existingUserWithProfile = await prisma.user.findUnique({
+            where: { email },
+            include: { serviceProviderProfile: true }
+        });
+
         const user = await prisma.user.upsert({
             where: { email },
             update: {
                 googleId,
-                role: userIsAdmin ? 'admin' : undefined
+                role: userIsAdmin ? 'admin' : (existingUserWithProfile?.serviceProviderProfile ? 'service_partner' : undefined)
             },
             create: {
                 uid,
@@ -320,7 +353,7 @@ export const googleAuth = async (req: Request, res: Response) => {
             userId: user.uid,
             email: user.email,
             name: user.name,
-            role: user.role,
+            role: user.role as any,
             onboardingCompleted: user.onboardingCompleted
         });
 

@@ -29,4 +29,5 @@ try {
     console.log('✅ routes/index.ts loaded');
 } catch (e: any) {
     console.error('❌ routes/index.ts failed:', e.message);
+    if (e.stack) console.error(e.stack);
 }

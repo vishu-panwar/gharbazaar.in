@@ -1,7 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import * as kycController from '../controllers/kyc.controller';
-import { authenticate } from '../middleware/auth.middleware';
+import { authenticate, authorizeRoles } from '../middleware/auth.middleware';
 import { MAX_FILE_SIZE, ALLOWED_FILE_TYPES } from '../utils/fileStorage';
 
 const router = express.Router();
@@ -33,7 +33,7 @@ router.post('/submit', authenticate, kycUpload, kycController.submitKyc);
 router.get('/status', authenticate, kycController.getMyKycStatus);
 
 // Employee routes
-router.get('/requests', authenticate, kycController.getKycRequests);
-router.post('/review/:id', authenticate, kycController.reviewKyc);
+router.get('/requests', authenticate, authorizeRoles('employee', 'admin'), kycController.getKycRequests);
+router.post('/review/:id', authenticate, authorizeRoles('employee', 'admin'), kycController.reviewKyc);
 
 export default router;

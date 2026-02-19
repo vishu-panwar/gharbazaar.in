@@ -1,30 +1,54 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
+import Razorpay from 'razorpay';
 import PaymentTransaction from '../models/paymentTransaction.model';
 
-const generateOrderId = () => `order_demo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+// Initialise Razorpay client lazily so it can read env vars at runtime
+let razorpayInstance: Razorpay | null = null;
 
-const verifyRazorpaySignature = (orderId: string, paymentId: string, signature: string) => {
+const getRazorpay = (): Razorpay => {
+    if (!razorpayInstance) {
+        const keyId = process.env.RAZORPAY_KEY_ID;
+        const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+        if (!keyId || !keySecret) {
+            throw new Error('Razorpay credentials (RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET) are not set in .env');
+        }
+
+        razorpayInstance = new Razorpay({ key_id: keyId, key_secret: keySecret });
+    }
+    return razorpayInstance;
+};
+
+const verifyRazorpaySignature = (orderId: string, paymentId: string, signature: string): boolean => {
     const secret = process.env.RAZORPAY_KEY_SECRET;
     if (!secret) return false;
     const hmac = crypto.createHmac('sha256', secret);
     hmac.update(`${orderId}|${paymentId}`);
-    const digest = hmac.digest('hex');
-    return digest === signature;
+    return hmac.digest('hex') === signature;
 };
 
+/** POST /api/v1/payments/create */
 export const createPayment = async (req: Request, res: Response) => {
     try {
         const userId = (req as any).user?.userId;
         if (!userId) return res.status(401).json({ success: false, message: 'User not authenticated' });
 
         const { amount, currency = 'INR', contractId, serviceId, metadata } = req.body;
-        if (!amount) {
-            return res.status(400).json({ success: false, message: 'amount is required' });
+        if (!amount || amount <= 0) {
+            return res.status(400).json({ success: false, message: 'A valid amount is required' });
         }
 
-        const orderId = generateOrderId();
+        // Create a real Razorpay order
+        const razorpay = getRazorpay();
+        const rzpOrder = await razorpay.orders.create({
+            amount: Math.round(amount * 100), // Razorpay expects paise (integer)
+            currency,
+            receipt: `rcpt_${Date.now()}`,
+            notes: { userId, serviceId, ...(metadata || {}) },
+        });
 
+        // Persist the order in MongoDB so we can verify it later
         const payment = await PaymentTransaction.create({
             userId,
             contractId,
@@ -32,25 +56,26 @@ export const createPayment = async (req: Request, res: Response) => {
             amount,
             currency,
             status: 'created',
-            razorpayOrderId: orderId,
-            metadata
+            razorpayOrderId: rzpOrder.id,
+            metadata,
         });
 
-        res.status(201).json({
+        return res.status(201).json({
             success: true,
             data: {
-                orderId,
-                amount,
-                currency,
-                paymentId: payment._id
-            }
+                orderId: rzpOrder.id,       // real Razorpay order_id e.g. "order_Oxxxxxx"
+                amount: rzpOrder.amount,     // in paise
+                currency: rzpOrder.currency,
+                paymentId: payment._id,
+            },
         });
     } catch (error: any) {
         console.error('createPayment error:', error);
-        res.status(500).json({ success: false, message: 'Failed to create payment', error: error.message });
+        return res.status(500).json({ success: false, message: 'Failed to create payment', error: error.message });
     }
 };
 
+/** POST /api/v1/payments/verify */
 export const verifyPayment = async (req: Request, res: Response) => {
     try {
         const userId = (req as any).user?.userId;
@@ -61,12 +86,11 @@ export const verifyPayment = async (req: Request, res: Response) => {
             return res.status(400).json({ success: false, message: 'orderId and paymentId are required' });
         }
 
-        const isSignatureValid = signature ? verifyRazorpaySignature(orderId, paymentId, signature) : false;
-        const isDemoValid = paymentId.startsWith('pay_') || paymentId === 'demo-payment';
+        // Verify Razorpay HMAC signature
+        const isValid = signature ? verifyRazorpaySignature(orderId, paymentId, signature) : false;
 
-        const isValid = isSignatureValid || isDemoValid;
         if (!isValid) {
-            return res.status(400).json({ success: false, message: 'Invalid payment verification' });
+            return res.status(400).json({ success: false, message: 'Invalid payment signature – verification failed' });
         }
 
         const payment = await PaymentTransaction.findOneAndUpdate(
@@ -74,37 +98,40 @@ export const verifyPayment = async (req: Request, res: Response) => {
             {
                 status: 'captured',
                 razorpayPaymentId: paymentId,
-                razorpaySignature: signature
+                razorpaySignature: signature,
             },
             { new: true }
         );
 
-        res.json({ success: true, data: payment });
+        return res.json({ success: true, data: payment });
     } catch (error: any) {
         console.error('verifyPayment error:', error);
-        res.status(500).json({ success: false, message: 'Failed to verify payment', error: error.message });
+        return res.status(500).json({ success: false, message: 'Failed to verify payment', error: error.message });
     }
 };
 
+/** GET /api/v1/payments */
 export const listPayments = async (req: Request, res: Response) => {
     try {
         const userId = (req as any).user?.userId;
         if (!userId) return res.status(401).json({ success: false, message: 'User not authenticated' });
 
         const payments = await PaymentTransaction.find({ userId }).sort({ createdAt: -1 });
-        res.json({ success: true, data: payments });
+        return res.json({ success: true, data: payments });
     } catch (error: any) {
         console.error('listPayments error:', error);
-        res.status(500).json({ success: false, message: 'Failed to fetch payments', error: error.message });
+        return res.status(500).json({ success: false, message: 'Failed to fetch payments', error: error.message });
     }
 };
 
+/** POST /api/v1/payments/webhook  (raw body required – already configured in server.ts) */
 export const handleWebhook = async (req: Request, res: Response) => {
     try {
         const signature = req.headers['x-razorpay-signature'] as string | undefined;
         const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+
         if (!secret || !signature) {
-            return res.status(400).json({ success: false, message: 'Webhook signature missing' });
+            return res.status(400).json({ success: false, message: 'Webhook secret or signature missing' });
         }
 
         const bodyBuffer = req.body as Buffer;
@@ -114,36 +141,34 @@ export const handleWebhook = async (req: Request, res: Response) => {
         }
 
         const payload = JSON.parse(bodyBuffer.toString('utf8'));
-        const event = payload.event;
+        const event = payload.event as string;
         const payment = payload?.payload?.payment?.entity;
 
         if (!payment) {
-            return res.status(200).json({ success: true, message: 'No payment entity' });
+            return res.status(200).json({ success: true, message: 'No payment entity in payload' });
         }
 
-        const orderId = payment.order_id;
-        const paymentId = payment.id;
+        const orderId = payment.order_id as string;
+        const paymentId = payment.id as string;
 
-        let status: any = undefined;
-        if (event === 'payment.captured') status = 'captured';
-        if (event === 'payment.authorized') status = 'authorized';
-        if (event === 'payment.failed') status = 'failed';
+        const statusMap: Record<string, string> = {
+            'payment.captured': 'captured',
+            'payment.authorized': 'authorized',
+            'payment.failed': 'failed',
+        };
 
+        const status = statusMap[event];
         if (status) {
             await PaymentTransaction.findOneAndUpdate(
                 { razorpayOrderId: orderId },
-                {
-                    status,
-                    razorpayPaymentId: paymentId,
-                    metadata: payment
-                },
+                { status, razorpayPaymentId: paymentId, metadata: payment },
                 { upsert: true }
             );
         }
 
-        res.json({ success: true });
+        return res.json({ success: true });
     } catch (error: any) {
         console.error('Webhook error:', error);
-        res.status(500).json({ success: false, message: 'Webhook processing failed', error: error.message });
+        return res.status(500).json({ success: false, message: 'Webhook processing failed', error: error.message });
     }
 };

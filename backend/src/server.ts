@@ -26,7 +26,14 @@ const startServer = async () => {
 
         app.use(helmet());
         app.use(cors({
-            origin: config.allowedOrigins,
+            origin: (origin, callback) => {
+                if (config.isOriginAllowed(origin)) {
+                    callback(null, true);
+                    return;
+                }
+                console.warn(`⚠️ Blocked CORS origin: ${origin}`);
+                callback(new Error('Not allowed by CORS'));
+            },
             credentials: true,
         }));
 
@@ -108,7 +115,7 @@ const startServer = async () => {
             console.log('='.repeat(60));
             console.log(`📡 Server running on: http://localhost:${config.port}`);
             console.log(`🌍 Environment: ${config.nodeEnv}`);
-            console.log(`💾 Database: Connected`);
+            console.log(`💾 Databases: PostgreSQL & MongoDB Connected`);
             console.log(`🔌 Socket.IO: Active`);
             console.log(`⏱️  Started at: ${new Date().toLocaleString()}`);
             console.log('='.repeat(60) + '\n');
