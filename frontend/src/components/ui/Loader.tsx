@@ -122,6 +122,7 @@ export default function Loader({
                 src="/logo.jpeg"
                 alt="GharBazaar"
                 fill
+                sizes="(max-width: 1024px) 64px, 80px"
                 className="object-contain rounded-xl"
                 priority
               />

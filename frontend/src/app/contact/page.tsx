@@ -156,14 +156,14 @@ export default function ContactPage() {
 
         {/* Content */}
         <div className="relative z-10 h-full max-w-[1400px] mx-auto px-8">
-          <div className="h-full grid lg:grid-cols-12 gap-8 items-center pt-28">
+          <div className="h-full grid lg:grid-cols-12 gap-8 items-center pt-20 sm:pt-24 lg:pt-28">
 
             {/* LEFT SIDE - Shifted Right */}
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0, ease: [0.16, 1, 0.3, 1] }}
-              className="lg:col-span-8 space-y-5 lg:pl-12 xl:pl-16"
+              className="lg:col-span-8 space-y-4 sm:space-y-5 lg:pl-12 xl:pl-16 -mt-[150px] lg:mt-0"
             >
 
               <motion.div

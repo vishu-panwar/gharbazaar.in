@@ -8,7 +8,7 @@
 }
 
 html {
-  scroll-behavior: smooth;
+
   -webkit-text-size-adjust: 100%;
 }
 
@@ -610,5 +610,14 @@ html {
   /* Prevent content overlap with fixed bottom nav */
   main {
     padding-bottom: 80px !important;
+  }
+
+  /* Force reduced top padding for hero sections on mobile */
+  .hero-section,
+  .pt-32,
+  .pt-24,
+  .pt-28 {
+    padding-top: 5rem !important;
+    /* Reduced from default rem values */
   }
 }

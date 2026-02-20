@@ -242,11 +242,6 @@ export function Footer() {
               <span>Trusted Platform</span>
             </span>
             <span className="text-gray-700">•</span>
-            <span className="flex items-center space-x-2">
-              <Building2 size={14} className="text-blue-500" />
-              <span>RERA Compliant</span>
-            </span>
-            <span className="text-gray-700">•</span>
             <span>Serving 10,000+ Happy Customers</span>
           </div>
         </div>

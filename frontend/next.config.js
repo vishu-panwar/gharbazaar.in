@@ -40,10 +40,11 @@ const nextConfig = {
     // optimizePackageImports: ['lucide-react'],
   },
 
-  // Ignore TypeScript and ESLint errors during build to allow deployment
+  // Ignore TypeScript errors during build to allow deployment
   typescript: {
     ignoreBuildErrors: true,
   },
+
   // Compression
   compress: true,
 
@@ -80,6 +81,8 @@ const nextConfig = {
   },
 
   // Output standalone for better deployment
+  // output: "standalone", // Commented out standard standalone for Netlify adapter compatibility if needed, but usually fine.
+  // Netlify plugin handles it. Let's keep it safe or just use standard.
   output: "standalone",
 };
 
