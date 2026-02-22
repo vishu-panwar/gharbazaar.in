@@ -2,6 +2,17 @@
 import { Request, Response } from 'express';
 import { prisma } from '../utils/database';
 
+const ALLOWED_CASE_STATUSES = new Set([
+    'open',
+    'pending',
+    'new',
+    'accepted',
+    'rejected',
+    'in_progress',
+    'completed',
+    'cancelled',
+]);
+
 export const createPartnerCase = async (req: Request, res: Response) => {
     try {
         const userId = (req as any).user?.userId; // Firebase uid
@@ -90,7 +101,13 @@ export const updatePartnerCase = async (req: Request, res: Response) => {
 
         const { status, description, amount, dueDate, metadata } = req.body;
         const updateData: any = {};
-        if (status) updateData.status = status;
+        if (status) {
+            const normalizedStatus = String(status).toLowerCase();
+            if (!ALLOWED_CASE_STATUSES.has(normalizedStatus)) {
+                return res.status(400).json({ success: false, message: 'Invalid case status' });
+            }
+            updateData.status = normalizedStatus;
+        }
         if (description !== undefined) updateData.description = description;
         if (amount !== undefined) updateData.amount = parseFloat(amount);
         if (dueDate !== undefined) updateData.dueDate = dueDate ? new Date(dueDate) : null;
@@ -100,6 +117,47 @@ export const updatePartnerCase = async (req: Request, res: Response) => {
             where: { id },
             data: updateData
         });
+
+        if (updatedCase.buyerId && updateData.status && updateData.status !== partnerCase.status) {
+            const buyer = await prisma.user.findUnique({
+                where: { id: updatedCase.buyerId },
+                select: { id: true, uid: true }
+            });
+
+            if (buyer) {
+                const providerName = user.name || 'Service Partner';
+                const statusLabelMap: Record<string, string> = {
+                    accepted: 'accepted',
+                    rejected: 'rejected',
+                    in_progress: 'started',
+                    completed: 'completed',
+                    cancelled: 'cancelled',
+                };
+                const statusLabel = statusLabelMap[updateData.status] || updateData.status;
+
+                const notification = await prisma.notification.create({
+                    data: {
+                        userId: buyer.id,
+                        type: 'service_offer_status',
+                        title: 'Service Offer Updated',
+                        message: `${providerName} has ${statusLabel} your service offer.`,
+                        priority: updateData.status === 'rejected' ? 'high' : 'medium',
+                        link: '/dashboard/messages',
+                        metadata: JSON.stringify({
+                            caseId: updatedCase.id,
+                            status: updateData.status,
+                            partnerId: updatedCase.partnerId,
+                        }),
+                    }
+                });
+
+                const io = req.app.get('io');
+                if (io) {
+                    const buyerIdentity = buyer.uid || buyer.id;
+                    io.to(`notifications:${buyerIdentity}`).emit('new_notification', notification);
+                }
+            }
+        }
 
         res.json({ success: true, data: updatedCase });
     } catch (error: any) {

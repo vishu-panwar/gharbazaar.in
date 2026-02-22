@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import Razorpay from 'razorpay';
 import PaymentTransaction from '../models/paymentTransaction.model';
 
-// Initialise Razorpay client lazily so it can read env vars at runtime
+// Initialize Razorpay client lazily so it can read env vars at runtime
 let razorpayInstance: Razorpay | null = null;
 
 const getRazorpay = (): Razorpay => {
@@ -28,6 +28,12 @@ const verifyRazorpaySignature = (orderId: string, paymentId: string, signature: 
     return hmac.digest('hex') === signature;
 };
 
+const verifySimulatedSignature = (orderId: string, paymentId: string, signature: string): boolean => {
+    if (!signature || !signature.startsWith('sig_')) return false;
+    const payload = Buffer.from(`${orderId}|${paymentId}`, 'utf8').toString('base64').substring(0, 20);
+    return signature === `sig_${payload}`;
+};
+
 /** POST /api/v1/payments/create */
 export const createPayment = async (req: Request, res: Response) => {
     try {
@@ -39,14 +45,32 @@ export const createPayment = async (req: Request, res: Response) => {
             return res.status(400).json({ success: false, message: 'A valid amount is required' });
         }
 
-        // Create a real Razorpay order
-        const razorpay = getRazorpay();
-        const rzpOrder = await razorpay.orders.create({
-            amount: Math.round(amount * 100), // Razorpay expects paise (integer)
-            currency,
-            receipt: `rcpt_${Date.now()}`,
-            notes: { userId, serviceId, ...(metadata || {}) },
-        });
+        // Create a real Razorpay order when credentials are configured.
+        // In non-production environments we allow a mock order fallback.
+        let rzpOrder: { id: string; amount: number; currency: string };
+        try {
+            const razorpay = getRazorpay();
+            const created = await razorpay.orders.create({
+                amount: Math.round(amount * 100), // Razorpay expects paise (integer)
+                currency,
+                receipt: `rcpt_${Date.now()}`,
+                notes: { userId, serviceId, ...(metadata || {}) },
+            });
+
+            rzpOrder = {
+                id: created.id,
+                amount: Number(created.amount),
+                currency: created.currency,
+            };
+        } catch (error) {
+            if (process.env.NODE_ENV === 'production') throw error;
+
+            rzpOrder = {
+                id: `order_demo_${Date.now()}`,
+                amount: Math.round(amount * 100),
+                currency,
+            };
+        }
 
         // Persist the order in MongoDB so we can verify it later
         const payment = await PaymentTransaction.create({
@@ -63,8 +87,8 @@ export const createPayment = async (req: Request, res: Response) => {
         return res.status(201).json({
             success: true,
             data: {
-                orderId: rzpOrder.id,       // real Razorpay order_id e.g. "order_Oxxxxxx"
-                amount: rzpOrder.amount,     // in paise
+                orderId: rzpOrder.id,
+                amount: rzpOrder.amount,
                 currency: rzpOrder.currency,
                 paymentId: payment._id,
             },
@@ -86,11 +110,17 @@ export const verifyPayment = async (req: Request, res: Response) => {
             return res.status(400).json({ success: false, message: 'orderId and paymentId are required' });
         }
 
-        // Verify Razorpay HMAC signature
-        const isValid = signature ? verifyRazorpaySignature(orderId, paymentId, signature) : false;
+        const strictValid = signature ? verifyRazorpaySignature(orderId, paymentId, signature) : false;
+        const simulatedValid =
+            process.env.NODE_ENV !== 'production' && signature
+                ? verifySimulatedSignature(orderId, paymentId, signature)
+                : false;
 
-        if (!isValid) {
-            return res.status(400).json({ success: false, message: 'Invalid payment signature – verification failed' });
+        if (!strictValid && !simulatedValid) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid payment signature - verification failed',
+            });
         }
 
         const payment = await PaymentTransaction.findOneAndUpdate(
@@ -103,7 +133,7 @@ export const verifyPayment = async (req: Request, res: Response) => {
             { new: true }
         );
 
-        return res.json({ success: true, data: payment });
+        return res.json({ success: true, data: payment, mode: strictValid ? 'razorpay' : 'simulated' });
     } catch (error: any) {
         console.error('verifyPayment error:', error);
         return res.status(500).json({ success: false, message: 'Failed to verify payment', error: error.message });
@@ -124,7 +154,7 @@ export const listPayments = async (req: Request, res: Response) => {
     }
 };
 
-/** POST /api/v1/payments/webhook  (raw body required – already configured in server.ts) */
+/** POST /api/v1/payments/webhook  (raw body required - already configured in server.ts) */
 export const handleWebhook = async (req: Request, res: Response) => {
     try {
         const signature = req.headers['x-razorpay-signature'] as string | undefined;

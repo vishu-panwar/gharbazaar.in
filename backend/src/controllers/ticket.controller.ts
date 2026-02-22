@@ -6,6 +6,15 @@ import { isMongoDBAvailable, memoryTickets, memoryTicketMessages } from '../util
 import { v4 as uuidv4 } from 'uuid';
 import { addToWaitingQueue } from '../socket/handlers/agent.handler';
 import { uploadFile } from '../utils/fileStorage';
+
+const isStaffRole = (role?: string) =>
+    ['employee', 'admin'].includes((role || '').toLowerCase());
+
+const canAccessTicket = (ticket: any, userId: string, role?: string) => {
+    if (isStaffRole(role)) return true;
+    return ticket?.userId === userId || ticket?.assignedTo === userId;
+};
+
 export const getUserTickets = async (req: Request, res: Response) => {
     try {
         const userId = (req as any).user.userId;
@@ -52,6 +61,8 @@ export const getAllTickets = async (req: Request, res: Response) => {
 export const getTicketDetails = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
+        const userId = (req as any).user?.userId;
+        const role = (req as any).user?.role;
 
         let ticket;
         if (isMongoDBAvailable()) {
@@ -62,6 +73,10 @@ export const getTicketDetails = async (req: Request, res: Response) => {
 
         if (!ticket) {
             return res.status(404).json({ success: false, error: 'Ticket not found' });
+        }
+
+        if (!canAccessTicket(ticket, userId, role)) {
+            return res.status(403).json({ success: false, error: 'Not authorized to access this ticket' });
         }
 
         let messages = [];
@@ -182,6 +197,10 @@ export const assignTicket = async (req: Request, res: Response) => {
             }
         }
 
+        if (!ticket) {
+            return res.status(404).json({ success: false, error: 'Ticket not found' });
+        }
+
         res.json({ success: true, data: { ticket } });
     } catch (error) {
         res.status(500).json({ success: false, error: 'Failed to assign ticket' });
@@ -195,6 +214,18 @@ export const sendTicketMessage = async (req: Request, res: Response) => {
         const userRole = (req as any).user.role;
 
         const senderType = userRole === 'employee' ? 'employee' : 'customer';
+
+        const ticket = isMongoDBAvailable()
+            ? await Ticket.findById(id)
+            : memoryTickets.get(id);
+
+        if (!ticket) {
+            return res.status(404).json({ success: false, error: 'Ticket not found' });
+        }
+
+        if (!canAccessTicket(ticket, userId, userRole)) {
+            return res.status(403).json({ success: false, error: 'Not authorized to send message on this ticket' });
+        }
 
         let ticketMessage;
         if (isMongoDBAvailable()) {
@@ -257,20 +288,23 @@ export const sendTicketMessage = async (req: Request, res: Response) => {
 export const closeTicket = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-
-        let ticket;
-        if (isMongoDBAvailable()) {
-            ticket = await Ticket.findByIdAndUpdate(
+        const ticket = isMongoDBAvailable()
+            ? await Ticket.findByIdAndUpdate(
                 id,
                 { status: 'closed', closedAt: new Date() },
                 { new: true }
-            );
+            )
+            : memoryTickets.get(id);
+
+        if (!ticket) {
+            return res.status(404).json({ success: false, error: 'Ticket not found' });
+        }
+
+        if (isMongoDBAvailable()) {
+            // Already updated above for MongoDB
         } else {
-            ticket = memoryTickets.get(id);
-            if (ticket) {
-                ticket.status = 'closed';
-                ticket.closedAt = new Date();
-            }
+            ticket.status = 'closed';
+            ticket.closedAt = new Date();
         }
 
         res.json({ success: true, data: { ticket } });
@@ -282,6 +316,21 @@ export const closeTicket = async (req: Request, res: Response) => {
 export const uploadTicketFile = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
+        const userId = (req as any).user?.userId;
+        const role = (req as any).user?.role;
+
+        const ticket = isMongoDBAvailable()
+            ? await Ticket.findById(id)
+            : memoryTickets.get(id);
+
+        if (!ticket) {
+            return res.status(404).json({ success: false, error: 'Ticket not found' });
+        }
+
+        if (!canAccessTicket(ticket, userId, role)) {
+            return res.status(403).json({ success: false, error: 'Not authorized to upload files for this ticket' });
+        }
+
         if (!req.file) {
             return res.status(400).json({ success: false, error: 'No file provided' });
         }

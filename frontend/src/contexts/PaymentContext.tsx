@@ -1,108 +1,238 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { backendApi } from '@/lib/backendApi'
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { backendApi } from '@/lib/backendApi';
+import { useAuth } from './AuthContext';
 
 interface Plan {
-    id: string
-    name: string
-    type: 'buyer' | 'seller'
+    id: string;
+    name: string;
+    type: string;
+    displayName?: string;
     features: {
-        viewLimit?: number
-        contactAccess?: boolean
-        mapAccess?: boolean
-        bidAccess?: boolean
-        listingLimit?: number
-        [key: string]: any
-    }
-    expiryDate?: string
+        viewLimit?: number;
+        contactAccess?: boolean;
+        mapAccess?: boolean;
+        bidAccess?: boolean;
+        listingLimit?: number;
+        directContact?: boolean;
+        [key: string]: any;
+    };
+    expiryDate?: string;
+    usage?: {
+        viewsUsed?: number;
+        contactsUsed?: number;
+        listingsUsed?: number;
+    };
 }
 
 interface PaymentContextType {
-    hasPaid: boolean // Keep for backward compatibility
-    currentPlan: Plan | null
-    setPaid: () => void // Keep for backward compatibility
-    setPlan: (plan: Plan) => void
-    clearPayment: () => void
-    hasFeature: (feature: string) => boolean
+    hasPaid: boolean;
+    currentPlan: Plan | null;
+    setPaid: () => void;
+    setPlan: (plan: Plan) => void;
+    clearPayment: () => void;
+    hasFeature: (feature: string) => boolean;
+    refreshPlan: () => Promise<void>;
+    loadingPlan: boolean;
 }
 
-const PaymentContext = createContext<PaymentContextType>({} as PaymentContextType)
+const PaymentContext = createContext<PaymentContextType>({} as PaymentContextType);
+
+const LOCAL_PLAN_KEY = 'gharbazaar_user_plan';
+const LOCAL_PAID_KEY = 'gharbazaar_payment_status';
+
+const toNumber = (value: any): number => {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+};
+
+const buildPlanFromBackend = (payload: any): Plan | null => {
+    const plan = payload?.plan;
+    const userPlan = payload?.userPlan;
+    if (!plan || !userPlan) return null;
+
+    const viewsUsed = toNumber(userPlan?.usage?.viewsUsed);
+    const contactsUsed = toNumber(userPlan?.usage?.contactsUsed);
+    const listingsUsed = toNumber(userPlan?.usage?.listingsUsed);
+
+    const viewLimit = toNumber(plan.viewLimit);
+    const listingLimit = toNumber(plan.listingLimit);
+
+    const remainingViews = Math.max(0, viewLimit - viewsUsed);
+    const remainingListings = Math.max(0, listingLimit - listingsUsed);
+
+    return {
+        id: String(plan.id),
+        name: String(plan.name || plan.displayName || 'active-plan'),
+        displayName: String(plan.displayName || plan.name || 'Active Plan'),
+        type: String(plan.type || ''),
+        expiryDate: userPlan.endDate,
+        usage: {
+            viewsUsed,
+            contactsUsed,
+            listingsUsed,
+        },
+        features: {
+            viewLimit: remainingViews,
+            listingLimit: remainingListings,
+            contactAccess: Boolean(plan.directContact),
+            directContact: Boolean(plan.directContact),
+            bidAccess: Boolean(plan.directContact),
+            mapAccess: true,
+            prioritySupport: Boolean(plan.prioritySupport),
+            verifiedBadge: Boolean(plan.verifiedBadge),
+        },
+    };
+};
 
 export const usePayment = () => {
-    const context = useContext(PaymentContext)
+    const context = useContext(PaymentContext);
     if (!context) {
-        throw new Error('usePayment must be used within PaymentProvider')
+        throw new Error('usePayment must be used within PaymentProvider');
     }
-    return context
-}
+    return context;
+};
 
 export const PaymentProvider = ({ children }: { children: ReactNode }) => {
-    const [hasPaid, setHasPaid] = useState(false)
-    const [currentPlan, setCurrentPlan] = useState<Plan | null>(null)
+    const { user } = useAuth();
+    const [hasPaid, setHasPaid] = useState(false);
+    const [currentPlan, setCurrentPlan] = useState<Plan | null>(null);
+    const [loadingPlan, setLoadingPlan] = useState(true);
 
-    // Load payment status from localStorage on mount
-    useEffect(() => {
-        // Backward compatibility: check old boolean flag
-        const storedPaymentStatus = localStorage.getItem('gharbazaar_payment_status')
-        if (storedPaymentStatus === 'paid') {
-            setHasPaid(true)
+    const persistLocalState = useCallback((plan: Plan | null, paid: boolean) => {
+        if (typeof window === 'undefined') return;
+
+        if (plan) {
+            localStorage.setItem(LOCAL_PLAN_KEY, JSON.stringify(plan));
+        } else {
+            localStorage.removeItem(LOCAL_PLAN_KEY);
         }
 
-        // New: load plan data
-        const storedPlan = localStorage.getItem('gharbazaar_user_plan')
-        if (storedPlan) {
-            try {
-                const plan = JSON.parse(storedPlan)
-                setCurrentPlan(plan)
-                setHasPaid(true) // If they have a plan, they've paid
-            } catch (e) {
-                console.error('Error parsing stored plan:', e)
-            }
+        if (paid) {
+            localStorage.setItem(LOCAL_PAID_KEY, 'paid');
+        } else {
+            localStorage.removeItem(LOCAL_PAID_KEY);
         }
-    }, [])
+    }, []);
 
-    const setPaid = async () => {
-        // Fallback for when we don't have a plan context (rare)
-        setHasPaid(true)
-        localStorage.setItem('gharbazaar_payment_status', 'paid')
-    }
+    const refreshPlan = useCallback(async () => {
+        if (typeof window === 'undefined') return;
 
-    const setPlan = async (plan: any) => {
+        const token = localStorage.getItem('auth_token');
+        if (!token) {
+            setCurrentPlan(null);
+            setHasPaid(false);
+            setLoadingPlan(false);
+            return;
+        }
+
         try {
-            // Call backend to persist payment/plan
-            const response = await backendApi.plans.purchase(
-                plan.id,
-                `pay_${Math.random().toString(36).substring(7)}` // Mock payment ID
-            );
+            setLoadingPlan(true);
+            const response = await backendApi.plans.getUserPlan();
 
-            if (response.success) {
-                setCurrentPlan(plan)
-                setHasPaid(true)
-                localStorage.setItem('gharbazaar_user_plan', JSON.stringify(plan))
-                localStorage.setItem('gharbazaar_payment_status', 'paid')
+            if (response?.success && response?.data) {
+                const normalized = buildPlanFromBackend(response.data);
+                if (normalized) {
+                    setCurrentPlan(normalized);
+                    setHasPaid(true);
+                    persistLocalState(normalized, true);
+                    return;
+                }
             }
+
+            // No active backend plan
+            setCurrentPlan(null);
+            setHasPaid(false);
+            persistLocalState(null, false);
         } catch (error) {
-            console.error('Failed to purchase plan on backend:', error);
-            // Fallback for demo
-            setCurrentPlan(plan)
-            setHasPaid(true)
+            // Soft fallback to local cache if backend is unavailable.
+            const storedPlan = localStorage.getItem(LOCAL_PLAN_KEY);
+            const storedPaid = localStorage.getItem(LOCAL_PAID_KEY) === 'paid';
+
+            if (storedPlan) {
+                try {
+                    const parsed = JSON.parse(storedPlan) as Plan;
+                    setCurrentPlan(parsed);
+                    setHasPaid(storedPaid || Boolean(parsed));
+                } catch {
+                    setCurrentPlan(null);
+                    setHasPaid(false);
+                }
+            } else {
+                setCurrentPlan(null);
+                setHasPaid(storedPaid);
+            }
+        } finally {
+            setLoadingPlan(false);
         }
-    }
+    }, [persistLocalState]);
+
+    useEffect(() => {
+        // Bootstrap from local cache quickly, then refresh from backend.
+        if (typeof window !== 'undefined') {
+            const storedPlan = localStorage.getItem(LOCAL_PLAN_KEY);
+            const storedPaid = localStorage.getItem(LOCAL_PAID_KEY) === 'paid';
+
+            if (storedPlan) {
+                try {
+                    const parsed = JSON.parse(storedPlan) as Plan;
+                    setCurrentPlan(parsed);
+                    setHasPaid(storedPaid || Boolean(parsed));
+                } catch {
+                    setCurrentPlan(null);
+                    setHasPaid(storedPaid);
+                }
+            } else {
+                setHasPaid(storedPaid);
+            }
+        }
+
+        refreshPlan();
+    }, [refreshPlan]);
+
+    useEffect(() => {
+        if (!user) {
+            setCurrentPlan(null);
+            setHasPaid(false);
+            setLoadingPlan(false);
+            return;
+        }
+
+        refreshPlan();
+    }, [user?.uid, refreshPlan, user]);
+
+    const setPaid = () => {
+        // Backward compatibility fallback. Real source should be refreshPlan().
+        setHasPaid(true);
+        persistLocalState(currentPlan, true);
+    };
+
+    const setPlan = (plan: Plan) => {
+        setCurrentPlan(plan);
+        setHasPaid(true);
+        persistLocalState(plan, true);
+    };
 
     const clearPayment = () => {
-        setHasPaid(false)
-        setCurrentPlan(null)
-        localStorage.removeItem('gharbazaar_payment_status')
-        localStorage.removeItem('gharbazaar_user_plan')
-    }
+        setHasPaid(false);
+        setCurrentPlan(null);
+        persistLocalState(null, false);
+    };
 
     const hasFeature = (feature: string): boolean => {
-        if (!currentPlan) return hasPaid // Fallback to old boolean check
+        if (!currentPlan) return hasPaid;
 
-        const featureValue = currentPlan.features[feature]
-        if (typeof featureValue === 'boolean') return featureValue
-        if (typeof featureValue === 'number') return featureValue > 0
-        return false
-    }
+        const featureValue = currentPlan.features?.[feature];
+        if (typeof featureValue === 'boolean') return featureValue;
+        if (typeof featureValue === 'number') return featureValue > 0;
+
+        // Reasonable defaults for legacy feature checks.
+        if (feature === 'contactAccess' || feature === 'bidAccess') {
+            return Boolean(currentPlan.features?.directContact || hasPaid);
+        }
+        if (feature === 'mapAccess') return hasPaid;
+
+        return hasPaid;
+    };
 
     const value = {
         hasPaid,
@@ -111,11 +241,9 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
         setPlan,
         clearPayment,
         hasFeature,
-    }
+        refreshPlan,
+        loadingPlan,
+    };
 
-    return (
-        <PaymentContext.Provider value={value}>
-            {children}
-        </PaymentContext.Provider>
-    )
-}
+    return <PaymentContext.Provider value={value}>{children}</PaymentContext.Provider>;
+};

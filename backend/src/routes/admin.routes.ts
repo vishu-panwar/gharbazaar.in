@@ -34,6 +34,10 @@ router.get('/properties', adminController.getAllProperties);
 router.put('/properties/:id/status', adminController.updatePropertyStatus);
 router.delete('/properties/:id', adminController.deleteProperty);
 
+router.get('/payments', adminController.getAllPayments);
+router.get('/subscriptions', adminController.getAllSubscriptions);
+router.put('/subscriptions/:id/status', adminController.updateSubscriptionStatus);
+
 router.get('/salary', adminController.getSalaryRecords);
 router.post('/salary/process', adminController.processSalary);
 router.post('/payouts/:id/approve', adminController.approvePayout);

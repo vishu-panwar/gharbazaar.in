@@ -4,115 +4,16 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
   Search,
-  Filter,
-  MapPin,
-  Bed,
-  Bath,
-  Square,
-  Heart,
-  Eye,
   Home,
   Building2,
-  TrendingUp,
-  DollarSign,
   SlidersHorizontal,
   X,
-  ChevronDown,
-  Star,
-  CheckCircle,
   Sparkles,
   Map,
   List,
-  ArrowUpDown
 } from 'lucide-react'
 import PropertyCard, { Property } from '@/components/PropertyCard'
 import { useFavorites } from '@/contexts/FavoritesContext'
-
-// Mock data fallback when backend has no properties
-function getMockProperties() {
-  return [
-    {
-      _id: 'mock1',
-      title: 'Luxury 3BHK Apartment in Bandra West',
-      location: 'Bandra West, Mumbai',
-      price: 25000000,
-      propertyType: 'Apartment',
-      listingType: 'sale',
-      bedrooms: 3,
-      bathrooms: 2,
-      area: '1450 sq ft',
-      photos: ['https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800&h=600&fit=crop'],
-      description: 'Spacious apartment with sea view',
-      status: 'active',
-      views: 245,
-      likes: 12
-    },
-    {
-      _id: 'mock2',
-      title: 'Modern 2BHK Flat in Andheri East',
-      location: 'Andheri East, Mumbai',
-      price: 45000,
-      propertyType: 'Apartment',
-      listingType: 'rent',
-      bedrooms: 2,
-      bathrooms: 2,
-      area: '950 sq ft',
-      photos: ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&h=600&fit=crop'],
-      description: 'Fully furnished with modern amenities',
-      status: 'active',
-      views: 189,
-      likes: 8
-    },
-    {
-      _id: 'mock3',
-      title: 'Premium Villa in Lonavala',
-      location: 'Lonavala, Maharashtra',
-      price: 35000000,
-      propertyType: 'Villa',
-      listingType: 'sale',
-      bedrooms: 4,
-      bathrooms: 3,
-      area: '2500 sq ft',
-      photos: ['https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800&h=600&fit=crop'],
-      description: 'Beautiful villa with mountain view',
-      status: 'active',
-      views: 156,
-      likes: 15
-    },
-    {
-      _id: 'mock4',
-      title: 'Spacious 1BHK in Powai',
-      location: 'Powai, Mumbai',
-      price: 35000,
-      propertyType: 'Apartment',
-      listingType: 'rent',
-      bedrooms: 1,
-      bathrooms: 1,
-      area: '650 sq ft',
-      photos: ['https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&h=600&fit=crop'],
-      description: 'Near IT parks and malls',
-      status: 'active',
-      views: 92,
-      likes: 5
-    },
-    {
-      _id: 'mock5',
-      title: '4BHK Penthouse in Worli',
-      location: 'Worli, Mumbai',
-      price: 85000000,
-      propertyType: 'Penthouse',
-      listingType: 'sale',
-      bedrooms: 4,
-      bathrooms: 4,
-      area: '3200 sq ft',
-      photos: ['https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&h=600&fit=crop'],
-      description: 'Ultra-luxury with private terrace',
-      status: 'active',
-      views: 421,
-      likes: 28
-    }
-  ]
-}
 
 export default function BrowsePropertiesPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
@@ -151,23 +52,20 @@ export default function BrowsePropertiesPage() {
           if (filters.location) query.location = filters.location
 
           const response = await backendApi.properties.search(query)
-          const fetchedProperties = response?.properties || response?.data || []
+          const fetchedProperties =
+            response?.properties ||
+            response?.data?.properties ||
+            response?.data ||
+            []
 
           if (cancelled) return
 
-          // If no properties from backend, use mock data for testing
-          if (fetchedProperties.length === 0) {
-            console.warn('No properties from backend, using mock data')
-            setProperties(getMockProperties())
-          } else {
-            setProperties(fetchedProperties)
-          }
+          setProperties(Array.isArray(fetchedProperties) ? fetchedProperties : [])
         } catch (err: any) {
           if (cancelled) return
           console.error('Fetch properties error:', err)
           setError(err.message || 'Failed to load properties')
-          // Use mock data as fallback on error
-          setProperties(getMockProperties())
+          setProperties([])
         } finally {
           if (!cancelled) setLoading(false)
         }
@@ -182,8 +80,24 @@ export default function BrowsePropertiesPage() {
     }
   }, [filters.listingType, filters.propertyType, filters.sortBy, filters.location]) // Re-fetch on filter changes
 
+  const filteredProperties = [...properties]
+    .filter((property) => {
+      const price = Number(property.price || 0)
+      if (filters.priceRange === '0-50' && price > 5000000) return false
+      if (filters.priceRange === '50-100' && (price < 5000000 || price > 10000000)) return false
+      if (filters.priceRange === '100-500' && (price < 10000000 || price > 50000000)) return false
+      if (filters.priceRange === '500+' && price < 50000000) return false
 
-  const filteredProperties = properties
+      const bedrooms = Number(property.bedrooms || 0)
+      if (filters.bedrooms !== 'all' && bedrooms < Number(filters.bedrooms)) return false
+      return true
+    })
+    .sort((a, b) => {
+      if (filters.sortBy === 'price-low') return Number(a.price || 0) - Number(b.price || 0)
+      if (filters.sortBy === 'price-high') return Number(b.price || 0) - Number(a.price || 0)
+      if (filters.sortBy === 'popular') return Number(b.views || 0) - Number(a.views || 0)
+      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+    })
   const { toggleFavorite, isFavorite } = useFavorites()
 
   const handleToggleFavorite = (id: string | number) => {

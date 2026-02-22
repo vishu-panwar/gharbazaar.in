@@ -20,7 +20,6 @@ import {
   UserPlus,
   ShoppingCart,
   Calendar,
-  Award,
   Zap,
   Clock
 } from 'lucide-react'
@@ -120,7 +119,7 @@ export default function AdminDashboardPage() {
   const quickStats = [
     { label: 'Today\'s Revenue', value: isLoading ? '...' : quickData.revenueToday, icon: DollarSign, color: 'green' },
     { label: 'New Users', value: isLoading ? '...' : quickData.newUsersToday.toString(), icon: UserPlus, color: 'blue' },
-    { label: 'Active Sessions', value: '1,847', icon: Activity, color: 'purple' }, // Placeholder for now
+    { label: 'Recent Activities', value: isLoading ? '...' : activities.length.toString(), icon: Activity, color: 'purple' },
     { label: 'Pending Approvals', value: isLoading ? '...' : quickData.pendingApprovals.toString(), icon: Clock, color: 'orange' }
   ]
 
@@ -144,13 +143,6 @@ export default function AdminDashboardPage() {
       default: return 'gray';
     }
   }
-
-  // Top Performers (Placeholder for now as logic is complex)
-  const topPerformers = [
-    { name: 'Priya Sharma', role: 'Sales Lead', performance: 95, revenue: '₹8.5L' },
-    { name: 'Amit Kumar', role: 'Support Head', performance: 92, revenue: '₹6.2L' },
-    { name: 'Sneha Reddy', role: 'Verification', performance: 88, revenue: '₹4.8L' }
-  ]
 
   return (
     <div className="space-y-6">
@@ -322,37 +314,26 @@ export default function AdminDashboardPage() {
             </div>
           </div>
 
-          {/* Top Performers */}
+          {/* Governance Summary */}
           <div className="bg-gradient-to-br from-purple-600 via-purple-700 to-indigo-900 rounded-2xl p-6 text-white shadow-lg">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold flex items-center">
-                <Award className="mr-2" size={20} />
-                Top Performers
-              </h2>
-              <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-            </div>
-
-            <div className="space-y-4">
-              {topPerformers.map((performer, index) => (
-                <div key={index} className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <p className="font-semibold">{performer.name}</p>
-                      <p className="text-xs text-purple-200">{performer.role}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-lg">{performer.performance}%</p>
-                      <p className="text-xs text-purple-200">{performer.revenue}</p>
-                    </div>
-                  </div>
-                  <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-green-400 rounded-full transition-all"
-                      style={{ width: `${performer.performance}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
+            <h2 className="text-xl font-bold mb-4">Portal Governance</h2>
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center justify-between bg-white/10 rounded-lg px-3 py-2">
+                <span>Users Under Admin</span>
+                <span className="font-semibold">{isLoading ? '...' : counts.totalUsers.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between bg-white/10 rounded-lg px-3 py-2">
+                <span>Employee Team</span>
+                <span className="font-semibold">{isLoading ? '...' : counts.totalEmployees.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between bg-white/10 rounded-lg px-3 py-2">
+                <span>Listings Pending Review</span>
+                <span className="font-semibold">{isLoading ? '...' : quickData.pendingApprovals.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between bg-white/10 rounded-lg px-3 py-2">
+                <span>Activities Logged</span>
+                <span className="font-semibold">{isLoading ? '...' : activities.length.toLocaleString()}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -360,3 +341,4 @@ export default function AdminDashboardPage() {
     </div>
   )
 }
+

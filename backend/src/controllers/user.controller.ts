@@ -80,7 +80,7 @@ export const getStats = async (req: Request, res: Response) => {
             prisma.property.findMany({ where: { sellerId: userId } }),
             prisma.bid.count({ where: { buyerId: userId } }),
             prisma.bid.findMany({ where: { sellerId: userId } }),
-            prisma.notification.count({ where: { userId, isRead: false } })
+            prisma.notification.count({ where: { userId: user.id, isRead: false } })
         ]);
 
         // Calculate total views and revenue for seller

@@ -14,13 +14,13 @@ router.post(
 router.get(
     '/cases',
     authenticate,
-    requireRole(['legal_partner', 'ground_partner', 'promoter_partner', 'admin']),
+    requireRole(['legal_partner', 'ground_partner', 'promoter_partner', 'service_partner', 'admin']),
     partnerController.getPartnerCases
 );
 router.patch(
     '/cases/:id',
     authenticate,
-    requireRole(['legal_partner', 'ground_partner', 'promoter_partner', 'admin']),
+    requireRole(['legal_partner', 'ground_partner', 'promoter_partner', 'service_partner', 'admin']),
     partnerController.updatePartnerCase
 );
 
@@ -40,7 +40,7 @@ router.get(
 router.get(
     '/payouts',
     authenticate,
-    requireRole(['legal_partner', 'ground_partner', 'promoter_partner', 'admin']),
+    requireRole(['legal_partner', 'ground_partner', 'promoter_partner', 'service_partner', 'admin']),
     partnerController.getPayouts
 );
 router.post(

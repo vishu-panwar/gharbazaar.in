@@ -17,6 +17,7 @@ export const messageContentSchema = z.object({
 // Create conversation schema
 export const createConversationSchema = z.object({
     otherUserId: z.string().min(1, 'Other user ID is required'),
+    type: z.string().optional(),
     propertyId: z.string().optional(),
     propertyTitle: z.string().optional(),
     initialMessage: z.string().max(10000).optional(),

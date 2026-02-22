@@ -6,6 +6,30 @@ import fs from 'fs';
 import path from 'path';
 import { Decimal } from '@prisma/client/runtime/library';
 import { Prisma } from '@prisma/client';
+import PaymentTransaction from '../models/paymentTransaction.model';
+
+const UUID_REGEX =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const resolveInternalUserId = async (uidOrId?: string | null): Promise<string | null> => {
+    const value = (uidOrId || '').trim();
+    if (!value) return null;
+
+    const byUid = await prisma.user.findUnique({
+        where: { uid: value },
+        select: { id: true },
+    });
+    if (byUid) return byUid.id;
+
+    if (!UUID_REGEX.test(value)) return null;
+
+    const byId = await prisma.user.findUnique({
+        where: { id: value },
+        select: { id: true },
+    });
+
+    return byId?.id || null;
+};
 
 export const listEmployees = async (req: Request, res: Response) => {
     try {
@@ -632,7 +656,17 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 export const getAllProperties = async (req: Request, res: Response) => {
     try {
         const properties = await prisma.property.findMany({
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
+            include: {
+                seller: {
+                    select: {
+                        id: true,
+                        uid: true,
+                        name: true,
+                        email: true,
+                    },
+                },
+            },
         });
         res.json({ success: true, data: { properties } });
     } catch (error) {
@@ -656,17 +690,19 @@ export const updatePropertyStatus = async (req: Request, res: Response) => {
             data: { status }
         });
 
-        // Notify seller
-        await prisma.notification.create({
-            data: {
-                userId: property.sellerId, // sellerId in Property is uid, let's fix that if needed, but in schema we defined it as relation to User.uid
-                type: 'listing_update',
-                title: `Listing Status Updated: ${status.toUpperCase()}`,
-                message: `Your listing "${property.title}" has been ${status} by admin.${reason ? ` Reason: ${reason}` : ''}`,
-                link: `/dashboard/listings/${property.id}`,
-                priority: 'medium'
-            }
-        });
+        const sellerUserId = await resolveInternalUserId(property.sellerId);
+        if (sellerUserId) {
+            await prisma.notification.create({
+                data: {
+                    userId: sellerUserId,
+                    type: 'listing_update',
+                    title: `Listing Status Updated: ${status.toUpperCase()}`,
+                    message: `Your listing "${property.title}" has been ${status} by admin.${reason ? ` Reason: ${reason}` : ''}`,
+                    link: `/dashboard/listings/${property.id}`,
+                    priority: 'medium'
+                }
+            });
+        }
 
         res.json({ success: true, data: { property } });
     } catch (error) {
@@ -685,20 +721,115 @@ export const deleteProperty = async (req: Request, res: Response) => {
             data: { status: 'deleted' }
         });
 
-        // Notify seller
-        await prisma.notification.create({
-            data: {
-                userId: property.sellerId,
-                type: 'listing_update',
-                title: 'Listing Deleted by Admin',
-                message: `Your listing "${property.title}" has been deleted by admin.`,
-                priority: 'high'
-            }
-        });
+        const sellerUserId = await resolveInternalUserId(property.sellerId);
+        if (sellerUserId) {
+            await prisma.notification.create({
+                data: {
+                    userId: sellerUserId,
+                    type: 'listing_update',
+                    title: 'Listing Deleted by Admin',
+                    message: `Your listing "${property.title}" has been deleted by admin.`,
+                    priority: 'high'
+                }
+            });
+        }
 
         res.json({ success: true, message: 'Property deleted successfully' });
     } catch (error) {
         console.error('Error deleting property:', error);
         res.status(500).json({ success: false, error: 'Failed to delete property' });
+    }
+};
+
+export const getAllPayments = async (req: Request, res: Response) => {
+    try {
+        const payments = await PaymentTransaction.find({}).sort({ createdAt: -1 }).lean();
+
+        const userUids = Array.from(
+            new Set((payments || []).map((payment: any) => String(payment.userId || '')).filter(Boolean))
+        );
+
+        const users = userUids.length > 0
+            ? await prisma.user.findMany({
+                where: { uid: { in: userUids } },
+                select: { uid: true, name: true, email: true, role: true },
+            })
+            : [];
+
+        const userMap = new Map(users.map((user) => [user.uid, user]));
+
+        const enrichedPayments = payments.map((payment: any) => ({
+            ...payment,
+            user: userMap.get(String(payment.userId)) || null,
+        }));
+
+        res.json({ success: true, data: { payments: enrichedPayments } });
+    } catch (error) {
+        console.error('Error fetching payments:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch payments' });
+    }
+};
+
+export const getAllSubscriptions = async (req: Request, res: Response) => {
+    try {
+        const { status } = req.query;
+
+        const subscriptions = await prisma.subscription.findMany({
+            where: status ? { status: String(status) } : undefined,
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        uid: true,
+                        name: true,
+                        email: true,
+                        role: true,
+                    },
+                },
+                plan: true,
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+
+        res.json({ success: true, data: { subscriptions } });
+    } catch (error) {
+        console.error('Error fetching subscriptions:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch subscriptions' });
+    }
+};
+
+export const updateSubscriptionStatus = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        const allowedStatuses = ['active', 'expired', 'cancelled', 'paused'];
+        if (!allowedStatuses.includes(String(status))) {
+            return res.status(400).json({ success: false, error: 'Invalid subscription status' });
+        }
+
+        const subscription = await prisma.subscription.update({
+            where: { id },
+            data: { status: String(status) },
+            include: {
+                user: { select: { id: true, uid: true, name: true } },
+                plan: { select: { name: true } },
+            },
+        });
+
+        await prisma.notification.create({
+            data: {
+                userId: subscription.user.id,
+                type: 'system',
+                title: 'Subscription Status Updated',
+                message: `Your ${subscription.plan.name} plan is now ${String(status).toUpperCase()}.`,
+                priority: 'medium',
+            },
+        });
+
+        res.json({ success: true, data: { subscription } });
+    } catch (error) {
+        console.error('Error updating subscription status:', error);
+        res.status(500).json({ success: false, error: 'Failed to update subscription status' });
     }
 };

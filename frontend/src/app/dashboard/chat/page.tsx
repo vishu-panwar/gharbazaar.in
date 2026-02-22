@@ -4,8 +4,11 @@ import React, { useState } from 'react';
 import ConversationsList from '@/components/Chat/ConversationsList';
 import ChatWindow from '@/components/Chat/ChatWindow';
 import { X } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 
 export default function ChatPage() {
+    const searchParams = useSearchParams();
+    const initialConversationId = searchParams.get('conversationId') || undefined;
     const [selectedConversation, setSelectedConversation] = useState<any>(null);
 
     return (
@@ -14,7 +17,7 @@ export default function ChatPage() {
             <div className={`${selectedConversation ? 'hidden md:block' : 'block'} w-full md:w-96 border-r border-gray-200 dark:border-gray-700`}>
                 <ConversationsList
                     onSelect={(conv) => setSelectedConversation(conv)}
-                    selectedId={selectedConversation?.id}
+                    selectedId={selectedConversation?.id || initialConversationId}
                 />
             </div>
 

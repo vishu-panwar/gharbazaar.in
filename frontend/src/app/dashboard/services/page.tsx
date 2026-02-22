@@ -264,7 +264,15 @@ export default function ServicesPage() {
       })
 
       if (response?.success) {
-        router.push(`/dashboard/messages?id=${response.data.id}`)
+        const conversationId =
+          response?.data?.conversation?.id ||
+          response?.data?.id
+
+        if (!conversationId) {
+          throw new Error('Conversation id missing in response')
+        }
+
+        router.push(`/dashboard/messages?id=${conversationId}`)
       } else {
         toast.error(response?.error || 'Failed to start conversation')
       }
@@ -453,6 +461,13 @@ export default function ServicesPage() {
 
                     {/* Actions */}
                     <div className="flex items-center gap-2 pt-3 border-t border-gray-100 dark:border-gray-800">
+                      <button
+                        onClick={() => router.push(`/dashboard/services/provider/${provider.id}`)}
+                        className="flex-1 flex items-center justify-center space-x-2 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-all text-sm font-medium shadow-md shadow-emerald-600/20"
+                      >
+                        <Briefcase className="w-4 h-4" />
+                        <span>Hire</span>
+                      </button>
                       <button
                         onClick={() => handleCall(provider.user?.phone || provider.phone)}
                         className="flex-1 flex items-center justify-center space-x-2 py-2 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl transition-all text-sm font-medium border border-gray-100 dark:border-gray-700"

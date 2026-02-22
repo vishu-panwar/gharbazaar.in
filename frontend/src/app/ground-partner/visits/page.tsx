@@ -1,664 +1,267 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { 
-  MapPin, 
-  Calendar, 
-  Clock, 
-  Camera, 
-  Navigation, 
-  CheckCircle, 
-  AlertCircle, 
-  Phone, 
-  Mail,
-  User,
-  Home,
-  Filter,
-  Search,
-  Plus,
-  Eye,
-  Upload,
-  FileText,
-  Star,
-  Route,
-  Compass,
-  Timer,
-  Target
-} from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { MapPin, RefreshCw, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { backendApi } from '@/lib/backendApi'
 
-interface SiteVisit {
+type Visit = {
   id: string
-  propertyId: string
-  propertyTitle: string
-  propertyType: string
-  address: string
-  city: string
-  clientName: string
-  clientPhone: string
-  clientEmail: string
-  scheduledDate: string
-  scheduledTime: string
-  status: 'scheduled' | 'in-progress' | 'completed' | 'cancelled'
-  priority: 'low' | 'medium' | 'high'
-  visitType: 'verification' | 'inspection' | 'documentation' | 'photography'
-  estimatedDuration: string
-  coordinates: {
-    lat: number
-    lng: number
-  }
-  distance: string
-  earnings: number
+  status?: string
+  scheduledAt?: string
+  createdAt?: string
   notes?: string
-  completedAt?: string
-  photos?: string[]
-  rating?: number
+  address?: string
+  feedback?: string
+  property?: {
+    id?: string
+    title?: string
+    location?: string
+    price?: number | string | null
+    photos?: string[]
+  }
 }
 
-export default function SiteVisitsPage() {
-  const [visits, setVisits] = useState<SiteVisit[]>([])
-  const [filteredVisits, setFilteredVisits] = useState<SiteVisit[]>([])
-  const [selectedVisit, setSelectedVisit] = useState<SiteVisit | null>(null)
-  const [showModal, setShowModal] = useState(false)
-  const [activeTab, setActiveTab] = useState('all')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [filterStatus, setFilterStatus] = useState('all')
-  const [isLoading, setIsLoading] = useState(true)
+const normalize = (value?: string) => (value || '').toLowerCase()
 
-  // Mock data
-  useEffect(() => {
-    const mockVisits: SiteVisit[] = [
-      {
-        id: 'V001',
-        propertyId: 'P001',
-        propertyTitle: '3BHK Apartment in Bandra West',
-        propertyType: 'Apartment',
-        address: 'Hill Road, Bandra West, Mumbai',
-        city: 'Mumbai',
-        clientName: 'Priya Sharma',
-        clientPhone: '+91 98765 43210',
-        clientEmail: 'priya.sharma@email.com',
-        scheduledDate: '2024-12-31',
-        scheduledTime: '10:00',
-        status: 'scheduled',
-        priority: 'high',
-        visitType: 'verification',
-        estimatedDuration: '2 hours',
-        coordinates: { lat: 19.0596, lng: 72.8295 },
-        distance: '2.5 km',
-        earnings: 800
-      },
-      {
-        id: 'V002',
-        propertyId: 'P002',
-        propertyTitle: '2BHK Villa in Andheri East',
-        propertyType: 'Villa',
-        address: 'Chakala, Andheri East, Mumbai',
-        city: 'Mumbai',
-        clientName: 'Rahul Gupta',
-        clientPhone: '+91 87654 32109',
-        clientEmail: 'rahul.gupta@email.com',
-        scheduledDate: '2024-12-30',
-        scheduledTime: '14:30',
-        status: 'in-progress',
-        priority: 'medium',
-        visitType: 'inspection',
-        estimatedDuration: '1.5 hours',
-        coordinates: { lat: 19.1136, lng: 72.8697 },
-        distance: '5.2 km',
-        earnings: 600
-      },
-      {
-        id: 'V003',
-        propertyId: 'P003',
-        propertyTitle: 'Commercial Space in Lower Parel',
-        propertyType: 'Commercial',
-        address: 'Senapati Bapat Marg, Lower Parel, Mumbai',
-        city: 'Mumbai',
-        clientName: 'Amit Patel',
-        clientPhone: '+91 76543 21098',
-        clientEmail: 'amit.patel@email.com',
-        scheduledDate: '2024-12-29',
-        scheduledTime: '11:00',
-        status: 'completed',
-        priority: 'low',
-        visitType: 'photography',
-        estimatedDuration: '1 hour',
-        coordinates: { lat: 19.0176, lng: 72.8562 },
-        distance: '3.8 km',
-        earnings: 500,
-        completedAt: '2024-12-29T12:30:00Z',
-        rating: 5,
-        photos: ['photo1.jpg', 'photo2.jpg', 'photo3.jpg']
+const toNumber = (value: unknown) => {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : 0
+}
+
+const formatCurrency = (value: number) => `INR ${value.toLocaleString('en-IN')}`
+
+const formatDate = (value?: string) => {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  return date.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
+}
+
+export default function GroundPartnerVisitsPage() {
+  const [loading, setLoading] = useState(true)
+  const [updatingId, setUpdatingId] = useState('')
+  const [visits, setVisits] = useState<Visit[]>([])
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [query, setQuery] = useState('')
+
+  const loadVisits = async () => {
+    try {
+      setLoading(true)
+      const response = await backendApi.visits.getPartner()
+      if (!response?.success) {
+        throw new Error(response?.message || response?.error || 'Failed to load partner visits')
       }
-    ]
+      setVisits(Array.isArray(response?.data) ? response.data : [])
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to load partner visits')
+    } finally {
+      setLoading(false)
+    }
+  }
 
-    setTimeout(() => {
-      setVisits(mockVisits)
-      setFilteredVisits(mockVisits)
-      setIsLoading(false)
-    }, 1000)
+  useEffect(() => {
+    loadVisits()
   }, [])
 
-  // Filter visits based on search and filters
-  useEffect(() => {
-    let filtered = visits
+  const filteredVisits = useMemo(() => {
+    return [...visits]
+      .filter((row) => {
+        const status = normalize(row.status)
+        const matchesStatus = statusFilter === 'all' || status === statusFilter
+        const q = query.trim().toLowerCase()
+        const matchesQuery =
+          q.length === 0 ||
+          (row.property?.title || '').toLowerCase().includes(q) ||
+          (row.property?.location || '').toLowerCase().includes(q) ||
+          (row.address || '').toLowerCase().includes(q)
+        return matchesStatus && matchesQuery
+      })
+      .sort((a, b) => +new Date(b.scheduledAt || b.createdAt || 0) - +new Date(a.scheduledAt || a.createdAt || 0))
+  }, [query, statusFilter, visits])
 
-    // Filter by search query
-    if (searchQuery) {
-      filtered = filtered.filter(visit => 
-        visit.propertyTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        visit.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        visit.clientName.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+  const stats = useMemo(() => {
+    return {
+      total: visits.length,
+      scheduled: visits.filter((row) => normalize(row.status) === 'scheduled').length,
+      inProgress: visits.filter((row) => normalize(row.status) === 'in_progress').length,
+      completed: visits.filter((row) => normalize(row.status) === 'completed').length,
+      cancelled: visits.filter((row) => normalize(row.status) === 'cancelled').length,
     }
+  }, [visits])
 
-    // Filter by status
-    if (filterStatus !== 'all') {
-      filtered = filtered.filter(visit => visit.status === filterStatus)
-    }
+  const statusOptions = useMemo(() => {
+    const set = new Set<string>()
+    for (const row of visits) set.add(normalize(row.status) || 'pending')
+    return ['all', ...Array.from(set)]
+  }, [visits])
 
-    // Filter by active tab
-    if (activeTab !== 'all') {
-      const today = new Date().toISOString().split('T')[0]
-      switch (activeTab) {
-        case 'today':
-          filtered = filtered.filter(visit => visit.scheduledDate === today)
-          break
-        case 'upcoming':
-          filtered = filtered.filter(visit => 
-            visit.scheduledDate > today && visit.status === 'scheduled'
-          )
-          break
-        case 'completed':
-          filtered = filtered.filter(visit => visit.status === 'completed')
-          break
+  const updateStatus = async (id: string, status: string) => {
+    try {
+      setUpdatingId(id)
+      const response = await backendApi.visits.update(id, { status })
+      if (!response?.success) {
+        throw new Error(response?.message || response?.error || 'Failed to update visit status')
       }
+      toast.success(`Visit marked as ${status.replace('_', ' ')}`)
+      await loadVisits()
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to update visit status')
+    } finally {
+      setUpdatingId('')
     }
-
-    setFilteredVisits(filtered)
-  }, [visits, searchQuery, filterStatus, activeTab])
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'scheduled': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
-      case 'in-progress': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
-      case 'completed': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-      case 'cancelled': return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
-    }
-  }
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'text-red-600 dark:text-red-400'
-      case 'medium': return 'text-yellow-600 dark:text-yellow-400'
-      case 'low': return 'text-green-600 dark:text-green-400'
-      default: return 'text-gray-600 dark:text-gray-400'
-    }
-  }
-
-  const handleStartVisit = (visitId: string) => {
-    setVisits(prev => prev.map(visit => 
-      visit.id === visitId 
-        ? { ...visit, status: 'in-progress' as const }
-        : visit
-    ))
-    toast.success('Site visit started!')
-  }
-
-  const handleCompleteVisit = (visitId: string) => {
-    setVisits(prev => prev.map(visit => 
-      visit.id === visitId 
-        ? { 
-            ...visit, 
-            status: 'completed' as const,
-            completedAt: new Date().toISOString()
-          }
-        : visit
-    ))
-    toast.success('Site visit completed!')
-  }
-
-  const openGoogleMaps = (coordinates: { lat: number, lng: number }, address: string) => {
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${coordinates.lat},${coordinates.lng}&destination_place_id=${encodeURIComponent(address)}`
-    window.open(url, '_blank')
-  }
-
-  const tabs = [
-    { id: 'all', label: 'All Visits', count: visits.length },
-    { id: 'today', label: 'Today', count: visits.filter(v => v.scheduledDate === new Date().toISOString().split('T')[0]).length },
-    { id: 'upcoming', label: 'Upcoming', count: visits.filter(v => v.status === 'scheduled').length },
-    { id: 'completed', label: 'Completed', count: visits.filter(v => v.status === 'completed').length }
-  ]
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading site visits...</p>
-        </div>
-      </div>
-    )
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Site Visits</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Manage your property site visits and inspections
-          </p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Site Visits</h1>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Partner-assigned visits with live status updates</p>
         </div>
-        <div className="mt-4 sm:mt-0 flex items-center space-x-3">
-          <button className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-medium rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl">
-            <Plus size={20} />
-            <span>Request Visit</span>
-          </button>
+        <button
+          onClick={loadVisits}
+          className="inline-flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700"
+        >
+          <RefreshCw size={16} />
+          Refresh
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+        <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-950">
+          <p className="text-xs text-gray-500">Total Visits</p>
+          <p className="text-xl font-semibold">{stats.total}</p>
+        </div>
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900/30 dark:bg-blue-900/20">
+          <p className="text-xs text-blue-700 dark:text-blue-400">Scheduled</p>
+          <p className="text-xl font-semibold">{stats.scheduled}</p>
+        </div>
+        <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-900/30 dark:bg-yellow-900/20">
+          <p className="text-xs text-yellow-700 dark:text-yellow-400">In Progress</p>
+          <p className="text-xl font-semibold">{stats.inProgress}</p>
+        </div>
+        <div className="rounded-xl border border-green-200 bg-green-50 p-4 dark:border-green-900/30 dark:bg-green-900/20">
+          <p className="text-xs text-green-700 dark:text-green-400">Completed</p>
+          <p className="text-xl font-semibold">{stats.completed}</p>
+        </div>
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-900/30 dark:bg-red-900/20">
+          <p className="text-xs text-red-700 dark:text-red-400">Cancelled</p>
+          <p className="text-xl font-semibold">{stats.cancelled}</p>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white dark:bg-gray-950 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Visits</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{visits.length}</p>
-            </div>
-            <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-2xl">
-              <MapPin className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-            </div>
-          </div>
+      <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-950 md:flex-row md:items-center">
+        <div className="relative flex-1">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by property title or location"
+            className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-900"
+          />
         </div>
-
-        <div className="bg-white dark:bg-gray-950 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Completed</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {visits.filter(v => v.status === 'completed').length}
-              </p>
-            </div>
-            <div className="p-3 bg-green-100 dark:bg-green-900/20 rounded-2xl">
-              <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-950 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">In Progress</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {visits.filter(v => v.status === 'in-progress').length}
-              </p>
-            </div>
-            <div className="p-3 bg-yellow-100 dark:bg-yellow-900/20 rounded-2xl">
-              <Timer className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-950 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Earnings</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                ₹{visits.reduce((sum, v) => sum + v.earnings, 0).toLocaleString()}
-              </p>
-            </div>
-            <div className="p-3 bg-purple-100 dark:bg-purple-900/20 rounded-2xl">
-              <Target className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters and Search */}
-      <div className="bg-white dark:bg-gray-950 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm">
-        {/* Tabs */}
-        <div className="flex flex-wrap gap-2 mb-6">
-          {tabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`
-                flex items-center space-x-2 px-4 py-2 rounded-xl font-medium transition-all
-                ${activeTab === tab.id
-                  ? 'bg-blue-500 text-white shadow-lg'
-                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
-                }
-              `}
-            >
-              <span>{tab.label}</span>
-              <span className={`
-                px-2 py-1 rounded-full text-xs font-bold
-                ${activeTab === tab.id
-                  ? 'bg-white/20 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-                }
-              `}>
-                {tab.count}
-              </span>
-            </button>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-900"
+        >
+          {statusOptions.map((status) => (
+            <option key={status} value={status}>
+              {status === 'all' ? 'All statuses' : status}
+            </option>
           ))}
-        </div>
-
-        {/* Search and Filters */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-            <input
-              type="text"
-              placeholder="Search visits, properties, or clients..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-            />
-          </div>
-          
-          <div className="flex items-center space-x-3">
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-            >
-              <option value="all">All Status</option>
-              <option value="scheduled">Scheduled</option>
-              <option value="in-progress">In Progress</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-            
-            <button className="p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all">
-              <Filter size={20} className="text-gray-600 dark:text-gray-400" />
-            </button>
-          </div>
-        </div>
+        </select>
       </div>
 
-      {/* Visits List */}
-      <div className="space-y-4">
-        {filteredVisits.length === 0 ? (
-          <div className="bg-white dark:bg-gray-950 rounded-2xl p-12 border border-gray-200 dark:border-gray-800 shadow-sm text-center">
-            <MapPin className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No visits found</h3>
-            <p className="text-gray-600 dark:text-gray-400">
-              {searchQuery || filterStatus !== 'all' 
-                ? 'Try adjusting your search or filters'
-                : 'You don\'t have any site visits scheduled yet'
-              }
-            </p>
-          </div>
-        ) : (
-          filteredVisits.map(visit => (
-            <div key={visit.id} className="bg-white dark:bg-gray-950 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-all">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex-1">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <div className="flex items-center space-x-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                          {visit.propertyTitle}
-                        </h3>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(visit.status)}`}>
-                          {visit.status.replace('-', ' ').toUpperCase()}
-                        </span>
-                        <span className={`text-sm font-medium ${getPriorityColor(visit.priority)}`}>
-                          {visit.priority.toUpperCase()} PRIORITY
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400">
-                        <div className="flex items-center space-x-1">
-                          <MapPin size={16} />
-                          <span>{visit.address}</span>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                          <Calendar size={16} />
-                          <span>{new Date(visit.scheduledDate).toLocaleDateString()}</span>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                          <Clock size={16} />
-                          <span>{visit.scheduledTime}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                        <User size={16} className="text-blue-600 dark:text-blue-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">{visit.clientName}</p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">{visit.clientPhone}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
-                        <Home size={16} className="text-green-600 dark:text-green-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">{visit.propertyType}</p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">{visit.visitType}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
-                        <Target size={16} className="text-purple-600 dark:text-purple-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">₹{visit.earnings}</p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">{visit.estimatedDuration}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {visit.status === 'completed' && visit.rating && (
-                    <div className="flex items-center space-x-2 mb-4">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Rating:</span>
-                      <div className="flex items-center space-x-1">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            size={16}
-                            className={i < visit.rating! ? 'text-yellow-400 fill-current' : 'text-gray-300 dark:text-gray-600'}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex flex-col sm:flex-row lg:flex-col gap-3 mt-4 lg:mt-0 lg:ml-6">
-                  <button
-                    onClick={() => openGoogleMaps(visit.coordinates, visit.address)}
-                    className="flex items-center justify-center space-x-2 px-4 py-2 bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/40 rounded-xl transition-all"
-                  >
-                    <Navigation size={16} />
-                    <span>Navigate</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setSelectedVisit(visit)
-                      setShowModal(true)
-                    }}
-                    className="flex items-center justify-center space-x-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl transition-all"
-                  >
-                    <Eye size={16} />
-                    <span>Details</span>
-                  </button>
-
-                  {visit.status === 'scheduled' && (
-                    <button
-                      onClick={() => handleStartVisit(visit.id)}
-                      className="flex items-center justify-center space-x-2 px-4 py-2 bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/40 rounded-xl transition-all"
-                    >
-                      <Timer size={16} />
-                      <span>Start</span>
-                    </button>
-                  )}
-
-                  {visit.status === 'in-progress' && (
-                    <button
-                      onClick={() => handleCompleteVisit(visit.id)}
-                      className="flex items-center justify-center space-x-2 px-4 py-2 bg-purple-100 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/40 rounded-xl transition-all"
-                    >
-                      <CheckCircle size={16} />
-                      <span>Complete</span>
-                    </button>
-                  )}
-
-                  <a
-                    href={`tel:${visit.clientPhone}`}
-                    className="flex items-center justify-center space-x-2 px-4 py-2 bg-orange-100 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 hover:bg-orange-200 dark:hover:bg-orange-900/40 rounded-xl transition-all"
-                  >
-                    <Phone size={16} />
-                    <span>Call</span>
-                  </a>
-                </div>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* Visit Details Modal */}
-      {showModal && selectedVisit && (
-        <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-950 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-800">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                  Visit Details
-                </h2>
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg transition-colors"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6 space-y-6">
-              {/* Property Info */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Property Information</h3>
-                <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4 space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Property:</span>
-                    <span className="font-medium text-gray-900 dark:text-white">{selectedVisit.propertyTitle}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Type:</span>
-                    <span className="font-medium text-gray-900 dark:text-white">{selectedVisit.propertyType}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Address:</span>
-                    <span className="font-medium text-gray-900 dark:text-white text-right">{selectedVisit.address}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Client Info */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Client Information</h3>
-                <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4 space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Name:</span>
-                    <span className="font-medium text-gray-900 dark:text-white">{selectedVisit.clientName}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Phone:</span>
-                    <a href={`tel:${selectedVisit.clientPhone}`} className="font-medium text-blue-600 dark:text-blue-400 hover:underline">
-                      {selectedVisit.clientPhone}
-                    </a>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Email:</span>
-                    <a href={`mailto:${selectedVisit.clientEmail}`} className="font-medium text-blue-600 dark:text-blue-400 hover:underline">
-                      {selectedVisit.clientEmail}
-                    </a>
-                  </div>
-                </div>
-              </div>
-
-              {/* Visit Details */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Visit Details</h3>
-                <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4 space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Date & Time:</span>
-                    <span className="font-medium text-gray-900 dark:text-white">
-                      {new Date(selectedVisit.scheduledDate).toLocaleDateString()} at {selectedVisit.scheduledTime}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Visit Type:</span>
-                    <span className="font-medium text-gray-900 dark:text-white capitalize">{selectedVisit.visitType}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Duration:</span>
-                    <span className="font-medium text-gray-900 dark:text-white">{selectedVisit.estimatedDuration}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Earnings:</span>
-                    <span className="font-medium text-green-600 dark:text-green-400">₹{selectedVisit.earnings}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Status:</span>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedVisit.status)}`}>
-                      {selectedVisit.status.replace('-', ' ').toUpperCase()}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Photos (if completed) */}
-              {selectedVisit.status === 'completed' && selectedVisit.photos && (
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Visit Photos</h3>
-                  <div className="grid grid-cols-3 gap-3">
-                    {selectedVisit.photos.map((photo, index) => (
-                      <div key={index} className="aspect-square bg-gray-200 dark:bg-gray-800 rounded-xl flex items-center justify-center">
-                        <Camera className="w-8 h-8 text-gray-400" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[980px] text-sm">
+            <thead className="bg-gray-50 dark:bg-gray-900">
+              <tr>
+                <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Property</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Location</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Status</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Scheduled</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Price</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Notes</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading && (
+                <tr>
+                  <td className="px-4 py-8 text-center text-gray-500" colSpan={7}>
+                    Loading partner visits...
+                  </td>
+                </tr>
               )}
-
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-200 dark:border-gray-800">
-                <button
-                  onClick={() => openGoogleMaps(selectedVisit.coordinates, selectedVisit.address)}
-                  className="flex items-center justify-center space-x-2 px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-xl transition-all"
-                >
-                  <Navigation size={20} />
-                  <span>Get Directions</span>
-                </button>
-                
-                <a
-                  href={`tel:${selectedVisit.clientPhone}`}
-                  className="flex items-center justify-center space-x-2 px-4 py-3 bg-green-500 hover:bg-green-600 text-white font-medium rounded-xl transition-all"
-                >
-                  <Phone size={20} />
-                  <span>Call Client</span>
-                </a>
-              </div>
-            </div>
-          </div>
+              {!loading && filteredVisits.length === 0 && (
+                <tr>
+                  <td className="px-4 py-8 text-center text-gray-500" colSpan={7}>
+                    No visits found for current filters.
+                  </td>
+                </tr>
+              )}
+              {!loading &&
+                filteredVisits.map((row) => {
+                  const status = normalize(row.status) || 'pending'
+                  const isBusy = updatingId === row.id
+                  return (
+                    <tr key={row.id} className="border-t border-gray-100 dark:border-gray-800">
+                      <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{row.property?.title || 'Site visit'}</td>
+                      <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
+                        <div className="flex items-center gap-1">
+                          <MapPin size={14} />
+                          <span>{row.address || row.property?.location || '-'}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex rounded-full bg-gray-100 px-2 py-1 text-xs font-medium capitalize text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                          {status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{formatDate(row.scheduledAt || row.createdAt)}</td>
+                      <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{formatCurrency(toNumber(row.property?.price))}</td>
+                      <td className="max-w-[220px] truncate px-4 py-3 text-gray-700 dark:text-gray-300" title={row.notes || row.feedback || '-'}>
+                        {row.notes || row.feedback || '-'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => updateStatus(row.id, 'in_progress')}
+                            disabled={isBusy || status === 'in_progress' || status === 'completed' || status === 'cancelled'}
+                            className="rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-400"
+                          >
+                            Start
+                          </button>
+                          <button
+                            onClick={() => updateStatus(row.id, 'completed')}
+                            disabled={isBusy || status === 'completed' || status === 'cancelled'}
+                            className="rounded bg-green-600 px-2 py-1 text-xs font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-400"
+                          >
+                            Complete
+                          </button>
+                          <button
+                            onClick={() => updateStatus(row.id, 'cancelled')}
+                            disabled={isBusy || status === 'completed' || status === 'cancelled'}
+                            className="rounded bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-400"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+            </tbody>
+          </table>
         </div>
-      )}
+      </div>
+
+      <div className="rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-600 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-400">
+        Visit updates are shared with buyer, seller, employee, and admin portals through the same backend workflow.
+      </div>
     </div>
   )
 }

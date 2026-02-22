@@ -12,8 +12,14 @@ const LEGAL_PARTNER_ROLES = new Set([
 ]);
 
 const EMPLOYEE_ROLES = new Set(['employee']);
-const GROUND_PARTNER_ROLES = new Set(['ground_partner']);
-const PROMOTER_PARTNER_ROLES = new Set(['promoter_partner', 'promo_partner', 'partner']);
+const GROUND_PARTNER_ROLES = new Set(['ground_partner', 'ground-partner']);
+const PROMOTER_PARTNER_ROLES = new Set([
+  'promoter_partner',
+  'promo_partner',
+  'partner',
+  'promotional_partner',
+  'promotional-partner',
+]);
 const ADMIN_ROLES = new Set(['admin']);
 
 export function normalizeRole(value?: string | null): string {

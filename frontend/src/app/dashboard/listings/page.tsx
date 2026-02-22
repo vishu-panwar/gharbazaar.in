@@ -45,14 +45,14 @@ import {
   Share2
 } from 'lucide-react'
 import PropertyCard from '@/components/PropertyCard'
-import { useSellerSubscription } from '@/contexts/SellerSubscriptionContext'
+import { usePayment } from '@/contexts/PaymentContext'
 import { backendApi } from '@/lib/backendApi'
 import { useAuth } from '@/contexts/AuthContext'
 import toast from 'react-hot-toast'
 
 export default function MyListingsPage() {
   const router = useRouter()
-  const { canAddListing } = useSellerSubscription()
+  const { hasPaid, currentPlan, hasFeature } = usePayment()
   const { user } = useAuth()
   const [listings, setListings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -87,7 +87,13 @@ export default function MyListingsPage() {
   }, [user])
 
   const handleAddListing = () => {
-    if (canAddListing()) {
+    const planType = currentPlan?.type || ''
+    const canAddByPlan =
+      hasPaid &&
+      (planType === 'seller' || planType === 'combined') &&
+      hasFeature('listingLimit')
+
+    if (canAddByPlan) {
       router.push('/dashboard/listings/new')
     } else {
       router.push('/dashboard/seller-pricing')

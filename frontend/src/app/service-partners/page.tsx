@@ -143,9 +143,9 @@ export default function ServicePartnersDashboard() {
           const tasks = casesResponse.data
           setStats({
             totalTasks: tasks.length,
-            activeTasks: tasks.filter((t: any) => t.status !== 'completed' && t.status !== 'cancelled').length,
+            activeTasks: tasks.filter((t: any) => !['completed', 'cancelled', 'rejected'].includes((t.status || '').toLowerCase())).length,
             completedTasks: tasks.filter((t: any) => t.status === 'completed').length,
-            pendingReview: tasks.filter((t: any) => t.status === 'open').length,
+            pendingReview: tasks.filter((t: any) => ['open', 'new', 'pending'].includes((t.status || '').toLowerCase())).length,
             monthlyEarnings: tasks.reduce((acc: number, t: any) => acc + (t.amount || 0), 0),
             averageRating: profileResponse.data?.rating || 0,
             completionRate: tasks.length > 0 ? Math.round((tasks.filter((t: any) => t.status === 'completed').length / tasks.length) * 100) : 0,
@@ -154,7 +154,7 @@ export default function ServicePartnersDashboard() {
         }
 
         // Fetch real service providers for the "Professional Services" section
-        const providersResponse = await backendApi.serviceProvider.list({ limit: 6 } as any)
+        const providersResponse = await backendApi.serviceProvider.list({ limit: 6 })
         if (providersResponse?.success) {
           setServiceProviders(providersResponse.providers || [])
         }
@@ -172,7 +172,7 @@ export default function ServicePartnersDashboard() {
             })
             
             // If it's a new booking, refresh tasks
-            if (notification.type === 'new_booking') {
+            if (['new_booking', 'new_task', 'service_offer'].includes(notification.type)) {
               fetchData()
             }
           })
@@ -206,12 +206,18 @@ export default function ServicePartnersDashboard() {
     : serviceProviders.filter(p => p.category === selectedCategory)
 
   const getStatusColor = (status: string) => {
-    switch (status) {
+    switch ((status || '').toLowerCase()) {
+      case 'pending': return 'bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400'
+      case 'new': return 'bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400'
+      case 'accepted': return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400'
+      case 'rejected': return 'bg-rose-100 text-rose-800 dark:bg-rose-900/20 dark:text-rose-400'
+      case 'in_progress': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
+      case 'completed': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+      case 'cancelled': return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
       case 'assigned': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
       case 'under-review': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
       case 'clarification-needed': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400'
       case 'approved': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-      case 'rejected': return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
     }
   }
@@ -652,14 +658,36 @@ export default function ServicePartnersDashboard() {
                 {/* Actions */}
                 <div className="flex flex-wrap gap-4 pt-4">
                   <button 
-                    onClick={() => {
+                    onClick={async () => {
                       setShowTaskModal(false);
                       const buyerId = selectedTask.buyerId || (selectedTask as any).buyer?.id;
                       if (!buyerId) {
                         toast.error('Buyer information not available');
                         return;
                       }
-                      window.location.href = `/dashboard/messages?chatWith=${buyerId}&name=${encodeURIComponent(selectedTask.buyer?.name || 'Buyer')}`;
+                      try {
+                        const response = await backendApi.chat.createConversation({
+                          otherUserId: buyerId,
+                          type: 'service-buyer',
+                        });
+
+                        if (!response?.success) {
+                          throw new Error(response?.error || 'Failed to start chat');
+                        }
+
+                        const conversationId =
+                          response?.data?.conversation?.id ||
+                          response?.data?.id ||
+                          selectedTask?.metadata?.conversationId;
+
+                        if (!conversationId) {
+                          throw new Error('Conversation id not available');
+                        }
+
+                        window.location.href = `/service-partners/communications?id=${encodeURIComponent(conversationId)}`;
+                      } catch (error: any) {
+                        toast.error(error?.message || 'Unable to open conversation');
+                      }
                     }}
                     className="flex-1 min-w-[200px] h-14 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl font-black text-lg transition-all shadow-xl shadow-blue-500/20 active:scale-95 flex items-center justify-center gap-2"
                   >

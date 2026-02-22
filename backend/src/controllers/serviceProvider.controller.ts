@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../utils/database';
 import { uploadFile } from '../utils/fileStorage';
+import { sanitizeMessage } from '../utils/sanitization';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
@@ -75,7 +76,8 @@ function writeFallbackProviders(providers: OfflineServiceProvider[]) {
 // Get all service providers with optional filters
 export const getAllProviders = async (req: Request, res: Response) => {
     try {
-        const { category, verified, available, location, sortBy = 'rating' } = req.query;
+        const { category, verified, available, location, sortBy = 'rating', limit } = req.query;
+        const parsedLimit = Math.max(1, Math.min(100, Number(limit) || 0));
 
         // Build filter where object
         const where: any = { verified: true };
@@ -108,7 +110,8 @@ export const getAllProviders = async (req: Request, res: Response) => {
                     }
                 }
             },
-            orderBy
+            orderBy,
+            ...(parsedLimit ? { take: parsedLimit } : {})
         });
 
         res.json({
@@ -120,7 +123,7 @@ export const getAllProviders = async (req: Request, res: Response) => {
         console.error('getAllProviders error:', error);
 
         if (isDatabaseUnavailable(error)) {
-            const { category, verified, available, location } = req.query;
+            const { category, verified, available, location, limit } = req.query;
             const allFallback = readFallbackProviders();
             const filtered = allFallback.filter((provider) => {
                 if (category && category !== 'all' && provider.category !== String(category)) return false;
@@ -129,11 +132,13 @@ export const getAllProviders = async (req: Request, res: Response) => {
                 if (location && !provider.location.toLowerCase().includes(String(location).toLowerCase())) return false;
                 return true;
             });
+            const parsedLimit = Math.max(1, Math.min(100, Number(limit) || 0));
+            const limited = parsedLimit ? filtered.slice(0, parsedLimit) : filtered;
 
             return res.json({
                 success: true,
-                providers: filtered,
-                count: filtered.length,
+                providers: limited,
+                count: limited.length,
                 source: 'offline-fallback'
             });
         }
@@ -215,6 +220,8 @@ export const createProvider = async (req: Request, res: Response) => {
             });
         }
 
+        const isKycApproved = user.kycStatus === 'approved' && user.isVerified;
+
         const profession = String(req.body.profession || req.body.specialization || req.body.category || '').trim();
         const address = String(req.body.address || req.body.location || '').trim();
         const fullName = String(req.body.name || '').trim();
@@ -261,7 +268,7 @@ export const createProvider = async (req: Request, res: Response) => {
             completedProjects: req.body.completedProjects ? parseInt(String(req.body.completedProjects), 10) : 0,
             hourlyRate: req.body.hourlyRate ? parseFloat(String(req.body.hourlyRate)) : 500,
             location: address,
-            verified: true,
+            verified: isKycApproved,
             available: typeof req.body.available === 'boolean'
                 ? req.body.available
                 : req.body.availability !== undefined
@@ -294,7 +301,7 @@ export const createProvider = async (req: Request, res: Response) => {
         await prisma.user.update({
             where: { uid: userId },
             data: {
-                onboardingCompleted: true,
+                onboardingCompleted: isKycApproved,
                 ...(fullName ? { name: fullName } : {}),
                 ...(address ? { address } : {}),
             }
@@ -303,7 +310,9 @@ export const createProvider = async (req: Request, res: Response) => {
         res.status(existingProvider ? 200 : 201).json({
             success: true,
             data: provider,
-            message: existingProvider ? 'Service profile updated successfully' : 'Service profile created successfully'
+            message: isKycApproved
+                ? (existingProvider ? 'Service profile updated successfully' : 'Service profile created successfully')
+                : 'Service profile saved. It will be visible after employee KYC approval.'
         });
     } catch (error: any) {
         console.error('createProvider error:', error);
@@ -356,7 +365,7 @@ export const createProvider = async (req: Request, res: Response) => {
                 completedProjects: 0,
                 hourlyRate: req.body.hourlyRate ? parseFloat(String(req.body.hourlyRate)) : 500,
                 location: address,
-                verified: true,
+                verified: false,
                 available: true,
                 description: String(req.body.description || `${profession} service provider available at ${address}`).trim(),
                 skills: [profession],
@@ -799,7 +808,16 @@ export const bookProvider = async (req: Request, res: Response) => {
         const buyer = await prisma.user.findUnique({ where: { uid: buyerId } });
         const provider = await prisma.serviceProvider.findUnique({ 
             where: { id: providerId },
-            include: { user: true }
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        uid: true,
+                        name: true,
+                        email: true
+                    }
+                }
+            }
         });
 
         if (!buyer || !provider) {
@@ -809,42 +827,147 @@ export const bookProvider = async (req: Request, res: Response) => {
             });
         }
 
+        if (!provider.verified) {
+            return res.status(400).json({
+                success: false,
+                error: 'Service partner is not verified yet'
+            });
+        }
+
+        if (!provider.available) {
+            return res.status(400).json({
+                success: false,
+                error: 'Service partner is currently unavailable'
+            });
+        }
+
+        const participantIds = [buyer.id, provider.userId];
+        const existingConversations = await prisma.conversation.findMany({
+            where: {
+                conversationType: 'service-buyer',
+                propertyId: null,
+                participants: {
+                    some: {
+                        userId: { in: participantIds }
+                    }
+                }
+            },
+            include: {
+                participants: {
+                    select: { userId: true }
+                }
+            },
+            orderBy: { updatedAt: 'desc' },
+            take: 20
+        });
+
+        const matchedConversation = existingConversations.find((conv: any) => {
+            const ids = new Set((conv.participants || []).map((p: any) => p.userId));
+            return ids.size === 2 && ids.has(buyer.id) && ids.has(provider.userId);
+        });
+        let conversationId = matchedConversation?.id || '';
+
+        if (!conversationId) {
+            const createdConversation = await prisma.conversation.create({
+                data: {
+                    conversationType: 'service-buyer',
+                    propertyTitle: provider.specialization || provider.category || 'Service Partner',
+                    lastMessageAt: new Date(),
+                    participants: {
+                        create: [
+                            { user: { connect: { id: buyer.id } } },
+                            { user: { connect: { id: provider.userId } } }
+                        ]
+                    }
+                }
+            });
+            conversationId = createdConversation.id;
+        }
+
+        const buyerMessage = sanitizeMessage(String(message || '').trim());
+        const preferredDate = formData?.preferredDate ? `Preferred Date: ${formData.preferredDate}` : '';
+        const serviceIntro = `Service request for ${provider.specialization || provider.category}`;
+        const combinedMessage = [serviceIntro, buyerMessage, preferredDate].filter(Boolean).join('\n');
+
+        if (combinedMessage) {
+            await prisma.message.create({
+                data: {
+                    conversationId,
+                    senderId: buyer.id,
+                    content: combinedMessage,
+                    messageType: 'text',
+                    isRead: false
+                }
+            });
+
+            await prisma.conversation.update({
+                where: { id: conversationId },
+                data: {
+                    lastMessage: combinedMessage.substring(0, 100),
+                    lastMessageAt: new Date()
+                }
+            });
+        }
+
         // Create PartnerCase (Task)
         const partnerCase = await prisma.partnerCase.create({
             data: {
-                partnerId: provider.id,
+                partnerId: provider.userId,
                 buyerId: buyer.id,
-                type: 'Service Request',
-                title: `New Service Request: ${provider.category}`,
-                description: message || `Service request from ${buyer.name}`,
-                status: 'new',
-                metadata: formData || {}
+                type: 'service',
+                title: `Service Offer: ${provider.specialization || provider.category}`,
+                description: buyerMessage || `Service request from ${buyer.name}`,
+                status: 'pending',
+                metadata: {
+                    ...(formData || {}),
+                    conversationId,
+                }
             }
         });
 
         // Create Notification for Provider
-        const notification = await prisma.notification.create({
+        const providerNotification = await prisma.notification.create({
             data: {
                 userId: provider.userId,
-                type: 'new_task',
-                title: 'New Service Request',
-                message: `You have a new service request from ${buyer.name}.`,
+                type: 'service_offer',
+                title: 'New Service Offer',
+                message: `You have a new service offer from ${buyer.name}.`,
                 priority: 'high',
-                link: `/service-partners/tasks/${partnerCase.id}`,
-                metadata: JSON.stringify({ caseId: partnerCase.id })
+                link: `/service-partners/cases`,
+                metadata: JSON.stringify({ caseId: partnerCase.id, conversationId })
+            }
+        });
+
+        const buyerNotification = await prisma.notification.create({
+            data: {
+                userId: buyer.id,
+                type: 'service_offer_created',
+                title: 'Service Offer Sent',
+                message: `Your offer has been sent to ${provider.user.name || 'the service partner'}.`,
+                priority: 'medium',
+                link: `/dashboard/services/provider/${provider.id}`,
+                metadata: JSON.stringify({ caseId: partnerCase.id, conversationId })
             }
         });
 
         // Trigger real-time notification if socket is available
         const io = req.app.get('io');
         if (io) {
-            io.to(`notifications:${provider.userId}`).emit('new_notification', notification);
+            const providerIdentity = provider.user.uid || provider.user.id;
+            const buyerIdentity = buyer.uid || buyer.id;
+
+            io.to(`notifications:${providerIdentity}`).emit('new_notification', providerNotification);
+            io.to(`notifications:${buyerIdentity}`).emit('new_notification', buyerNotification);
+            io.to(conversationId).emit('conversation_updated', { conversationId });
         }
 
         res.status(201).json({
             success: true,
             message: 'Service booked successfully',
-            data: partnerCase
+            data: {
+                ...partnerCase,
+                conversationId
+            }
         });
     } catch (error: any) {
         console.error('bookProvider error:', error);

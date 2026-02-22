@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Upload,
@@ -52,9 +52,11 @@ import {
   Eye
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { usePayment } from '@/contexts/PaymentContext'
 
 export default function NewListingPage() {
   const router = useRouter()
+  const { hasPaid, currentPlan, loadingPlan, refreshPlan } = usePayment()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [showThankYou, setShowThankYou] = useState(false)
@@ -126,6 +128,22 @@ export default function NewListingPage() {
     virtualTour: false,
     videoTour: false,
   })
+
+  const planType = currentPlan?.type || ''
+  const listingsRemaining = Number(currentPlan?.features?.listingLimit ?? 0)
+  const canCreateListing =
+    hasPaid &&
+    (planType === 'seller' || planType === 'combined') &&
+    listingsRemaining > 0
+
+  useEffect(() => {
+    if (loadingPlan) return
+
+    if (!canCreateListing) {
+      toast.error('Active seller plan required to add listing')
+      router.replace('/dashboard/seller-pricing')
+    }
+  }, [canCreateListing, loadingPlan, router])
 
   const propertyTypes = [
     { value: 'apartment', label: 'Apartment', icon: Building2, desc: 'Flats, condos, penthouses' },
@@ -249,6 +267,12 @@ export default function NewListingPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    if (!canCreateListing) {
+      toast.error('Active seller plan required to add listing')
+      router.push('/dashboard/seller-pricing')
+      return
+    }
+
     if (step < 6) {
       setStep(step + 1)
       return
@@ -295,19 +319,42 @@ export default function NewListingPage() {
       }
 
       // 2. Create Property
+      const areaValue = formData.squareFeet || formData.carpetArea
+      if (!areaValue) {
+        throw new Error('Please provide area (square feet or carpet area)')
+      }
+
+      const derivedLocation = [formData.locality, formData.city].filter(Boolean).join(', ')
+
       const propertyPayload = {
-        ...formData,
+        title: formData.title,
+        description: formData.description,
+        listingType: formData.listingType,
+        propertyType: formData.propertyType,
         price: Number(formData.price),
+        address: formData.address,
+        city: formData.city,
+        state: formData.state || undefined,
+        pincode: formData.pincode || undefined,
+        location: derivedLocation || formData.city,
+        area: String(areaValue),
         bedrooms: Number(formData.bedrooms) || 0,
         bathrooms: Number(formData.bathrooms) || 0,
+        balconies: Number(formData.balconies) || 0,
+        floors: Number(formData.floors) || undefined,
+        facing: formData.facing || undefined,
+        amenities: formData.amenities || [],
         photos: validImageUrls,
+        images: validImageUrls,
+        featured: Boolean(formData.featured),
+        virtualTour: Boolean(formData.virtualTour),
         status: 'active'
       }
 
       const response = await backendApi.properties.create(propertyPayload)
 
       if (response.success || response._id || response.id) {
-        setLoading(false)
+        await refreshPlan()
         setShowThankYou(true)
         toast.success(`${formData.listingType === 'rent' ? 'Rental' : 'Sale'} listing created successfully!`)
       } else {
@@ -317,6 +364,7 @@ export default function NewListingPage() {
     } catch (error: any) {
       console.error('Submission error:', error)
       toast.error(error.message || 'Failed to create listing. Please try again.')
+    } finally {
       setLoading(false)
     }
   }

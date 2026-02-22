@@ -2,16 +2,47 @@ import { Request, Response } from 'express';
 import Ticket from '../models/ticket.model';
 import TicketMessage from '../models/ticketMessage.model';
 import Conversation from '../models/conversation.model';
-import Message from '../models/message.model';
-import Property from '../models/property.model';
-import User from '../models/user.model';
 import { isMongoDBAvailable, memoryTickets, memoryConversations } from '../utils/memoryStore';
-import { emailService } from '../utils/email.service';
-import Notification from '../models/notification.model';
+import { prisma } from '../utils/database';
+
+const UUID_REGEX =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const resolveInternalUserId = async (uidOrId?: string | null): Promise<string | null> => {
+    const value = (uidOrId || '').trim();
+    if (!value) return null;
+
+    const byUid = await prisma.user.findUnique({
+        where: { uid: value },
+        select: { id: true },
+    });
+    if (byUid) return byUid.id;
+
+    if (!UUID_REGEX.test(value)) return null;
+
+    const byId = await prisma.user.findUnique({
+        where: { id: value },
+        select: { id: true },
+    });
+    return byId?.id || null;
+};
 
 export const getPendingProperties = async (req: Request, res: Response) => {
     try {
-        const properties = await Property.find({ status: 'pending' }).sort({ createdAt: -1 });
+        const properties = await prisma.property.findMany({
+            where: { status: 'pending' },
+            include: {
+                seller: {
+                    select: {
+                        uid: true,
+                        name: true,
+                        email: true,
+                        sellerClientId: true,
+                    },
+                },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
         res.json({ success: true, data: { properties } });
     } catch (error) {
         console.error('Error fetching pending properties:', error);
@@ -22,25 +53,44 @@ export const getPendingProperties = async (req: Request, res: Response) => {
 export const approveProperty = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const property = await Property.findById(id);
+        const existing = await prisma.property.findUnique({
+            where: { id },
+            select: { id: true, sellerId: true, title: true },
+        });
 
-        if (!property) {
+        if (!existing) {
             return res.status(404).json({ success: false, error: 'Property not found' });
         }
 
-        // Update property
-        property.status = 'active';
-        property.verified = true;
-        await property.save();
+        const property = await prisma.property.update({
+            where: { id },
+            data: {
+                status: 'active',
+                verified: true,
+            },
+        });
 
-        // Increment activeListings for seller
-        await User.findOneAndUpdate(
-            { uid: property.sellerId },
-            { $inc: { activeListings: 1 } }
-        );
+        const seller = await prisma.user.findUnique({
+            where: { uid: existing.sellerId },
+            select: { id: true },
+        });
+        if (seller) {
+            await prisma.sellerProfile.updateMany({
+                where: { userId: seller.id },
+                data: { activeListings: { increment: 1 } },
+            });
 
-        // Ideally send email notification to seller
-        // await emailService.sendEmail(sellerEmail, 'Property Approved', ...);
+            await prisma.notification.create({
+                data: {
+                    userId: seller.id,
+                    type: 'listing_update',
+                    title: 'Property Approved',
+                    message: `Your property "${existing.title}" has been approved and is now live.`,
+                    link: `/dashboard/listings/${existing.id}`,
+                    priority: 'medium',
+                },
+            });
+        }
 
         res.json({ success: true, data: { property } });
     } catch (error) {
@@ -54,15 +104,32 @@ export const rejectProperty = async (req: Request, res: Response) => {
         const { id } = req.params;
         const { reason } = req.body;
 
-        const property = await Property.findByIdAndUpdate(id, { status: 'rejected' }, { new: true });
-
-        if (!property) {
+        const existing = await prisma.property.findUnique({
+            where: { id },
+            select: { id: true, title: true, sellerId: true },
+        });
+        if (!existing) {
             return res.status(404).json({ success: false, error: 'Property not found' });
         }
 
-        // TODO: Get seller email from User model using property.sellerId and send notification
-        // For now, assuming rejection is logged/handled
-        // await emailService.sendEmail(sellerEmail, 'Property Rejected', ...);
+        const property = await prisma.property.update({
+            where: { id },
+            data: { status: 'rejected' },
+        });
+
+        const sellerUserId = await resolveInternalUserId(property.sellerId);
+        if (sellerUserId) {
+            await prisma.notification.create({
+                data: {
+                    userId: sellerUserId,
+                    type: 'listing_update',
+                    title: 'Property Rejected',
+                    message: `Your property "${property.title}" was rejected.${reason ? ` Reason: ${reason}` : ''}`,
+                    link: `/dashboard/listings/${property.id}`,
+                    priority: 'high',
+                },
+            });
+        }
 
         res.json({ success: true, data: { property } });
     } catch (error) {
@@ -73,9 +140,22 @@ export const rejectProperty = async (req: Request, res: Response) => {
 
 export const getApprovedProperties = async (req: Request, res: Response) => {
     try {
-        const properties = await Property.find({
-            status: { $in: ['active', 'inactive'] }
-        }).sort({ updatedAt: -1 });
+        const properties = await prisma.property.findMany({
+            where: {
+                status: { in: ['active', 'inactive'] }
+            },
+            include: {
+                seller: {
+                    select: {
+                        uid: true,
+                        name: true,
+                        email: true,
+                        sellerClientId: true,
+                    },
+                },
+            },
+            orderBy: { updatedAt: 'desc' },
+        });
 
         res.json({ success: true, data: { properties } });
     } catch (error) {
@@ -87,7 +167,10 @@ export const getApprovedProperties = async (req: Request, res: Response) => {
 export const togglePropertyPause = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const property = await Property.findById(id);
+        const property = await prisma.property.findUnique({
+            where: { id },
+            select: { id: true, status: true, sellerId: true, title: true },
+        });
 
         if (!property) {
             return res.status(404).json({ success: false, error: 'Property not found' });
@@ -98,25 +181,32 @@ export const togglePropertyPause = async (req: Request, res: Response) => {
         }
 
         const oldStatus = property.status;
-        property.status = oldStatus === 'active' ? 'inactive' : 'active';
-        await property.save();
-
-        const action = property.status === 'active' ? 'resumed' : 'paused';
-
-        // Create notification for seller
-        await Notification.create({
-            userId: property.sellerId,
-            type: 'system',
-            title: `Property ${action.charAt(0).toUpperCase() + action.slice(1)}`,
-            message: `Your property "${property.title}" has been ${action} by our moderation team.`,
-            priority: 'medium',
-            metadata: { propertyId: property._id, action }
+        const updated = await prisma.property.update({
+            where: { id },
+            data: { status: oldStatus === 'active' ? 'inactive' : 'active' },
         });
+
+        const action = updated.status === 'active' ? 'resumed' : 'paused';
+
+        const sellerUserId = await resolveInternalUserId(property.sellerId);
+        if (sellerUserId) {
+            await prisma.notification.create({
+                data: {
+                    userId: sellerUserId,
+                    type: 'listing_update',
+                    title: `Property ${action.charAt(0).toUpperCase() + action.slice(1)}`,
+                    message: `Your property "${property.title}" has been ${action} by our moderation team.`,
+                    priority: 'medium',
+                    link: `/dashboard/listings/${property.id}`,
+                    metadata: JSON.stringify({ propertyId: property.id, action }),
+                },
+            });
+        }
 
         res.json({
             success: true,
             message: `Property ${action} successfully`,
-            data: { property }
+            data: { property: updated }
         });
     } catch (error) {
         console.error('Error toggling property pause:', error);
@@ -298,6 +388,38 @@ export const getEmployeeStats = async (req: Request, res: Response) => {
     }
 };
 
+export const getReferralLeads = async (req: Request, res: Response) => {
+    try {
+        const status = (req.query.status as string) || 'all';
+        const where = status !== 'all' ? { status } : undefined;
+
+        const leads = await prisma.referral.findMany({
+            where,
+            orderBy: { createdAt: 'desc' },
+            take: 200,
+        });
+
+        const promoterIds = Array.from(new Set(leads.map((lead) => lead.promoterId).filter(Boolean)));
+        const promoters = promoterIds.length > 0
+            ? await prisma.user.findMany({
+                where: { id: { in: promoterIds } },
+                select: { id: true, uid: true, name: true, email: true },
+            })
+            : [];
+        const promoterMap = new Map(promoters.map((promoter) => [promoter.id, promoter]));
+
+        const enrichedLeads = leads.map((lead) => ({
+            ...lead,
+            promoter: promoterMap.get(lead.promoterId) || null,
+        }));
+
+        res.json({ success: true, data: { leads: enrichedLeads } });
+    } catch (error) {
+        console.error('Error fetching referral leads:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch referral leads' });
+    }
+};
+
 export const completeOnboarding = async (req: Request, res: Response) => {
     try {
         const userId = (req as any).user.userId;
@@ -314,9 +436,17 @@ export const completeOnboarding = async (req: Request, res: Response) => {
             return res.status(400).json({ success: false, error: 'Please provide a valid Indian phone number' });
         }
 
-        const user = await User.findOneAndUpdate(
-            { uid: userId },
-            {
+        const existingUser = await prisma.user.findUnique({
+            where: { uid: userId },
+            select: { id: true },
+        });
+        if (!existingUser) {
+            return res.status(404).json({ success: false, error: 'User not found' });
+        }
+
+        const user = await prisma.user.update({
+            where: { uid: userId },
+            data: {
                 name,
                 phone,
                 address,
@@ -324,13 +454,8 @@ export const completeOnboarding = async (req: Request, res: Response) => {
                 office,
                 branchManagerName,
                 onboardingCompleted: true
-            },
-            { new: true }
-        );
-
-        if (!user) {
-            return res.status(404).json({ success: false, error: 'User not found' });
-        }
+            }
+        });
 
         res.json({
             success: true,

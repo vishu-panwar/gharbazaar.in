@@ -1,287 +1,223 @@
-'use client'
+﻿'use client'
 
-import { useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
-import {
-  ArrowLeft,
-  Star,
-  MapPin,
-  Phone,
-  MessageSquare,
-  CheckCircle,
-  Filter,
-  SlidersHorizontal,
-  Award,
-  Briefcase,
-  Clock,
-  IndianRupee,
-  Search
-} from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { getProvidersByCategory } from '../providersData'
+import { useParams, useRouter } from 'next/navigation'
+import { ArrowLeft, CheckCircle, MapPin, Phone, Search, Star } from 'lucide-react'
+import { backendApi } from '@/lib/backendApi'
+import toast from 'react-hot-toast'
+
+type ProviderRecord = {
+  id: string
+  category?: string
+  specialization?: string
+  rating?: number
+  reviews?: number
+  hourlyRate?: number
+  location?: string
+  completedProjects?: number
+  available?: boolean
+  verified?: boolean
+  user?: {
+    name?: string
+    phone?: string
+  }
+}
+
+const normalize = (value: string) => value.toLowerCase().replace(/[\s_-]/g, '')
 
 export default function ServiceCategoryPage() {
   const params = useParams()
   const router = useRouter()
-  const category = params.category as string
-  const [searchQuery, setSearchQuery] = useState('')
-  const [sortBy, setSortBy] = useState('rating')
-  const [showFilters, setShowFilters] = useState(false)
+  const category = String(params.category || '')
 
-  // Get providers for this category
-  const categoryProviders = getProvidersByCategory(category)
-  
-  // Filter providers based on search
-  const filteredProviders = categoryProviders.filter(provider =>
-    provider.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    provider.location.toLowerCase().includes(searchQuery.toLowerCase())
+  const [providers, setProviders] = useState<ProviderRecord[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortBy, setSortBy] = useState<'rating' | 'price-low' | 'price-high'>('rating')
+
+  useEffect(() => {
+    let mounted = true
+
+    const loadProviders = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+
+        const response = await backendApi.serviceProvider.list({ category, verified: true })
+        let records: ProviderRecord[] = response?.providers || []
+
+        if (!Array.isArray(records) || records.length === 0) {
+          const fallback = await backendApi.serviceProvider.list({ verified: true })
+          records = (fallback?.providers || []).filter((provider: ProviderRecord) =>
+            normalize(provider.category || '').includes(normalize(category)) ||
+            normalize(category).includes(normalize(provider.category || ''))
+          )
+        }
+
+        if (mounted) {
+          setProviders(records)
+        }
+      } catch (err: any) {
+        if (!mounted) return
+        setError(err?.message || 'Failed to load providers')
+        setProviders([])
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    }
+
+    loadProviders()
+    return () => {
+      mounted = false
+    }
+  }, [category])
+
+  const categoryName = useMemo(
+    () =>
+      category
+        .split('-')
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' '),
+    [category]
   )
 
-  // Format category name
-  const categoryName = category
-    .split('-')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
+  const filteredProviders = useMemo(() => {
+    const bySearch = providers.filter((provider) => {
+      const name = provider.user?.name || ''
+      const specialization = provider.specialization || ''
+      const location = provider.location || ''
+      const q = searchQuery.toLowerCase()
+      return (
+        name.toLowerCase().includes(q) ||
+        specialization.toLowerCase().includes(q) ||
+        location.toLowerCase().includes(q)
+      )
+    })
+
+    return bySearch.sort((a, b) => {
+      if (sortBy === 'price-low') return Number(a.hourlyRate || 0) - Number(b.hourlyRate || 0)
+      if (sortBy === 'price-high') return Number(b.hourlyRate || 0) - Number(a.hourlyRate || 0)
+      return Number(b.rating || 0) - Number(a.rating || 0)
+    })
+  }, [providers, searchQuery, sortBy])
+
+  const handleCall = (phone?: string) => {
+    if (!phone) {
+      toast.error('Phone number not available')
+      return
+    }
+    window.location.href = `tel:${phone}`
+  }
 
   return (
     <div className="space-y-6">
-      {/* Back Button & Header - Compact */}
-      <div>
-        <button
-          onClick={() => router.back()}
-          className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-3 transition-colors text-sm"
-        >
-          <ArrowLeft size={18} />
-          <span>Back to Services</span>
-        </button>
+      <button
+        onClick={() => router.back()}
+        className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+      >
+        <ArrowLeft size={18} />
+        <span>Back to Services</span>
+      </button>
 
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white">
-          <h1 className="text-2xl font-bold mb-1">{categoryName}</h1>
-          <p className="text-sm text-white/90">
-            {filteredProviders.length} verified professionals available
-          </p>
-        </div>
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl p-6 text-white">
+        <h1 className="text-2xl font-bold">{categoryName}</h1>
+        <p className="text-white/90 mt-1">{filteredProviders.length} verified professionals</p>
       </div>
 
-      {/* Search & Filters - Compact */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="flex-1 relative">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="sm:col-span-2 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input
-            type="text"
-            placeholder="Search by name or location..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search by name, specialization, or location"
+            className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg"
           />
         </div>
 
-        <div className="flex gap-2">
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="px-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-          >
-            <option value="rating">Highest Rated</option>
-            <option value="price-low">Price: Low to High</option>
-            <option value="price-high">Price: High to Low</option>
-            <option value="experience">Most Experienced</option>
-          </select>
-
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 px-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-all text-sm"
-          >
-            <SlidersHorizontal size={18} />
-            <span className="hidden sm:inline">Filters</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Filters Panel - Compact */}
-      {showFilters && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4"
+        <select
+          value={sortBy}
+          onChange={(event) => setSortBy(event.target.value as 'rating' | 'price-low' | 'price-high')}
+          className="px-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg"
         >
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                Location
-              </label>
-              <select className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm">
-                <option>All Locations</option>
-                <option>Mumbai</option>
-                <option>Delhi NCR</option>
-                <option>Bangalore</option>
-                <option>Pune</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                Experience
-              </label>
-              <select className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm">
-                <option>Any Experience</option>
-                <option>5+ years</option>
-                <option>10+ years</option>
-                <option>15+ years</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                Availability
-              </label>
-              <select className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm">
-                <option>All</option>
-                <option>Available Now</option>
-                <option>Busy</option>
-              </select>
-            </div>
-          </div>
-        </motion.div>
-      )}
-
-      {/* Providers List - Compact */}
-      <div className="space-y-3">
-        {filteredProviders.map((provider, index) => (
-          <motion.div
-            key={provider.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05 }}
-            className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-700 transition-all duration-200"
-          >
-            <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-              {/* Avatar - Compact */}
-              <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xl font-bold flex-shrink-0">
-                {provider.name.charAt(0)}
-              </div>
-
-              {/* Info - Compact */}
-              <div className="flex-1 space-y-2.5">
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-                  <div>
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <h3 className="text-base font-bold text-gray-900 dark:text-white">
-                        {provider.name}
-                      </h3>
-                      {provider.verified && (
-                        <CheckCircle className="w-4 h-4 text-blue-600" />
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-600 dark:text-gray-400">
-                      {provider.profession} • {provider.experience}
-                    </p>
-                  </div>
-
-                  <div className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
-                    provider.available 
-                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                      : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-400'
-                  }`}>
-                    {provider.available ? '✓ Available' : 'Busy'}
-                  </div>
-                </div>
-
-                {/* Stats - Compact */}
-                <div className="flex flex-wrap gap-3 text-xs">
-                  <div className="flex items-center gap-1">
-                    <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />
-                    <span className="font-semibold text-gray-900 dark:text-white">
-                      {provider.rating}
-                    </span>
-                    <span className="text-gray-500 dark:text-gray-400">
-                      ({provider.reviews})
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400">
-                    <MapPin className="w-3.5 h-3.5" />
-                    <span>{provider.location}</span>
-                  </div>
-
-                  <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400">
-                    <Briefcase className="w-3.5 h-3.5" />
-                    <span>{provider.completedProjects} projects</span>
-                  </div>
-                </div>
-
-                {/* Specialties - Compact */}
-                <div className="flex flex-wrap gap-1.5">
-                  {provider.specialties.slice(0, 4).map((specialty, idx) => (
-                    <span
-                      key={idx}
-                      className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 text-xs rounded"
-                    >
-                      {specialty}
-                    </span>
-                  ))}
-                  {provider.specialties.length > 4 && (
-                    <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-xs rounded">
-                      +{provider.specialties.length - 4}
-                    </span>
-                  )}
-                </div>
-
-                {/* Languages - Compact */}
-                <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                  <span className="font-medium">Languages:</span>
-                  <span>{provider.languages.join(', ')}</span>
-                </div>
-              </div>
-
-              {/* Price & Actions - Compact */}
-              <div className="flex flex-row lg:flex-col items-center lg:items-end justify-between lg:justify-start gap-3 lg:min-w-[180px] pt-3 lg:pt-0 border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-gray-700 lg:pl-4">
-                <div className="text-left lg:text-right">
-                  <div className="text-lg font-bold text-gray-900 dark:text-white">
-                    {provider.price}
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                    {provider.priceType}
-                  </div>
-                </div>
-
-                <div className="flex lg:flex-col w-auto lg:w-full gap-2">
-                  <Link href={`/dashboard/services/provider/${provider.id}`} className="lg:w-full">
-                    <button className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg text-xs font-medium transition-all whitespace-nowrap">
-                      View Profile
-                    </button>
-                  </Link>
-                  
-                  <div className="flex gap-1.5">
-                    <button className="p-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors">
-                      <MessageSquare size={16} />
-                    </button>
-                    <button className="p-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors">
-                      <Phone size={16} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        ))}
+          <option value="rating">Highest Rated</option>
+          <option value="price-low">Price: Low to High</option>
+          <option value="price-high">Price: High to Low</option>
+        </select>
       </div>
 
-      {/* No Results - Compact */}
-      {filteredProviders.length === 0 && (
-        <div className="text-center py-10 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-          <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-3">
-            <Search className="w-8 h-8 text-gray-400" />
-          </div>
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
-            No providers found
-          </h3>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Try adjusting your search or filters
-          </p>
+      {loading ? (
+        <div className="flex items-center justify-center min-h-64">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : error ? (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6 text-red-700 dark:text-red-300">
+          {error}
+        </div>
+      ) : filteredProviders.length === 0 ? (
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-10 text-center text-gray-600 dark:text-gray-400">
+          No providers found for this category.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {filteredProviders.map((provider) => (
+            <div
+              key={provider.id}
+              className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                      {provider.user?.name || 'Service Provider'}
+                    </h3>
+                    {provider.verified && <CheckCircle size={16} className="text-blue-600" />}
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{provider.specialization || provider.category || 'General Services'}</p>
+                  <div className="mt-2 flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+                    <span className="inline-flex items-center gap-1">
+                      <Star size={14} className="text-yellow-500" />
+                      {Number(provider.rating || 0).toFixed(1)} ({provider.reviews || 0})
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <MapPin size={14} />
+                      {provider.location || 'Location not set'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <div className="text-lg font-bold text-gray-900 dark:text-white">Rs {Number(provider.hourlyRate || 0).toLocaleString()}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">per hour</div>
+                  <div className={`mt-2 text-xs font-medium ${provider.available ? 'text-green-600' : 'text-amber-600'}`}>
+                    {provider.available ? 'Available' : 'Unavailable'}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center gap-2">
+                <Link
+                  href={`/dashboard/services/provider/${provider.id}`}
+                  className="flex-1 text-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
+                >
+                  View Profile
+                </Link>
+                <button
+                  onClick={() => handleCall(provider.user?.phone)}
+                  className="px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg"
+                  title="Call"
+                >
+                  <Phone size={16} />
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
   )
 }
+
+

@@ -75,8 +75,7 @@ export default function PartnerLayout({ children }: { children: React.ReactNode 
   }, [router, pathname, isPublicPage])
 
   const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
+    AuthUtils.clearCache()
     router.push('/')
   }
 

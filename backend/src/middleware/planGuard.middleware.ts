@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../utils/database';
-import { Decimal } from '@prisma/client/runtime/library';
 import { isDatabaseAvailable } from '../utils/memoryStore';
 
 // For internal transition, we can alias or just use the new better name
@@ -17,6 +16,28 @@ interface PlanGuardOptions {
     incrementUsage?: string;
 }
 
+const UUID_REGEX =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const resolveInternalUserId = async (uidOrId?: string | null): Promise<string | null> => {
+    const value = (uidOrId || '').trim();
+    if (!value) return null;
+
+    const byUid = await prisma.user.findUnique({
+        where: { uid: value },
+        select: { id: true },
+    });
+    if (byUid) return byUid.id;
+
+    if (!UUID_REGEX.test(value)) return null;
+
+    const byId = await prisma.user.findUnique({
+        where: { id: value },
+        select: { id: true },
+    });
+    return byId?.id || null;
+};
+
 /**
  * Middleware to require active plan
  */
@@ -24,8 +45,8 @@ export const requireActivePlan = (options: PlanGuardOptions) => {
     return async (req: Request, res: Response, next: NextFunction) => {
         try {
             const user = (req as any).user;
-            
-            if (!user || !user.userId) {
+
+            if (!user || (!user.userId && !user.id && !user.uid)) {
                 return res.status(401).json({
                     success: false,
                     error: 'Authentication required'
@@ -35,7 +56,7 @@ export const requireActivePlan = (options: PlanGuardOptions) => {
             // Skip plan check if Database not available (demo/memory mode)
             const dbAvailable = await isDatabaseAvailable();
             if (!dbAvailable) {
-                console.log(`⚠️  Plan check skipped (memory mode) for ${user.email}`);
+                console.log(`Plan check skipped (memory mode) for ${user.email || user.userId || user.uid}`);
                 (req as any).userPlan = {
                     demo: true,
                     unlimited: true
@@ -43,10 +64,18 @@ export const requireActivePlan = (options: PlanGuardOptions) => {
                 return next();
             }
 
+            const internalUserId = await resolveInternalUserId(user.id || user.userId || user.uid);
+            if (!internalUserId) {
+                return res.status(401).json({
+                    success: false,
+                    error: 'Authenticated user profile not found'
+                });
+            }
+
             // Find active plan via Subscription
             const subscription = await prisma.subscription.findFirst({
                 where: {
-                    userId: user.id || user.userId, 
+                    userId: internalUserId,
                     status: 'active',
                     endDate: { gt: new Date() }
                 },
@@ -88,8 +117,9 @@ export const requireActivePlan = (options: PlanGuardOptions) => {
                 // Check usage limits
                 if (typeof featureValue === 'number') {
                     const usageKey = (options.incrementUsage || options.feature.replace('Limit', 'Used')) as string;
-                    const currentUsage = ((subscription.usageStats as any) || {}) [usageKey] || 0;
-                    
+                    const usageStats = (subscription.usageStats as Record<string, any> | null) || {};
+                    const currentUsage = Number(usageStats[usageKey] || 0);
+
                     if (currentUsage >= featureValue) {
                         return res.status(403).json({
                             success: false,
@@ -106,6 +136,7 @@ export const requireActivePlan = (options: PlanGuardOptions) => {
             // Attach plan info to request for controllers to use
             (req as any).userPlan = {
                 id: subscription.id,
+                userId: internalUserId,
                 planId: plan.id,
                 planName: plan.name,
                 planType: plan.type,
@@ -120,7 +151,7 @@ export const requireActivePlan = (options: PlanGuardOptions) => {
             next();
 
         } catch (error) {
-            console.error('❌ Plan guard error:', error);
+            console.error('Plan guard error:', error);
             return res.status(500).json({
                 success: false,
                 error: 'Failed to verify plan status'
@@ -137,13 +168,13 @@ export const incrementPlanUsage = (usageField: string) => {
     return async (req: Request, res: Response, next: NextFunction) => {
         try {
             const userPlan = (req as any).userPlan;
-            const user = (req as any).user;
+            if (!userPlan?.id) return next();
 
             // Increment usage
-            const currentStats = (userPlan.usageStats as any) || {};
+            const currentStats = (userPlan.usageStats as Record<string, any> | null) || {};
             const updatedStats = {
                 ...currentStats,
-                [usageField]: (currentStats[usageField] || 0) + 1
+                [usageField]: Number(currentStats[usageField] || 0) + 1
             };
 
             await prisma.subscription.update({
@@ -153,11 +184,10 @@ export const incrementPlanUsage = (usageField: string) => {
                 }
             });
 
-            console.log(`📊 Incremented ${usageField} for user ${user.email}`);
             next();
 
         } catch (error) {
-            console.error('❌ Error incrementing usage:', error);
+            console.error('Error incrementing usage:', error);
             // Don't fail the request if usage tracking fails
             next();
         }
@@ -170,10 +200,15 @@ export const incrementPlanUsage = (usageField: string) => {
 export const checkPlanOptional = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const user = (req as any).user;
-        
+        const internalUserId = await resolveInternalUserId(user?.id || user?.userId || user?.uid);
+        if (!internalUserId) {
+            (req as any).userPlan = null;
+            return next();
+        }
+
         const subscription = await prisma.subscription.findFirst({
             where: {
-                userId: user.id || user.userId,
+                userId: internalUserId,
                 status: 'active',
                 endDate: { gt: new Date() }
             },
@@ -184,7 +219,7 @@ export const checkPlanOptional = async (req: Request, res: Response, next: NextF
         next();
 
     } catch (error) {
-        console.error('❌ Optional plan check error:', error);
+        console.error('Optional plan check error:', error);
         (req as any).userPlan = null;
         next();
     }

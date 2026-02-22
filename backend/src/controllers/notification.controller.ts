@@ -1,9 +1,32 @@
 import { Request, Response } from 'express';
 import { prisma } from '../utils/database';
 
+const UUID_REGEX =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const resolveInternalUserId = async (uidOrId?: string | null): Promise<string | null> => {
+    const value = (uidOrId || '').trim();
+    if (!value) return null;
+
+    const byUid = await prisma.user.findUnique({
+        where: { uid: value },
+        select: { id: true },
+    });
+    if (byUid) return byUid.id;
+
+    if (!UUID_REGEX.test(value)) return null;
+
+    const byId = await prisma.user.findUnique({
+        where: { id: value },
+        select: { id: true },
+    });
+    return byId?.id || null;
+};
+
 export const getNotifications = async (req: Request, res: Response) => {
     try {
-        const userId = (req as any).user?.userId || (req as any).user?.id;
+        const authUserId = (req as any).user?.userId || (req as any).user?.id;
+        const userId = await resolveInternalUserId(authUserId);
         if (!userId) {
             return res.status(401).json({ success: false, error: 'Unauthorized' });
         }
@@ -40,8 +63,12 @@ export const getNotifications = async (req: Request, res: Response) => {
 
 export const markAsRead = async (req: Request, res: Response) => {
     try {
-        const userId = (req as any).user?.userId || (req as any).user?.id;
+        const authUserId = (req as any).user?.userId || (req as any).user?.id;
+        const userId = await resolveInternalUserId(authUserId);
         const { id } = req.params;
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
+        }
 
         const notification = await prisma.notification.updateMany({
             where: { id, userId },
@@ -69,7 +96,12 @@ export const markAsRead = async (req: Request, res: Response) => {
 
 export const markAllAsRead = async (req: Request, res: Response) => {
     try {
-        const userId = (req as any).user?.userId || (req as any).user?.id;
+        const authUserId = (req as any).user?.userId || (req as any).user?.id;
+        const userId = await resolveInternalUserId(authUserId);
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
+        }
+
         await prisma.notification.updateMany({
             where: { userId, isRead: false },
             data: { 
@@ -86,8 +118,12 @@ export const markAllAsRead = async (req: Request, res: Response) => {
 
 export const deleteNotification = async (req: Request, res: Response) => {
     try {
-        const userId = (req as any).user?.userId || (req as any).user?.id;
+        const authUserId = (req as any).user?.userId || (req as any).user?.id;
+        const userId = await resolveInternalUserId(authUserId);
         const { id } = req.params;
+        if (!userId) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
+        }
 
         const result = await prisma.notification.deleteMany({
             where: { id, userId }

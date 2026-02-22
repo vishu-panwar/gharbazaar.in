@@ -5,7 +5,8 @@ import {
     getSellerBids,
     getBuyerBids,
     updateBidStatus,
-    getPropertyBids
+    getPropertyBids,
+    respondToCounter
 } from '../controllers/bid.controller';
 
 const router = express.Router();
@@ -24,5 +25,8 @@ router.get('/property/:propertyId', authenticate, getPropertyBids);
 
 // Update bid status (seller)
 router.patch('/:id', authenticate, updateBidStatus);
+
+// Buyer response workflow for negotiation
+router.patch('/:id/buyer-response', authenticate, respondToCounter);
 
 export default router;

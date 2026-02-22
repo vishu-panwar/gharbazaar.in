@@ -195,6 +195,10 @@ export const reviewKyc = async (req: Request, res: Response) => {
         });
 
         if (status === 'approved') {
+            const nextRole = ['buyer', 'seller', 'user', 'client'].includes((kycRequest.user.role || '').toLowerCase())
+                ? 'service_partner'
+                : kycRequest.user.role;
+
             await prisma.user.update({
                 where: { id: kycRequest.userId },
                 data: {
@@ -204,11 +208,46 @@ export const reviewKyc = async (req: Request, res: Response) => {
                     onboardingCompleted: true,
                     name: kycRequest.fullName,
                     phone: kycRequest.contactNumber,
-                    role: ['buyer', 'seller', 'user', 'client'].includes((kycRequest.user.role || '').toLowerCase())
-                        ? 'service_partner'
-                        : kycRequest.user.role,
+                    role: nextRole,
                 },
             });
+
+            const existingProvider = await prisma.serviceProvider.findUnique({
+                where: { userId: kycRequest.userId }
+            });
+
+            if (nextRole === 'service_partner' || existingProvider) {
+                await prisma.serviceProvider.upsert({
+                    where: { userId: kycRequest.userId },
+                    update: {
+                        verified: true,
+                        available: true,
+                        location: existingProvider?.location || kycRequest.address,
+                        specialization: existingProvider?.specialization || 'General Service Consultant',
+                        category: existingProvider?.category || 'consultant',
+                        description:
+                            existingProvider?.description ||
+                            `Verified service partner available at ${kycRequest.address}`,
+                    },
+                    create: {
+                        userId: kycRequest.userId,
+                        category: 'consultant',
+                        specialization: 'General Service Consultant',
+                        rating: 0,
+                        reviews: 0,
+                        completedProjects: 0,
+                        hourlyRate: 500,
+                        location: kycRequest.address,
+                        verified: true,
+                        available: true,
+                        description: `Verified service partner available at ${kycRequest.address}`,
+                        skills: ['consultation'],
+                        experience: 0,
+                        portfolio: [],
+                        profileImage: kycRequest.profileImage,
+                    },
+                });
+            }
 
             return res.json({
                 success: true,
@@ -224,6 +263,14 @@ export const reviewKyc = async (req: Request, res: Response) => {
                 kycStatus: 'rejected',
                 kycId: null,
                 onboardingCompleted: false,
+            },
+        });
+
+        await prisma.serviceProvider.updateMany({
+            where: { userId: kycRequest.userId },
+            data: {
+                verified: false,
+                available: false,
             },
         });
 

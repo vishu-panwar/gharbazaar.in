@@ -708,6 +708,21 @@ export const backendApi = {
             return backendApiCall('/admin/stats');
         },
 
+        getPayments: async () => {
+            return backendApiCall('/admin/payments');
+        },
+
+        getSubscriptions: async (status?: string) => {
+            return backendApiCall(`/admin/subscriptions${status ? `?status=${encodeURIComponent(status)}` : ''}`);
+        },
+
+        updateSubscriptionStatus: async (id: string, status: string) => {
+            return backendApiCall(`/admin/subscriptions/${id}/status`, {
+                method: 'PUT',
+                body: JSON.stringify({ status }),
+            });
+        },
+
         listEmployees: async () => {
             return backendApiCall('/admin/employees');
         },
@@ -876,8 +891,10 @@ export const backendApi = {
     chat: {
         createConversation: async (data: {
             otherUserId: string;
-            type: string;
+            type?: string;
             propertyId?: string;
+            propertyTitle?: string;
+            initialMessage?: string;
         }) => {
             return backendApiCall('/chat/conversations', {
                 method: 'POST',
@@ -975,39 +992,57 @@ export const backendApi = {
         create: async (propertyId: string, amount: number, message?: string) => {
             return backendApiCall('/bids', {
                 method: 'POST',
-                body: JSON.stringify({ propertyId, amount, message }),
+                body: JSON.stringify({ propertyId, bidAmount: amount, message }),
+            });
+        },
+
+        getSellerBids: async (status?: string) => {
+            const query = status ? `?status=${encodeURIComponent(status)}` : '';
+            return backendApiCall(`/bids/seller${query}`);
+        },
+
+        getBuyerBids: async (status?: string) => {
+            const query = status ? `?status=${encodeURIComponent(status)}` : '';
+            return backendApiCall(`/bids/buyer${query}`);
+        },
+
+        updateStatus: async (
+            bidId: string,
+            data: {
+                status: 'pending' | 'accepted' | 'rejected' | 'countered';
+                counterAmount?: number;
+                counterMessage?: string;
+            }
+        ) => {
+            return backendApiCall(`/bids/${bidId}`, {
+                method: 'PATCH',
+                body: JSON.stringify(data),
+            });
+        },
+
+        buyerResponse: async (
+            bidId: string,
+            data: { action: 'accept' | 'reject' | 'counter'; amount?: number; message?: string }
+        ) => {
+            return backendApiCall(`/bids/${bidId}/buyer-response`, {
+                method: 'PATCH',
+                body: JSON.stringify(data),
             });
         },
 
         accept: async (bidId: string) => {
-            return backendApiCall(`/bids/${bidId}/accept`, {
-                method: 'POST',
-            });
+            return backendApi.bids.updateStatus(bidId, { status: 'accepted' });
         },
 
-        reject: async (bidId: string, reason?: string) => {
-            return backendApiCall(`/bids/${bidId}/reject`, {
-                method: 'POST',
-                body: JSON.stringify({ reason }),
-            });
+        reject: async (bidId: string) => {
+            return backendApi.bids.updateStatus(bidId, { status: 'rejected' });
         },
 
         counter: async (bidId: string, amount: number, message?: string) => {
-            return backendApiCall(`/bids/${bidId}/counter`, {
-                method: 'POST',
-                body: JSON.stringify({ amount, message }),
-            });
-        },
-
-        acceptCounter: async (bidId: string) => {
-            return backendApiCall(`/bids/${bidId}/accept-counter`, {
-                method: 'POST',
-            });
-        },
-
-        withdraw: async (bidId: string) => {
-            return backendApiCall(`/bids/${bidId}/withdraw`, {
-                method: 'POST',
+            return backendApi.bids.updateStatus(bidId, {
+                status: 'countered',
+                counterAmount: amount,
+                counterMessage: message,
             });
         },
 
@@ -1016,7 +1051,7 @@ export const backendApi = {
         },
 
         getMyBids: async () => {
-            return backendApiCall('/bids/my-bids');
+            return backendApi.bids.getBuyerBids();
         },
     },
 
@@ -1396,6 +1431,10 @@ export const backendApi = {
             return backendApiCall('/employee/stats');
         },
 
+        getLeads: async (status: string = 'all') => {
+            return backendApiCall(`/employee/leads?status=${encodeURIComponent(status)}`);
+        },
+
         getPendingProperties: async () => {
             return backendApiCall('/employee/pending-properties');
         },
@@ -1476,7 +1515,7 @@ export const backendApi = {
             const formData = new FormData();
             formData.append('file', file);
 
-            const response = await fetch(`${API_BASE_URL}/tickets/${id}/files`, {
+            const response = await fetch(`${API_BASE_URL}/tickets/${id}/upload`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -1624,6 +1663,10 @@ export const backendApi = {
         getMyProfile: async () => {
             return backendApiCall('/service-providers/me');
         },
+
+        getById: async (id: string) => {
+            return backendApiCall(`/service-providers/${id}`);
+        },
         
         list: async (params: { 
             category?: string; 
@@ -1631,6 +1674,7 @@ export const backendApi = {
             available?: boolean; 
             location?: string; 
             sortBy?: string;
+            limit?: number;
         } = {}) => {
             const query = new URLSearchParams(params as any).toString();
             return backendApiCall(`/service-providers${query ? `?${query}` : ''}`);
@@ -1647,6 +1691,13 @@ export const backendApi = {
         }) => {
             const query = new URLSearchParams(params as any).toString();
             return backendApiCall(`/service-providers/search${query ? `?${query}` : ''}`);
+        },
+
+        book: async (id: string, data: { formData?: any; message?: string }) => {
+            return backendApiCall(`/service-providers/${id}/book`, {
+                method: 'POST',
+                body: JSON.stringify(data),
+            });
         },
     },
 

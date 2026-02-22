@@ -1,767 +1,246 @@
-'use client'
+﻿'use client'
 
-import { useState, useEffect } from 'react'
-import {
-  DollarSign,
-  TrendingUp,
-  TrendingDown,
-  Calendar,
-  Download,
-  Eye,
-  Filter,
-  Search,
-  CreditCard,
-  Banknote,
-  Wallet,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  XCircle,
-  FileText,
-  BarChart3,
-  PieChart,
-  Target,
-  Award,
-  Star,
-  Briefcase,
-  Calculator,
-  Receipt,
-  ArrowUpRight,
-  ArrowDownRight,
-  Plus,
-  Minus,
-  Info,
-  ExternalLink,
-  RefreshCw,
-  Settings,
-  Bell,
-  Shield,
-  X
-} from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Calendar, CheckCircle, Clock, DollarSign, Search, XCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
-
-interface Payment {
-  id: string
-  caseId: string
-  caseName: string
-  clientName: string
-  amount: number
-  type: 'due-diligence' | 'legal-opinion' | 'document-review' | 'consultation' | 'court-representation' | 'bonus'
-  status: 'pending' | 'processing' | 'paid' | 'failed' | 'disputed'
-  invoiceDate: string
-  dueDate: string
-  paidDate?: string
-  paymentMethod?: 'bank-transfer' | 'upi' | 'cheque' | 'cash'
-  transactionId?: string
-  invoiceNumber: string
-  taxAmount: number
-  netAmount: number
-  description: string
-  workHours?: number
-  hourlyRate?: number
-}
-
-interface EarningsStats {
-  totalEarnings: number
-  monthlyEarnings: number
-  pendingAmount: number
-  completedCases: number
-  averagePerCase: number
-  taxDeducted: number
-  netReceived: number
-  growthRate: number
-}
-
-interface MonthlyData {
-  month: string
-  earnings: number
-  cases: number
-  hours: number
-}
-
 import { backendApi } from '@/lib/backendApi'
 
-export default function EarningsPage() {
-  const [payments, setPayments] = useState<Payment[]>([])
-  const [filteredPayments, setFilteredPayments] = useState<Payment[]>([])
-  const [stats, setStats] = useState<EarningsStats | null>(null)
-  const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([])
-  const [selectedPeriod, setSelectedPeriod] = useState('current-month')
+type Payout = {
+  id: string
+  amount: number
+  method?: string
+  status?: string
+  reference?: string
+  notes?: string
+  periodStart?: string
+  periodEnd?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+const currency = (value: number) =>
+  new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 0,
+  }).format(value)
+
+const statusClass = (status?: string) => {
+  const value = (status || 'pending').toLowerCase()
+  if (value === 'paid') return 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400'
+  if (value === 'processing') return 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
+  if (value === 'failed') return 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+  return 'bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400'
+}
+
+export default function ServicePartnerEarningsPage() {
+  const [payouts, setPayouts] = useState<Payout[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [isLoading, setIsLoading] = useState(true)
-  const [showInvoiceModal, setShowInvoiceModal] = useState(false)
-  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null)
+
+  const loadPayouts = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const response = await backendApi.partners.getPayouts()
+
+      if (!response?.success) {
+        throw new Error(response?.error || 'Failed to load payouts')
+      }
+
+      const records = Array.isArray(response.data) ? response.data : []
+      setPayouts(records)
+    } catch (err: any) {
+      setError(err?.message || 'Failed to load payouts')
+      setPayouts([])
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    async function fetchData() {
-      try {
-        setIsLoading(true)
-        const response = await backendApi.partners.getPayouts()
-        if (response?.success) {
-          const payoutData = response.data || []
-          
-          // Map backend payouts to frontend Payment interface
-          const mappedPayments: Payment[] = payoutData.map((p: any) => ({
-            id: p.id,
-            caseId: p.targetId || 'N/A',
-            caseName: p.description || 'Service Payment',
-            clientName: 'Admin', // Placeholder or fetch if available
-            amount: p.amount,
-            type: p.type || 'consultation',
-            status: p.status,
-            invoiceDate: p.createdAt,
-            dueDate: p.createdAt,
-            paidDate: p.paidAt,
-            paymentMethod: p.method,
-            transactionId: p.transactionId,
-            invoiceNumber: `INV-${p.id.slice(0, 8).toUpperCase()}`,
-            taxAmount: 0, // Not available in model yet
-            netAmount: p.amount,
-            description: p.notes || p.description,
-          }))
-
-          setPayments(mappedPayments)
-          setFilteredPayments(mappedPayments)
-
-          // Calculate stats
-          const totalEarnings = mappedPayments.reduce((acc, p) => acc + p.amount, 0)
-          const monthlyEarnings = mappedPayments
-            .filter(p => new Date(p.invoiceDate).getMonth() === new Date().getMonth())
-            .reduce((acc, p) => acc + p.amount, 0)
-          const pendingAmount = mappedPayments
-            .filter(p => p.status === 'pending')
-            .reduce((acc, p) => acc + p.amount, 0)
-          const paidPayments = mappedPayments.filter(p => p.status === 'paid')
-
-          setStats({
-            totalEarnings,
-            monthlyEarnings,
-            pendingAmount,
-            completedCases: paidPayments.length,
-            averagePerCase: paidPayments.length > 0 ? totalEarnings / paidPayments.length : 0,
-            taxDeducted: 0,
-            netReceived: totalEarnings - pendingAmount,
-            growthRate: 0
-          })
-
-          // Calculate monthly distribution
-          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-          const currentYear = new Date().getFullYear()
-          const dist = months.map((m, i) => {
-            const monthPayments = mappedPayments.filter(p => {
-              const d = new Date(p.invoiceDate)
-              return d.getMonth() === i && d.getFullYear() === currentYear
-            })
-            return {
-              month: m,
-              earnings: monthPayments.reduce((acc, p) => acc + p.amount, 0),
-              cases: monthPayments.length,
-              hours: 0
-            }
-          })
-          setMonthlyData(dist.slice(-6)) // Show last 6 months
-        }
-      } catch (error) {
-        console.error('Error fetching payouts:', error)
-        toast.error('Failed to load earnings data')
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    fetchData()
+    loadPayouts()
   }, [])
 
-  // Filter payments
-  useEffect(() => {
-    let filtered = payments
+  const filteredPayouts = useMemo(() => {
+    return payouts.filter((payout) => {
+      const matchesStatus = statusFilter === 'all' || (payout.status || 'pending').toLowerCase() === statusFilter
+      if (!matchesStatus) return false
+      if (!query) return true
 
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(payment => payment.status === statusFilter)
-    }
+      const haystack = [
+        payout.id,
+        payout.reference,
+        payout.method,
+        payout.notes,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
 
-    if (searchQuery) {
-      filtered = filtered.filter(payment =>
-        payment.caseName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        payment.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        payment.caseId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        payment.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    }
-
-    setFilteredPayments(filtered)
-  }, [payments, statusFilter, searchQuery])
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'paid': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-      case 'processing': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
-      case 'pending': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
-      case 'failed': return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-      case 'disputed': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400'
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
-    }
-  }
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'paid': return <CheckCircle size={16} className="text-green-500" />
-      case 'processing': return <Clock size={16} className="text-blue-500" />
-      case 'pending': return <AlertCircle size={16} className="text-yellow-500" />
-      case 'failed': return <XCircle size={16} className="text-red-500" />
-      case 'disputed': return <AlertCircle size={16} className="text-orange-500" />
-      default: return <Clock size={16} className="text-gray-500" />
-    }
-  }
-
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'due-diligence': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
-      case 'legal-opinion': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400'
-      case 'document-review': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-      case 'consultation': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400'
-      case 'court-representation': return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-      case 'bonus': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
-    }
-  }
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 0
-    }).format(amount)
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
+      return haystack.includes(query.toLowerCase())
     })
-  }
+  }, [payouts, query, statusFilter])
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading earnings data...</p>
-        </div>
-      </div>
-    )
-  }
+  const totals = useMemo(() => {
+    const total = payouts.reduce((sum, payout) => sum + Number(payout.amount || 0), 0)
+    const paid = payouts
+      .filter((payout) => (payout.status || '').toLowerCase() === 'paid')
+      .reduce((sum, payout) => sum + Number(payout.amount || 0), 0)
+    const pending = payouts
+      .filter((payout) => ['pending', 'processing'].includes((payout.status || '').toLowerCase()))
+      .reduce((sum, payout) => sum + Number(payout.amount || 0), 0)
+
+    const thisMonth = payouts
+      .filter((payout) => {
+        if (!payout.createdAt) return false
+        const date = new Date(payout.createdAt)
+        const now = new Date()
+        return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
+      })
+      .reduce((sum, payout) => sum + Number(payout.amount || 0), 0)
+
+    return {
+      total,
+      paid,
+      pending,
+      thisMonth,
+    }
+  }, [payouts])
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Earnings & Payments</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Track your income, payments, and financial performance
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Earnings & Payouts</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Live payout history from partner finance workflow.</p>
         </div>
-        <div className="flex items-center space-x-3 mt-4 sm:mt-0">
-          <button className="flex items-center space-x-2 px-4 py-2 bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/40 rounded-xl transition-all">
-            <Download size={20} />
-            <span>Export Report</span>
-          </button>
-          <button className="flex items-center space-x-2 px-4 py-2 bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/40 rounded-xl transition-all">
-            <Calculator size={20} />
-            <span>Tax Calculator</span>
-          </button>
+
+        <button
+          onClick={loadPayouts}
+          className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
+        >
+          Refresh
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
+          <p className="text-sm text-gray-500 dark:text-gray-400">Total Earnings</p>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">{currency(totals.total)}</p>
+        </div>
+        <div className="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
+          <p className="text-sm text-gray-500 dark:text-gray-400">Paid</p>
+          <p className="text-2xl font-bold text-green-600">{currency(totals.paid)}</p>
+        </div>
+        <div className="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
+          <p className="text-sm text-gray-500 dark:text-gray-400">Pending / Processing</p>
+          <p className="text-2xl font-bold text-amber-600">{currency(totals.pending)}</p>
+        </div>
+        <div className="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
+          <p className="text-sm text-gray-500 dark:text-gray-400">This Month</p>
+          <p className="text-2xl font-bold text-blue-600">{currency(totals.thisMonth)}</p>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white dark:bg-gray-950 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Earnings</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {formatCurrency(stats?.totalEarnings || 0)}
-              </p>
-              <div className="flex items-center space-x-1 mt-1">
-                <TrendingUp className="w-4 h-4 text-green-500" />
-                <span className="text-sm text-green-600 dark:text-green-400 font-medium">
-                  +{stats?.growthRate}%
-                </span>
-              </div>
-            </div>
-            <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-2xl">
-              <DollarSign className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-950 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">This Month</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {formatCurrency(stats?.monthlyEarnings || 0)}
-              </p>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                {stats?.completedCases} cases completed
-              </p>
-            </div>
-            <div className="p-3 bg-green-100 dark:bg-green-900/20 rounded-2xl">
-              <Calendar className="w-6 h-6 text-green-600 dark:text-green-400" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-950 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Pending Amount</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {formatCurrency(stats?.pendingAmount || 0)}
-              </p>
-              <p className="text-sm text-yellow-600 dark:text-yellow-400 mt-1">
-                Awaiting payment
-              </p>
-            </div>
-            <div className="p-3 bg-yellow-100 dark:bg-yellow-900/20 rounded-2xl">
-              <Clock className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-950 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Average per Case</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {formatCurrency(stats?.averagePerCase || 0)}
-              </p>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Based on completed cases
-              </p>
-            </div>
-            <div className="p-3 bg-purple-100 dark:bg-purple-900/20 rounded-2xl">
-              <Target className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Monthly Earnings Chart */}
-        <div className="bg-white dark:bg-gray-950 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Monthly Earnings</h3>
-            <button className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all">
-              <BarChart3 size={20} />
-            </button>
+      <div className="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex flex-col sm:flex-row gap-3">
+          <div className="flex-1 relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search by reference, method, or notes"
+              className="w-full pl-9 pr-3 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg"
+            />
           </div>
 
-          <div className="space-y-4">
-            {monthlyData.map((data, index) => (
-              <div key={data.month} className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <span className="text-sm font-medium text-gray-600 dark:text-gray-400 w-8">
-                    {data.month}
-                  </span>
-                  <div className="flex-1">
-                    <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2">
-                      <div
-                        className="bg-blue-600 h-2 rounded-full transition-all duration-500"
-                        style={{ width: `${(data.earnings / 85000) * 100}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                    {formatCurrency(data.earnings)}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {data.cases} cases • {data.hours}h
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Payment Breakdown */}
-        <div className="bg-white dark:bg-gray-950 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Payment Breakdown</h3>
-            <button className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all">
-              <PieChart size={20} />
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 rounded-xl">
-              <div className="flex items-center space-x-3">
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                <span className="font-medium text-gray-900 dark:text-white">Net Received</span>
-              </div>
-              <span className="font-bold text-green-600 dark:text-green-400">
-                {formatCurrency(stats?.netReceived || 0)}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between p-4 bg-red-50 dark:bg-red-900/20 rounded-xl">
-              <div className="flex items-center space-x-3">
-                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                <span className="font-medium text-gray-900 dark:text-white">Tax Deducted</span>
-              </div>
-              <span className="font-bold text-red-600 dark:text-red-400">
-                {formatCurrency(stats?.taxDeducted || 0)}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl">
-              <div className="flex items-center space-x-3">
-                <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                <span className="font-medium text-gray-900 dark:text-white">Pending</span>
-              </div>
-              <span className="font-bold text-yellow-600 dark:text-yellow-400">
-                {formatCurrency(stats?.pendingAmount || 0)}
-              </span>
-            </div>
-
-            <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-gray-900 dark:text-white">Total Gross</span>
-                <span className="font-bold text-gray-900 dark:text-white">
-                  {formatCurrency(stats?.totalEarnings || 0)}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Payments Table */}
-      <div className="bg-white dark:bg-gray-950 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-800">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Payment History</h3>
-
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                <input
-                  type="text"
-                  placeholder="Search payments..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                />
-              </div>
-
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-              >
-                <option value="all">All Status</option>
-                <option value="paid">Paid</option>
-                <option value="processing">Processing</option>
-                <option value="pending">Pending</option>
-                <option value="failed">Failed</option>
-                <option value="disputed">Disputed</option>
-              </select>
-            </div>
-          </div>
+          <select
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value)}
+            className="px-3 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg"
+          >
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="processing">Processing</option>
+            <option value="paid">Paid</option>
+            <option value="failed">Failed</option>
+          </select>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 dark:bg-gray-900/50">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Case Details
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Type
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Amount
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Dates
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Actions
-                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Payout</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Amount</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Method</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Created</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-              {filteredPayments.map(payment => (
-                <tr key={payment.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
-                          {payment.caseName}
-                        </h4>
-                        {payment.type === 'bonus' && (
-                          <Star size={14} className="text-yellow-500" />
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {payment.clientName} • {payment.caseId}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {payment.invoiceNumber}
-                      </p>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getTypeColor(payment.type)}`}>
-                      {payment.type.replace('-', ' ').toUpperCase()}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div>
-                      <p className="font-semibold text-gray-900 dark:text-white">
-                        {formatCurrency(payment.amount)}
-                      </p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Net: {formatCurrency(payment.netAmount)}
-                      </p>
-                      {payment.workHours && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {payment.workHours}h @ {formatCurrency(payment.hourlyRate || 0)}/h
-                        </p>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center space-x-2">
-                      {getStatusIcon(payment.status)}
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(payment.status)}`}>
-                        {payment.status.toUpperCase()}
-                      </span>
-                    </div>
-                    {payment.paidDate && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        Paid: {formatDate(payment.paidDate)}
-                      </p>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm">
-                      <p className="text-gray-900 dark:text-white">
-                        Invoice: {formatDate(payment.invoiceDate)}
-                      </p>
-                      <p className="text-gray-600 dark:text-gray-400">
-                        Due: {formatDate(payment.dueDate)}
-                      </p>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => {
-                          setSelectedPayment(payment)
-                          setShowInvoiceModal(true)
-                        }}
-                        className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/20 rounded-lg transition-all"
-                        title="View Invoice"
-                      >
-                        <Eye size={16} />
-                      </button>
-                      <button
-                        className="p-2 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/20 rounded-lg transition-all"
-                        title="Download Invoice"
-                      >
-                        <Download size={16} />
-                      </button>
-                      {payment.status === 'paid' && payment.transactionId && (
-                        <button
-                          className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/20 rounded-lg transition-all"
-                          title="View Transaction"
-                        >
-                          <ExternalLink size={16} />
-                        </button>
-                      )}
-                    </div>
+              {loading ? (
+                <tr>
+                  <td className="px-4 py-8 text-center text-gray-500 dark:text-gray-400" colSpan={5}>
+                    Loading payouts...
                   </td>
                 </tr>
-              ))}
+              ) : error ? (
+                <tr>
+                  <td className="px-4 py-8 text-center text-red-600 dark:text-red-400" colSpan={5}>
+                    {error}
+                  </td>
+                </tr>
+              ) : filteredPayouts.length === 0 ? (
+                <tr>
+                  <td className="px-4 py-8 text-center text-gray-500 dark:text-gray-400" colSpan={5}>
+                    No payouts found.
+                  </td>
+                </tr>
+              ) : (
+                filteredPayouts.map((payout) => (
+                  <tr key={payout.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/40">
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-gray-900 dark:text-white">{payout.reference || `Payout ${payout.id.slice(0, 8)}`}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{payout.notes || 'No notes'}</p>
+                    </td>
+                    <td className="px-4 py-3 font-semibold text-gray-900 dark:text-white">{currency(Number(payout.amount || 0))}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusClass(payout.status)}`}>
+                        {(payout.status || 'pending').toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{(payout.method || 'bank-transfer').toUpperCase()}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                      {payout.createdAt ? new Date(payout.createdAt).toLocaleDateString() : '-'}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
-
-        {filteredPayments.length === 0 && (
-          <div className="p-12 text-center">
-            <Receipt className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No payments found</h3>
-            <p className="text-gray-600 dark:text-gray-400">
-              No payments match your current search and filters
-            </p>
-          </div>
-        )}
       </div>
 
-      {/* Invoice Modal */}
-      {showInvoiceModal && selectedPayment && (
-        <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-950 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-800">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                  Invoice Details
-                </h2>
-                <button
-                  onClick={() => setShowInvoiceModal(false)}
-                  className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg transition-colors"
-                >
-                  <X size={24} />
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6 space-y-6">
-              {/* Invoice Header */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {selectedPayment.invoiceNumber}
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-400">
-                    Invoice Date: {formatDate(selectedPayment.invoiceDate)}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <div className="flex items-center space-x-2">
-                    {getStatusIcon(selectedPayment.status)}
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(selectedPayment.status)}`}>
-                      {selectedPayment.status.toUpperCase()}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Case Details */}
-              <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4">
-                <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Case Information</h4>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-gray-600 dark:text-gray-400">Case ID:</span>
-                    <span className="ml-2 font-medium text-gray-900 dark:text-white">{selectedPayment.caseId}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600 dark:text-gray-400">Client:</span>
-                    <span className="ml-2 font-medium text-gray-900 dark:text-white">{selectedPayment.clientName}</span>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="text-gray-600 dark:text-gray-400">Description:</span>
-                    <span className="ml-2 font-medium text-gray-900 dark:text-white">{selectedPayment.description}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Amount Breakdown */}
-              <div>
-                <h4 className="font-semibold text-gray-900 dark:text-white mb-4">Amount Breakdown</h4>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Gross Amount:</span>
-                    <span className="font-medium text-gray-900 dark:text-white">
-                      {formatCurrency(selectedPayment.amount)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Tax Deducted:</span>
-                    <span className="font-medium text-red-600 dark:text-red-400">
-                      -{formatCurrency(selectedPayment.taxAmount)}
-                    </span>
-                  </div>
-                  <div className="border-t border-gray-200 dark:border-gray-800 pt-3">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-gray-900 dark:text-white">Net Amount:</span>
-                      <span className="font-bold text-green-600 dark:text-green-400 text-lg">
-                        {formatCurrency(selectedPayment.netAmount)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Work Details */}
-              {selectedPayment.workHours && (
-                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4">
-                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Work Details</h4>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-gray-600 dark:text-gray-400">Hours Worked:</span>
-                      <span className="ml-2 font-medium text-gray-900 dark:text-white">{selectedPayment.workHours}h</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-600 dark:text-gray-400">Hourly Rate:</span>
-                      <span className="ml-2 font-medium text-gray-900 dark:text-white">
-                        {formatCurrency(selectedPayment.hourlyRate || 0)}/h
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Payment Details */}
-              {selectedPayment.paidDate && (
-                <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-white mb-4">Payment Details</h4>
-                  <div className="space-y-3 text-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Payment Date:</span>
-                      <span className="font-medium text-gray-900 dark:text-white">
-                        {formatDate(selectedPayment.paidDate)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Payment Method:</span>
-                      <span className="font-medium text-gray-900 dark:text-white">
-                        {selectedPayment.paymentMethod?.replace('-', ' ').toUpperCase()}
-                      </span>
-                    </div>
-                    {selectedPayment.transactionId && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-600 dark:text-gray-400">Transaction ID:</span>
-                        <span className="font-medium text-gray-900 dark:text-white font-mono">
-                          {selectedPayment.transactionId}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Actions */}
-              <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-200 dark:border-gray-800">
-                <button className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all">
-                  <Download size={16} />
-                  <span>Download PDF</span>
-                </button>
-                <button className="flex items-center space-x-2 px-4 py-2 bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/40 rounded-xl transition-all">
-                  <FileText size={16} />
-                  <span>Print Invoice</span>
-                </button>
-                {selectedPayment.status === 'pending' && (
-                  <button className="flex items-center space-x-2 px-4 py-2 bg-yellow-100 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-200 dark:hover:bg-yellow-900/40 rounded-xl transition-all">
-                    <Bell size={16} />
-                    <span>Send Reminder</span>
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+        <div className="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-4 flex items-start gap-2">
+          <DollarSign size={16} className="mt-0.5 text-blue-600" />
+          <p className="text-gray-600 dark:text-gray-400">Amounts are shown directly from backend payout records.</p>
         </div>
-      )}
+        <div className="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-4 flex items-start gap-2">
+          <Clock size={16} className="mt-0.5 text-amber-600" />
+          <p className="text-gray-600 dark:text-gray-400">Pending and processing payouts are included in outstanding totals.</p>
+        </div>
+        <div className="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-4 flex items-start gap-2">
+          <CheckCircle size={16} className="mt-0.5 text-green-600" />
+          <p className="text-gray-600 dark:text-gray-400">Use Admin portal to create and approve payout entries.</p>
+        </div>
+      </div>
     </div>
   )
 }
+
+

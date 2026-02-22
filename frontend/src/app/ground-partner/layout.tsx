@@ -95,8 +95,7 @@ export default function GroundPartnerLayout({ children }: { children: React.Reac
   }, [router, pathname, isPublicPage])
 
   const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
+    AuthUtils.clearCache()
     router.push('/')
   }
 

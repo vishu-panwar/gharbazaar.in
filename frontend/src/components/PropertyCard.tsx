@@ -94,19 +94,23 @@ export default function PropertyCard({
         e.preventDefault()
         if (!propertyId) return
 
-        // 🔐 Buyer plan check
-        if (!hasPaid) {
+        const role = (user?.role || '').toLowerCase()
+        const isSellerListingContext = pathname.includes('/dashboard/listings')
+        const isPrivilegedRole = role === 'admin' || role === 'employee' || role === 'seller'
+        const shouldApplyBuyerPaywall = !isSellerListingContext && !isPrivilegedRole && role === 'buyer'
+
+        if (shouldApplyBuyerPaywall && !hasPaid) {
             router.push('/dashboard/pricing')
             return
         }
 
-        // ⚠️ Feature-level soft restriction
+        // Feature-level soft restriction
         if (!hasFeature?.('contactAccess')) {
             console.warn('Limited access: contact feature not available')
             // Allow viewing but restrict actions inside detail page
         }
 
-        // 🧭 Context-aware routing
+        // Context-aware routing
         if (pathname.includes('/dashboard') || user) {
             const targetPath = pathname.includes('/dashboard/listings')
                 ? `/dashboard/listings/${propertyId}`
@@ -329,3 +333,4 @@ export default function PropertyCard({
         </div>
     )
 }
+

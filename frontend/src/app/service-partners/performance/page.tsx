@@ -1,606 +1,275 @@
-'use client'
+﻿'use client'
 
-import { useState, useEffect } from 'react'
-import { 
-  TrendingUp, 
-  Award, 
-  Target, 
-  Clock, 
-  Star, 
-  Trophy, 
-  Medal, 
-  Zap, 
-  CheckCircle, 
-  Calendar, 
-  BarChart3, 
-  PieChart, 
-  Activity, 
-  Users, 
-  FileText, 
-  Shield, 
-  Briefcase, 
-  Timer, 
-  ThumbsUp, 
-  Eye, 
-  Download, 
-  Filter, 
-  RefreshCw,
-  ArrowUp,
-  ArrowDown,
-  Minus,
-  Plus,
-  Info,
-  AlertCircle,
-  CheckCircle2,
-  XCircle,
-  Crown,
-  Flame,
-  Sparkles,
-  Rocket,
-  Heart,
-  Brain
-} from 'lucide-react'
-import toast from 'react-hot-toast'
-
-interface PerformanceMetric {
-  id: string
-  name: string
-  value: number
-  target: number
-  unit: string
-  trend: 'up' | 'down' | 'stable'
-  trendValue: number
-  category: 'quality' | 'efficiency' | 'client-satisfaction' | 'compliance'
-  description: string
-  lastUpdated: string
-}
-
-interface Achievement {
-  id: string
-  title: string
-  description: string
-  icon: any
-  category: 'milestone' | 'quality' | 'speed' | 'client' | 'compliance'
-  earnedDate: string
-  points: number
-  rarity: 'common' | 'rare' | 'epic' | 'legendary'
-  progress?: number
-  maxProgress?: number
-}
-
-interface Ranking {
-  rank: number
-  totalPartners: number
-  category: string
-  percentile: number
-  improvement: number
-}
-
-interface CasePerformance {
-  caseId: string
-  caseName: string
-  clientName: string
-  completionTime: number
-  targetTime: number
-  qualityScore: number
-  clientRating: number
-  complexity: 'low' | 'medium' | 'high'
-  completedDate: string
-  earnings: number
-}
-
+import { useEffect, useMemo, useState } from 'react'
+import { BarChart3, CheckCircle, Clock, DollarSign, TrendingUp } from 'lucide-react'
 import { backendApi } from '@/lib/backendApi'
 
-export default function PerformancePage() {
-  const [metrics, setMetrics] = useState<PerformanceMetric[]>([])
-  const [achievements, setAchievements] = useState<Achievement[]>([])
-  const [ranking, setRanking] = useState<Ranking | null>(null)
-  const [casePerformance, setCasePerformance] = useState<CasePerformance[]>([])
-  const [selectedPeriod, setSelectedPeriod] = useState('current-month')
-  const [selectedCategory, setSelectedCategory] = useState('all')
-  const [isLoading, setIsLoading] = useState(true)
+type PartnerCase = {
+  id: string
+  title?: string
+  description?: string
+  status?: string
+  amount?: number
+  createdAt?: string
+  updatedAt?: string
+  type?: string
+}
+
+type Payout = {
+  id: string
+  amount: number
+  status?: string
+  createdAt?: string
+}
+
+const currency = (value: number) =>
+  new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 0,
+  }).format(value)
+
+export default function ServicePartnerPerformancePage() {
+  const [cases, setCases] = useState<PartnerCase[]>([])
+  const [payouts, setPayouts] = useState<Payout[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const [caseResponse, payoutResponse] = await Promise.all([
+        backendApi.partners.getCases(),
+        backendApi.partners.getPayouts(),
+      ])
+
+      if (!caseResponse?.success) {
+        throw new Error(caseResponse?.error || 'Failed to fetch cases')
+      }
+      if (!payoutResponse?.success) {
+        throw new Error(payoutResponse?.error || 'Failed to fetch payouts')
+      }
+
+      setCases(Array.isArray(caseResponse.data) ? caseResponse.data : [])
+      setPayouts(Array.isArray(payoutResponse.data) ? payoutResponse.data : [])
+    } catch (err: any) {
+      setError(err?.message || 'Failed to load performance data')
+      setCases([])
+      setPayouts([])
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    async function fetchData() {
-      try {
-        setIsLoading(true)
-        const [casesRes, profileRes] = await Promise.all([
-          backendApi.partners.getCases(),
-          backendApi.serviceProvider.getMyProfile()
-        ])
-
-        if (casesRes?.success) {
-          const cases = casesRes.data || []
-          const mappedCases: CasePerformance[] = cases.map((c: any) => ({
-            caseId: c.id,
-            caseName: c.propertyName || 'Property Service',
-            clientName: c.clientName || 'N/A',
-            completionTime: 0,
-            targetTime: 48,
-            qualityScore: 0,
-            clientRating: 0,
-            complexity: 'medium',
-            completedDate: c.updatedAt,
-            earnings: c.amount || 0
-          }))
-          setCasePerformance(mappedCases)
-
-          // Derive basic metrics
-          const completedCount = cases.filter((c: any) => c.status === 'completed').length
-          const totalCount = cases.length
-          const completionRate = totalCount > 0 ? (completedCount / totalCount) * 100 : 0
-
-          setMetrics([
-            {
-              id: 'M001',
-              name: 'Case Completion Rate',
-              value: Math.round(completionRate),
-              target: 90,
-              unit: '%',
-              trend: 'stable',
-              trendValue: 0,
-              category: 'efficiency',
-              description: 'Percentage of cases completed',
-              lastUpdated: new Date().toISOString()
-            },
-            {
-              id: 'M002',
-              name: 'Average Rating',
-              value: profileRes.data?.rating || 0,
-              target: 4.5,
-              unit: '/5',
-              trend: 'stable',
-              trendValue: 0,
-              category: 'quality',
-              description: 'Your current platform rating',
-              lastUpdated: new Date().toISOString()
-            }
-          ])
-        }
-
-        // Achievements and Ranking are currently demo/static placeholders in UI
-        // until backend support is added. We'll set them to empty or minimal for now.
-        setAchievements([])
-        setRanking(null)
-      } catch (error) {
-        console.error('Error fetching performance data:', error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    fetchData()
+    loadData()
   }, [])
 
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case 'quality': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
-      case 'efficiency': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-      case 'client-satisfaction': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400'
-      case 'compliance': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400'
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
+  const metrics = useMemo(() => {
+    const totalCases = cases.length
+    const completedCases = cases.filter((item) => (item.status || '').toLowerCase() === 'completed').length
+    const inProgressCases = cases.filter((item) => ['open', 'new', 'in_progress'].includes((item.status || '').toLowerCase())).length
+    const cancelledCases = cases.filter((item) => (item.status || '').toLowerCase() === 'cancelled').length
+    const completionRate = totalCases > 0 ? (completedCases / totalCases) * 100 : 0
+
+    const totalCaseValue = cases.reduce((sum, item) => sum + Number(item.amount || 0), 0)
+    const avgCaseValue = totalCases > 0 ? totalCaseValue / totalCases : 0
+
+    const totalPayout = payouts.reduce((sum, payout) => sum + Number(payout.amount || 0), 0)
+    const paidPayout = payouts
+      .filter((payout) => (payout.status || '').toLowerCase() === 'paid')
+      .reduce((sum, payout) => sum + Number(payout.amount || 0), 0)
+
+    return {
+      totalCases,
+      completedCases,
+      inProgressCases,
+      cancelledCases,
+      completionRate,
+      totalCaseValue,
+      avgCaseValue,
+      totalPayout,
+      paidPayout,
     }
-  }
+  }, [cases, payouts])
 
-  const getRarityColor = (rarity: string) => {
-    switch (rarity) {
-      case 'common': return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
-      case 'rare': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
-      case 'epic': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400'
-      case 'legendary': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
+  const monthlyPayouts = useMemo(() => {
+    const map = new Map<string, number>()
+    const now = new Date()
+
+    for (let i = 5; i >= 0; i -= 1) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const key = `${date.getFullYear()}-${date.getMonth()}`
+      map.set(key, 0)
     }
-  }
 
-  const getComplexityColor = (complexity: string) => {
-    switch (complexity) {
-      case 'low': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-      case 'medium': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
-      case 'high': return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
-    }
-  }
+    payouts.forEach((payout) => {
+      if (!payout.createdAt) return
+      const date = new Date(payout.createdAt)
+      const key = `${date.getFullYear()}-${date.getMonth()}`
+      if (!map.has(key)) return
+      map.set(key, (map.get(key) || 0) + Number(payout.amount || 0))
+    })
 
-  const getTrendIcon = (trend: string, value: number) => {
-    if (trend === 'up') return <ArrowUp size={16} className="text-green-500" />
-    if (trend === 'down') return <ArrowDown size={16} className="text-red-500" />
-    return <Minus size={16} className="text-gray-500" />
-  }
+    return Array.from(map.entries()).map(([key, amount]) => {
+      const [year, month] = key.split('-').map(Number)
+      return {
+        label: new Date(year, month, 1).toLocaleString('default', { month: 'short' }),
+        amount,
+      }
+    })
+  }, [payouts])
 
-  const formatDuration = (hours: number) => {
-    if (hours < 24) return `${hours}h`
-    const days = Math.floor(hours / 24)
-    const remainingHours = hours % 24
-    return `${days}d ${remainingHours}h`
-  }
+  const maxMonthlyPayout = Math.max(1, ...monthlyPayouts.map((item) => item.amount))
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading performance data...</p>
-        </div>
-      </div>
-    )
-  }
+  const recentCases = useMemo(
+    () => [...cases].sort((a, b) => new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime()).slice(0, 8),
+    [cases]
+  )
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Performance Dashboard</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Track your achievements, rankings, and performance metrics
-          </p>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Metrics are computed from real partner cases and payout records.</p>
         </div>
-        <div className="flex items-center space-x-3 mt-4 sm:mt-0">
-          <select
-            value={selectedPeriod}
-            onChange={(e) => setSelectedPeriod(e.target.value)}
-            className="px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-          >
-            <option value="current-month">This Month</option>
-            <option value="last-month">Last Month</option>
-            <option value="quarter">This Quarter</option>
-            <option value="year">This Year</option>
-          </select>
-          <button className="flex items-center space-x-2 px-4 py-2 bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/40 rounded-xl transition-all">
-            <Download size={20} />
-            <span>Export Report</span>
-          </button>
-        </div>
+
+        <button
+          onClick={loadData}
+          className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
+        >
+          Refresh
+        </button>
       </div>
 
-      {/* Ranking Card */}
-      {ranking && (
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="p-3 bg-white/20 rounded-2xl">
-                <Trophy className="w-8 h-8" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold">Rank #{ranking.rank}</h2>
-                <p className="text-blue-100">out of {ranking.totalPartners} legal partners</p>
-                <p className="text-sm text-blue-200 mt-1">
-                  Top {100 - ranking.percentile}% • {ranking.category}
-                </p>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="flex items-center space-x-2 mb-2">
-                <ArrowUp size={20} className="text-green-300" />
-                <span className="text-xl font-bold">+{ranking.improvement}</span>
-              </div>
-              <p className="text-blue-200 text-sm">positions this month</p>
-            </div>
-          </div>
+      {loading ? (
+        <div className="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-12 text-center">
+          <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
         </div>
-      )}
-
-      {/* Performance Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {metrics.map(metric => (
-          <div key={metric.id} className="bg-white dark:bg-gray-950 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white">{metric.name}</h3>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(metric.category)}`}>
-                  {metric.category.replace('-', ' ').toUpperCase()}
-                </span>
-              </div>
-              {getTrendIcon(metric.trend, metric.trendValue)}
+      ) : error ? (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6 text-red-700 dark:text-red-300">{error}</div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
+            <div className="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
+              <p className="text-sm text-gray-500 dark:text-gray-400">Total Cases</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{metrics.totalCases}</p>
             </div>
-
-            <div className="space-y-3">
-              <div className="flex items-end space-x-2">
-                <span className="text-3xl font-bold text-gray-900 dark:text-white">
-                  {metric.value}
-                </span>
-                <span className="text-gray-600 dark:text-gray-400 mb-1">
-                  {metric.unit}
-                </span>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Target: {metric.target}{metric.unit}</span>
-                  <span className={`font-medium ${
-                    metric.value >= metric.target ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-                  }`}>
-                    {metric.value >= metric.target ? 'Achieved' : 'Below Target'}
-                  </span>
-                </div>
-                
-                <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2">
-                  <div 
-                    className={`h-2 rounded-full transition-all duration-500 ${
-                      metric.value >= metric.target ? 'bg-green-500' : 'bg-blue-500'
-                    }`}
-                    style={{ width: `${Math.min((metric.value / metric.target) * 100, 100)}%` }}
-                  ></div>
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2 text-sm">
-                {getTrendIcon(metric.trend, metric.trendValue)}
-                <span className={`font-medium ${
-                  metric.trend === 'up' ? 'text-green-600 dark:text-green-400' : 
-                  metric.trend === 'down' ? 'text-red-600 dark:text-red-400' : 
-                  'text-gray-600 dark:text-gray-400'
-                }`}>
-                  {Math.abs(metric.trendValue)}{metric.unit} from last period
-                </span>
-              </div>
+            <div className="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
+              <p className="text-sm text-gray-500 dark:text-gray-400">Completion Rate</p>
+              <p className="text-2xl font-bold text-blue-600">{metrics.completionRate.toFixed(1)}%</p>
+            </div>
+            <div className="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
+              <p className="text-sm text-gray-500 dark:text-gray-400">In Progress</p>
+              <p className="text-2xl font-bold text-amber-600">{metrics.inProgressCases}</p>
+            </div>
+            <div className="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
+              <p className="text-sm text-gray-500 dark:text-gray-400">Total Payout</p>
+              <p className="text-2xl font-bold text-green-600">{currency(metrics.totalPayout)}</p>
+            </div>
+            <div className="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
+              <p className="text-sm text-gray-500 dark:text-gray-400">Avg Case Value</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{currency(metrics.avgCaseValue)}</p>
             </div>
           </div>
-        ))}
-      </div>
 
-      {/* Achievements Section */}
-      <div className="bg-white dark:bg-gray-950 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-800">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Achievements</h3>
-            <div className="flex items-center space-x-2">
-              <Award className="w-5 h-5 text-yellow-500" />
-              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                {achievements.reduce((sum, a) => sum + a.points, 0)} Total Points
-              </span>
-            </div>
-          </div>
-        </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <BarChart3 size={18} className="text-blue-600" />
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Last 6 Months Payout Trend</h2>
+              </div>
 
-        <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {achievements.map(achievement => {
-              const Icon = achievement.icon
-              return (
-                <div key={achievement.id} className="relative p-4 border border-gray-200 dark:border-gray-800 rounded-xl hover:shadow-md transition-all">
-                  <div className="flex items-start space-x-3">
-                    <div className={`p-2 rounded-lg ${
-                      achievement.rarity === 'legendary' ? 'bg-yellow-100 dark:bg-yellow-900/20' :
-                      achievement.rarity === 'epic' ? 'bg-purple-100 dark:bg-purple-900/20' :
-                      achievement.rarity === 'rare' ? 'bg-blue-100 dark:bg-blue-900/20' :
-                      'bg-gray-100 dark:bg-gray-800'
-                    }`}>
-                      <Icon size={24} className={
-                        achievement.rarity === 'legendary' ? 'text-yellow-600 dark:text-yellow-400' :
-                        achievement.rarity === 'epic' ? 'text-purple-600 dark:text-purple-400' :
-                        achievement.rarity === 'rare' ? 'text-blue-600 dark:text-blue-400' :
-                        'text-gray-600 dark:text-gray-400'
-                      } />
+              <div className="space-y-3">
+                {monthlyPayouts.map((entry) => (
+                  <div key={entry.label} className="flex items-center gap-3">
+                    <div className="w-10 text-sm text-gray-500 dark:text-gray-400">{entry.label}</div>
+                    <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-blue-600"
+                        style={{ width: `${(entry.amount / maxMonthlyPayout) * 100}%` }}
+                      />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
-                          {achievement.title}
-                        </h4>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRarityColor(achievement.rarity)}`}>
-                          {achievement.rarity.toUpperCase()}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                        {achievement.description}
-                      </p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          {new Date(achievement.earnedDate).toLocaleDateString()}
-                        </span>
-                        <span className="text-sm font-bold text-yellow-600 dark:text-yellow-400">
-                          +{achievement.points} pts
-                        </span>
-                      </div>
-                    </div>
+                    <div className="w-28 text-right text-sm font-medium text-gray-900 dark:text-white">{currency(entry.amount)}</div>
                   </div>
-                  
-                  {achievement.rarity === 'legendary' && (
-                    <div className="absolute -top-1 -right-1">
-                      <Sparkles size={16} className="text-yellow-500" />
-                    </div>
-                  )}
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl p-5">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Case Outcome Split</h2>
+
+              <div className="space-y-3 text-sm">
+                <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                  <span className="inline-flex items-center gap-2 text-green-700 dark:text-green-300"><CheckCircle size={15} /> Completed</span>
+                  <strong className="text-green-700 dark:text-green-300">{metrics.completedCases}</strong>
                 </div>
-              )
-            })}
-          </div>
-        </div>
-      </div>
 
-      {/* Case Performance */}
-      <div className="bg-white dark:bg-gray-950 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-800">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Case Performance</h3>
-        </div>
+                <div className="flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                  <span className="inline-flex items-center gap-2 text-amber-700 dark:text-amber-300"><Clock size={15} /> Active</span>
+                  <strong className="text-amber-700 dark:text-amber-300">{metrics.inProgressCases}</strong>
+                </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-900/50">
-              <tr>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Case Details
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Completion Time
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Quality Score
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Client Rating
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Earnings
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-              {casePerformance.map(case_ => (
-                <tr key={case_.caseId} className="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div>
-                      <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
-                        {case_.caseName}
-                      </h4>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {case_.clientName} • {case_.caseId}
-                      </p>
-                      <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium mt-1 ${getComplexityColor(case_.complexity)}`}>
-                        {case_.complexity.toUpperCase()} COMPLEXITY
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <span className="font-semibold text-gray-900 dark:text-white">
-                          {formatDuration(case_.completionTime)}
-                        </span>
-                        {case_.completionTime <= case_.targetTime ? (
-                          <CheckCircle2 size={16} className="text-green-500" />
-                        ) : (
-                          <XCircle size={16} className="text-red-500" />
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Target: {formatDuration(case_.targetTime)}
-                      </p>
-                      <div className="w-20 bg-gray-200 dark:bg-gray-800 rounded-full h-1 mt-1">
-                        <div 
-                          className={`h-1 rounded-full ${
-                            case_.completionTime <= case_.targetTime ? 'bg-green-500' : 'bg-red-500'
-                          }`}
-                          style={{ width: `${Math.min((case_.targetTime / case_.completionTime) * 100, 100)}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center space-x-2">
-                      <span className="font-semibold text-gray-900 dark:text-white">
-                        {case_.qualityScore}/5
-                      </span>
-                      <div className="flex space-x-1">
-                        {[1, 2, 3, 4, 5].map(star => (
-                          <Star 
-                            key={star} 
-                            size={14} 
-                            className={star <= case_.qualityScore ? 'text-yellow-400 fill-current' : 'text-gray-300 dark:text-gray-600'} 
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center space-x-2">
-                      <span className="font-semibold text-gray-900 dark:text-white">
-                        {case_.clientRating}/5
-                      </span>
-                      <div className="flex space-x-1">
-                        {[1, 2, 3, 4, 5].map(star => (
-                          <Heart 
-                            key={star} 
-                            size={14} 
-                            className={star <= case_.clientRating ? 'text-red-400 fill-current' : 'text-gray-300 dark:text-gray-600'} 
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="font-semibold text-green-600 dark:text-green-400">
-                      ₹{case_.earnings.toLocaleString()}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Performance Insights */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-gray-950 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Performance Insights</h3>
-          <div className="space-y-4">
-            <div className="flex items-start space-x-3 p-4 bg-green-50 dark:bg-green-900/20 rounded-xl">
-              <CheckCircle className="w-5 h-5 text-green-500 mt-0.5" />
-              <div>
-                <h4 className="font-medium text-green-900 dark:text-green-100">Excellent Quality</h4>
-                <p className="text-sm text-green-700 dark:text-green-300">
-                  Your quality score is 6.7% above the platform average. Keep up the great work!
-                </p>
+                <div className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                  <span className="inline-flex items-center gap-2 text-red-700 dark:text-red-300">Cancelled</span>
+                  <strong className="text-red-700 dark:text-red-300">{metrics.cancelledCases}</strong>
+                </div>
               </div>
-            </div>
 
-            <div className="flex items-start space-x-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
-              <Zap className="w-5 h-5 text-blue-500 mt-0.5" />
-              <div>
-                <h4 className="font-medium text-blue-900 dark:text-blue-100">Speed Improvement</h4>
-                <p className="text-sm text-blue-700 dark:text-blue-300">
-                  You're completing cases 25% faster than your target time on average.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start space-x-3 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl">
-              <Brain className="w-5 h-5 text-purple-500 mt-0.5" />
-              <div>
-                <h4 className="font-medium text-purple-900 dark:text-purple-100">Skill Development</h4>
-                <p className="text-sm text-purple-700 dark:text-purple-300">
-                  Consider taking advanced RERA compliance courses to boost your expertise.
-                </p>
+              <div className="mt-5 pt-4 border-t border-gray-200 dark:border-gray-800 text-sm text-gray-600 dark:text-gray-400">
+                Paid payout total: <span className="font-semibold text-gray-900 dark:text-white">{currency(metrics.paidPayout)}</span>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="bg-white dark:bg-gray-950 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Goals & Targets</h3>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Monthly Case Target</span>
-                <span className="text-sm text-gray-600 dark:text-gray-400">8/10</span>
-              </div>
-              <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2">
-                <div className="bg-blue-500 h-2 rounded-full" style={{ width: '80%' }}></div>
-              </div>
+          <div className="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-xl">
+            <div className="p-4 border-b border-gray-200 dark:border-gray-800">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Cases</h2>
             </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Quality Score Goal</span>
-                <span className="text-sm text-gray-600 dark:text-gray-400">4.8/4.5</span>
-              </div>
-              <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2">
-                <div className="bg-green-500 h-2 rounded-full" style={{ width: '100%' }}></div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Client Satisfaction</span>
-                <span className="text-sm text-gray-600 dark:text-gray-400">4.9/4.0</span>
-              </div>
-              <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2">
-                <div className="bg-green-500 h-2 rounded-full" style={{ width: '100%' }}></div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Earnings Target</span>
-                <span className="text-sm text-gray-600 dark:text-gray-400">₹85k/₹100k</span>
-              </div>
-              <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2">
-                <div className="bg-yellow-500 h-2 rounded-full" style={{ width: '85%' }}></div>
-              </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 dark:bg-gray-900/50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Case</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Type</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Amount</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Updated</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+                  {recentCases.length === 0 ? (
+                    <tr>
+                      <td className="px-4 py-8 text-center text-gray-500 dark:text-gray-400" colSpan={5}>
+                        No case records available.
+                      </td>
+                    </tr>
+                  ) : (
+                    recentCases.map((caseItem) => (
+                      <tr key={caseItem.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/40">
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-gray-900 dark:text-white">{caseItem.title || 'Service Case'}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{caseItem.id}</p>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{caseItem.type || 'General'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{(caseItem.status || 'open').replace('_', ' ')}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{currency(Number(caseItem.amount || 0))}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{new Date(caseItem.updatedAt || caseItem.createdAt || Date.now()).toLocaleDateString()}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   )
 }
+
+
