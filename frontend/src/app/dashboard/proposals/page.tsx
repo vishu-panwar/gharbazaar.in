@@ -38,7 +38,10 @@ export default function OffersPage() {
 
   const handleAcceptBid = async (bidId: string) => {
     try {
-      await updateBidStatus.mutateAsync({ bidId, status: 'ACCEPTED' });
+      await updateBidStatus.mutateAsync({ 
+        bidId, 
+        data: { status: 'accepted' } 
+      });
       toast.success('Bid accepted successfully!');
     } catch (error) {
       toast.error('Failed to accept bid');
@@ -47,7 +50,10 @@ export default function OffersPage() {
 
   const handleRejectBid = async (bidId: string) => {
     try {
-      await updateBidStatus.mutateAsync({ bidId, status: 'REJECTED' });
+      await updateBidStatus.mutateAsync({ 
+        bidId, 
+        data: { status: 'rejected' } 
+      });
       toast.success('Bid rejected');
     } catch (error) {
       toast.error('Failed to reject bid');
@@ -61,7 +67,10 @@ export default function OffersPage() {
     }
 
     try {
-      await counterBid.mutateAsync({ bidId, amount: parseFloat(counterAmount) });
+      await counterBid.mutateAsync({ 
+        bidId, 
+        counterAmount: parseFloat(counterAmount) 
+      });
       toast.success('Counter offer sent!');
       setCounteringBidId(null);
       setCounterAmount('');

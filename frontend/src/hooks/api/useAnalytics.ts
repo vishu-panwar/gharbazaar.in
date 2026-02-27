@@ -38,7 +38,7 @@ export function usePropertyStats(filters?: AnalyticsFilters) {
   return useQuery({
     queryKey: analyticsKeys.propertyStats(filters),
     queryFn: async () => {
-      return await backendApi.analytics.getPropertyStats(filters);
+      return await backendApi.analytics.getUserStats(filters);
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
   });

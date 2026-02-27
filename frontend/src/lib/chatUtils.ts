@@ -12,7 +12,13 @@ interface StartChatOptions {
  */
 export async function startChat(options: StartChatOptions) {
     try {
-        const response = await backendApi.chat.createConversation(options);
+        // Convert type to conversation type
+        const conversationType = options.type === 'buyer-seller' ? 'property' : 'direct';
+        const response = await backendApi.chat.createConversation(
+            [options.otherUserId],
+            options.propertyId,
+            conversationType
+        );
 
         if (response.success) {
             return {

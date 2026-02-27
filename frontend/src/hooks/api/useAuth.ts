@@ -15,12 +15,11 @@ interface SignupData {
 }
 
 interface UpdateProfileData {
-  name?: string;
-  phone?: string;
-  address?: string;
-  dateOfBirth?: string;
-  gender?: string;
-  profilePhoto?: string;
+  displayName?: string;
+  photoURL?: string;
+  phoneNumber?: string;
+  bio?: string;
+  location?: string;
 }
 
 interface ChangePasswordData {
@@ -44,7 +43,7 @@ export function useProfile() {
       const token = localStorage.getItem('auth_token');
       if (!token) throw new Error('No auth token');
       const response = await backendApi.auth.verifyToken(token);
-      return response.data?.user || response.user;
+      return response.data?.user;
     },
     enabled: typeof window !== 'undefined' && !!localStorage.getItem('auth_token'),
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -185,7 +184,7 @@ export function useUpdateProfile() {
 
   return useMutation({
     mutationFn: async (data: UpdateProfileData) => {
-      return await backendApi.users.updateProfile(data);
+      return await backendApi.user.updateProfile(data);
     },
     onSuccess: (data) => {
       // Optimistically update the cache
@@ -201,7 +200,7 @@ export function useUpdateProfile() {
 export function useChangePassword() {
   return useMutation({
     mutationFn: async (data: ChangePasswordData) => {
-      return await backendApi.users.changePassword(data.currentPassword, data.newPassword);
+      return await backendApi.user.changePassword(data.currentPassword, data.newPassword);
     },
   });
 }

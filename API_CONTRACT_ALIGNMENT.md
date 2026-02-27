@@ -1,5 +1,7 @@
 # API Contract - Frontend Hooks vs Backend Endpoints
 
+[← Back to README](README.md) | [🚀 Quick Start](DEV_QUICKSTART.md) | [📋 Dev Report](DEVELOPMENT_STABILITY_REPORT.md)
+
 **Status**: ⚠️ Requires Backend API Updates  
 **Date**: February 14, 2026  
 **Priority**: **HIGH** - Must be aligned before production deployment

@@ -58,7 +58,7 @@ export function useMarkAttendance() {
 
   return useMutation({
     mutationFn: async (type: 'check-in' | 'check-out') => {
-      return await backendApi.employee.markAttendance(type);
+      return await backendApi.employee.markAttendance({ type });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: employeeKeys.attendance() });

@@ -1,5 +1,7 @@
 # 🔒 URGENT: Secret Rotation Guide
 
+[← Back to README](README.md) | [🚀 Quick Start](DEV_QUICKSTART.md) | [📊 All Docs](README.md#-quick-navigation)
+
 ## ⚠️ Security Alert
 Multiple secrets were exposed in the website summary documentation. Immediate rotation required before production deployment.
 

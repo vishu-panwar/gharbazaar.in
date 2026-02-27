@@ -32,7 +32,7 @@ export function useUpcomingVisits() {
   return useQuery({
     queryKey: visitKeys.upcoming(),
     queryFn: async () => {
-      return await backendApi.visits.getUpcoming();
+      return await backendApi.visits.getBuyer('scheduled');
     },
     staleTime: 1 * 60 * 1000, // 1 minute
   });
@@ -56,7 +56,7 @@ export function useVisitHistory() {
   return useQuery({
     queryKey: visitKeys.history(),
     queryFn: async () => {
-      return await backendApi.visits.getHistory();
+      return await backendApi.visits.getBuyer('completed');
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
@@ -69,7 +69,7 @@ export function useMyVisits(filters?: { status?: string }) {
   return useQuery({
     queryKey: visitKeys.list(filters),
     queryFn: async () => {
-      return await backendApi.visits.getMyVisits(filters);
+      return await backendApi.visits.getPartner(filters?.status);
     },
     staleTime: 1 * 60 * 1000,
   });
@@ -82,7 +82,9 @@ export function useVisit(visitId: string) {
   return useQuery({
     queryKey: visitKeys.detail(visitId),
     queryFn: async () => {
-      return await backendApi.visits.getById(visitId);
+      const response = await backendApi.visits.getBuyer();
+      const visits = response?.data ?? response?.visits ?? [];
+      return visits.find((visit: any) => visit.id === visitId);
     },
     enabled: !!visitId,
     staleTime: 1 * 60 * 1000,
@@ -97,7 +99,11 @@ export function useScheduleVisit() {
 
   return useMutation({
     mutationFn: async (data: ScheduleVisitData) => {
-      return await backendApi.visits.schedule(data);
+      return await backendApi.visits.create({
+        propertyId: data.propertyId,
+        scheduledAt: data.scheduledDate,
+        notes: data.notes,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: visitKeys.all });
@@ -113,7 +119,11 @@ export function useUpdateVisitStatus() {
 
   return useMutation({
     mutationFn: async ({ visitId, data }: { visitId: string; data: UpdateVisitData }) => {
-      return await backendApi.visits.updateStatus(visitId, data);
+      return await backendApi.visits.update(visitId, {
+        status: data.status,
+        notes: data.notes,
+        feedback: data.feedback,
+      });
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: visitKeys.detail(variables.visitId) });
@@ -130,7 +140,10 @@ export function useCancelVisit() {
 
   return useMutation({
     mutationFn: async ({ visitId, reason }: { visitId: string; reason?: string }) => {
-      return await backendApi.visits.cancel(visitId, reason);
+      return await backendApi.visits.update(visitId, {
+        status: 'cancelled',
+        notes: reason,
+      });
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: visitKeys.detail(variables.visitId) });
@@ -155,7 +168,11 @@ export function useCompleteVisit() {
       report: string; 
       photos?: File[] 
     }) => {
-      return await backendApi.visits.complete(visitId, report, photos);
+      void photos;
+      return await backendApi.visits.update(visitId, {
+        status: 'completed',
+        feedback: report,
+      });
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: visitKeys.detail(variables.visitId) });
@@ -172,7 +189,10 @@ export function useCheckInVisit() {
 
   return useMutation({
     mutationFn: async ({ visitId, location }: { visitId: string; location?: { lat: number; lng: number } }) => {
-      return await backendApi.visits.checkIn(visitId, location);
+      return await backendApi.visits.update(visitId, {
+        status: 'confirmed',
+        notes: location ? `Checked in at ${location.lat}, ${location.lng}` : 'Checked in',
+      });
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: visitKeys.detail(variables.visitId) });

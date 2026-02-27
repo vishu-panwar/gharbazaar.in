@@ -9,7 +9,7 @@ interface UserSettings {
   timezone?: string;
   emailMarketing?: boolean;
   emailTransactional?: boolean;
-  emailFrequency?: 'instant' | 'daily' | 'weekly';
+  emailFrequency?: 'realtime' | 'daily' | 'weekly' | 'never';
   notifications?: {
     push?: boolean;
     email?: boolean;
@@ -175,12 +175,12 @@ export function useUpdateEmailPreferences() {
     mutate: (prefs: { 
       emailMarketing?: boolean; 
       emailTransactional?: boolean; 
-      emailFrequency?: 'instant' | 'daily' | 'weekly' 
+      emailFrequency?: 'realtime' | 'daily' | 'weekly' | 'never' 
     }) => updateSettings.mutate(prefs),
     mutateAsync: (prefs: { 
       emailMarketing?: boolean; 
       emailTransactional?: boolean; 
-      emailFrequency?: 'instant' | 'daily' | 'weekly' 
+      emailFrequency?: 'realtime' | 'daily' | 'weekly' | 'never' 
     }) => updateSettings.mutateAsync(prefs),
   };
 }

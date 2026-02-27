@@ -190,10 +190,11 @@ export default function ServicesPage() {
         return
       }
 
-      const response = await backendApi.chat.createConversation({
-        otherUserId: provider.userId,
-        type: 'direct'
-      })
+      const response = await backendApi.chat.createConversation(
+        [provider.userId],
+        undefined,
+        'direct'
+      )
 
       if (response?.success) {
         router.push(`/dashboard/messages?id=${response.data.id}`)

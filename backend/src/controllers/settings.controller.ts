@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../utils/prisma';
 import { sendEmail } from '../utils/email.service';
+import config from '../config';
 
 /**
  * Get user settings
@@ -148,7 +149,7 @@ export const updateSettings = async (req: Request, res: Response) => {
                         </div>
                         <p>If you didn't make these changes, please contact support immediately.</p>
                         <p style="margin-top: 30px;">
-                            <a href="http://localhost:3000/dashboard/settings" 
+                            <a href="${config.frontendUrl}/dashboard/settings" 
                                style="background: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
                                 Review Settings
                             </a>

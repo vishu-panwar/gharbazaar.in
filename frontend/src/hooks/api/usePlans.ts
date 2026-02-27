@@ -55,8 +55,8 @@ export function usePurchasePlan() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ planId, paymentMethod }: { planId: string; paymentMethod?: string }) => {
-      return await backendApi.plans.purchase(planId, paymentMethod);
+    mutationFn: async ({ planId, paymentId }: { planId: string; paymentId: string }) => {
+      return await backendApi.plans.purchase(planId, paymentId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: planKeys.current() });
@@ -80,8 +80,8 @@ export function useCancelPlan() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (reason?: string) => {
-      return await backendApi.plans.cancel(reason);
+    mutationFn: async (subscriptionId: string) => {
+      return await backendApi.subscriptions.cancel(subscriptionId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: planKeys.current() });

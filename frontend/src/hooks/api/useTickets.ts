@@ -3,11 +3,12 @@ import { backendApi } from '@/lib/backendApi';
 
 // Types
 interface CreateTicketData {
-  subject: string;
-  message: string;
-  category?: string;
-  priority?: 'low' | 'medium' | 'high';
-  attachments?: File[];
+  categoryId: string;
+  subCategoryId: string;
+  categoryTitle: string;
+  subCategoryTitle: string;
+  problem: string;
+  userRole: string;
 }
 
 interface UpdateTicketData {
@@ -36,7 +37,22 @@ export function useTickets(filters?: TicketFilters) {
   return useQuery({
     queryKey: ticketKeys.list(filters),
     queryFn: async () => {
-      return await backendApi.tickets.getAll(filters);
+      const response = await backendApi.tickets.getUserTickets();
+      if (!filters) return response;
+
+      const tickets = response?.data?.tickets ?? response?.tickets ?? [];
+      const filteredTickets = tickets.filter((ticket: any) => {
+        if (filters.status && ticket.status !== filters.status) return false;
+        if (filters.category && ticket.category !== filters.category) return false;
+        if (filters.priority && ticket.priority !== filters.priority) return false;
+        return true;
+      });
+
+      if (response?.data?.tickets) {
+        return { ...response, data: { ...response.data, tickets: filteredTickets } };
+      }
+
+      return { ...response, tickets: filteredTickets };
     },
     staleTime: 1 * 60 * 1000, // 1 minute
   });
@@ -63,7 +79,8 @@ export function useTicketMessages(ticketId: string) {
   return useQuery({
     queryKey: ticketKeys.messages(ticketId),
     queryFn: async () => {
-      return await backendApi.tickets.getMessages(ticketId);
+      const response = await backendApi.tickets.getById(ticketId);
+      return response?.data?.messages ?? response?.messages ?? [];
     },
     enabled: !!ticketId,
     staleTime: 30 * 1000,
@@ -95,7 +112,13 @@ export function useUpdateTicket() {
 
   return useMutation({
     mutationFn: async ({ ticketId, data }: { ticketId: string; data: UpdateTicketData }) => {
-      return await backendApi.tickets.update(ticketId, data);
+      if (data.status === 'closed') {
+        return await backendApi.tickets.close(ticketId);
+      }
+      if (data.status === 'in-progress') {
+        return await backendApi.tickets.assign(ticketId);
+      }
+      throw new Error('Ticket updates are not supported by the API.');
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ticketKeys.detail(variables.ticketId) });
@@ -120,7 +143,30 @@ export function useAddTicketMessage() {
       message: string; 
       attachments?: File[] 
     }) => {
-      return await backendApi.tickets.addMessage(ticketId, message, attachments);
+      let finalMessage = message;
+
+      if (attachments?.length) {
+        const uploads = await Promise.all(
+          attachments.map(async (file) => {
+            try {
+              return await backendApi.tickets.uploadFile(ticketId, file);
+            } catch (error) {
+              console.error('Failed to upload ticket attachment:', error);
+              return null;
+            }
+          })
+        );
+
+        const attachmentUrls = uploads
+          .map((upload: any) => upload?.data?.url || upload?.url)
+          .filter(Boolean);
+
+        if (attachmentUrls.length) {
+          finalMessage = `${message}\n\nAttachments:\n${attachmentUrls.join('\n')}`;
+        }
+      }
+
+      return await backendApi.tickets.sendMessage(ticketId, finalMessage);
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ticketKeys.messages(variables.ticketId) });

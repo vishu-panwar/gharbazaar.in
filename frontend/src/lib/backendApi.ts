@@ -424,6 +424,13 @@ export const backendApi = {
             });
         },
 
+        changePassword: async (currentPassword: string, newPassword: string) => {
+            return backendApiCall('/users/change-password', {
+                method: 'POST',
+                body: JSON.stringify({ currentPassword, newPassword }),
+            });
+        },
+
         uploadAvatar: async (file: File) => {
             const formData = new FormData();
             formData.append('avatar', file);
@@ -560,6 +567,10 @@ export const backendApi = {
             return backendApiCall('/favorites');
         },
 
+        getAll: async () => {
+            return backendApiCall('/favorites');
+        },
+
         toggle: async (propertyId: string) => {
             return backendApiCall('/favorites/toggle', {
                 method: 'POST',
@@ -573,12 +584,39 @@ export const backendApi = {
                 body: JSON.stringify({ propertyIds }),
             });
         },
+
+        add: async (propertyId: string) => {
+            return backendApiCall('/favorites/add', {
+                method: 'POST',
+                body: JSON.stringify({ propertyId }),
+            });
+        },
+
+        remove: async (propertyId: string) => {
+            return backendApiCall('/favorites/remove', {
+                method: 'POST',
+                body: JSON.stringify({ propertyId }),
+            });
+        },
     },
 
     // Admin endpoints
     admin: {
         getAllProperties: async () => {
             return backendApiCall('/admin/properties');
+        },
+
+        getProperties: async (filters?: any) => {
+            const params = new URLSearchParams();
+            if (filters) {
+                Object.keys(filters).forEach(key => {
+                    if (filters[key] !== undefined && filters[key] !== null) {
+                        params.append(key, String(filters[key]));
+                    }
+                });
+            }
+            const query = params.toString() ? `?${params.toString()}` : '';
+            return backendApiCall(`/admin/properties${query}`);
         },
 
         updatePropertyStatus: async (propertyId: string, status: string, reason?: string) => {
@@ -606,6 +644,19 @@ export const backendApi = {
             return backendApiCall('/admin/users');
         },
 
+        getUsers: async (filters?: { role?: string; status?: string; verified?: boolean }) => {
+            const params = new URLSearchParams();
+            if (filters?.role) params.append('role', filters.role);
+            if (filters?.status) params.append('status', filters.status);
+            if (filters?.verified !== undefined) params.append('verified', String(filters.verified));
+            const query = params.toString() ? `?${params.toString()}` : '';
+            return backendApiCall(`/admin/users${query}`);
+        },
+
+        getUser: async (userId: string) => {
+            return backendApiCall(`/admin/users/${userId}`);
+        },
+
         getAnalytics: async () => {
             return backendApiCall('/admin/analytics');
         },
@@ -625,8 +676,25 @@ export const backendApi = {
             return backendApiCall('/admin/stats');
         },
 
+        getDashboard: async () => {
+            return backendApiCall('/admin/dashboard');
+        },
+
         listEmployees: async () => {
             return backendApiCall('/admin/employees');
+        },
+
+        getEmployees: async (filters?: any) => {
+            const params = new URLSearchParams();
+            if (filters) {
+                Object.keys(filters).forEach(key => {
+                    if (filters[key] !== undefined && filters[key] !== null) {
+                        params.append(key, String(filters[key]));
+                    }
+                });
+            }
+            const query = params.toString() ? `?${params.toString()}` : '';
+            return backendApiCall(`/admin/employees${query}`);
         },
 
         addEmployee: async (data: {
@@ -678,6 +746,37 @@ export const backendApi = {
             return backendApiCall('/admin/announcements', {
                 method: 'POST',
                 body: JSON.stringify(data),
+            });
+        },
+
+        getPayments: async (filters?: any) => {
+            const params = new URLSearchParams();
+            if (filters) {
+                Object.keys(filters).forEach(key => {
+                    if (filters[key] !== undefined && filters[key] !== null) {
+                        params.append(key, String(filters[key]));
+                    }
+                });
+            }
+            const query = params.toString() ? `?${params.toString()}` : '';
+            return backendApiCall(`/admin/payments${query}`);
+        },
+
+        getSubscriptions: async () => {
+            return backendApiCall('/admin/subscriptions');
+        },
+
+        manageUser: async (userId: string, action: string, data?: any) => {
+            return backendApiCall(`/admin/users/${userId}/${action}`, {
+                method: 'POST',
+                body: JSON.stringify(data || {}),
+            });
+        },
+
+        manageProperty: async (propertyId: string, action: string, reason?: string) => {
+            return backendApiCall(`/admin/properties/${propertyId}/${action}`, {
+                method: 'POST',
+                body: JSON.stringify({ reason }),
             });
         },
 
@@ -749,12 +848,15 @@ export const backendApi = {
 
     // Notifications
     notifications: {
-        getAll: async (options?: { unreadOnly?: boolean; limit?: number; after?: string }) => {
+        getAll: async (options?: { read?: boolean; type?: string; unreadOnly?: boolean; limit?: number; after?: string }) => {
             const params = new URLSearchParams();
             if (options?.unreadOnly) params.append('unreadOnly', 'true');
+            if (options?.read !== undefined) params.append('read', String(options.read));
+            if (options?.type) params.append('type', options.type);
             if (options?.limit) params.append('limit', options.limit.toString());
             if (options?.after) params.append('after', options.after);
-            return backendApiCall(`/notifications?${params.toString()}`);
+            const query = params.toString() ? `?${params.toString()}` : '';
+            return backendApiCall(`/notifications${query}`);
         },
 
         markAsRead: async (notificationId: string) => {
@@ -770,7 +872,8 @@ export const backendApi = {
         },
 
         create: async (notification: {
-            type: string;
+            userId?: string;
+            type?: string;
             title: string;
             message: string;
             link?: string;
@@ -787,18 +890,24 @@ export const backendApi = {
                 method: 'DELETE',
             });
         },
+
+        deleteAll: async () => {
+            return backendApiCall('/notifications', {
+                method: 'DELETE',
+            });
+        },
     },
 
     // Chat endpoints
     chat: {
-        createConversation: async (data: {
-            otherUserId: string;
-            type: string;
-            propertyId?: string;
-        }) => {
+        createConversation: async (
+            participantIds: string[], 
+            propertyId?: string, 
+            type?: 'direct' | 'property' | 'support'
+        ) => {
             return backendApiCall('/chat/conversations', {
                 method: 'POST',
-                body: JSON.stringify(data),
+                body: JSON.stringify({ participantIds, propertyId, type }),
             });
         },
 
@@ -806,14 +915,37 @@ export const backendApi = {
             return backendApiCall('/chat/conversations');
         },
 
-        getMessages: async (conversationId: string, limit = 50) => {
-            return backendApiCall(`/chat/conversations/${conversationId}/messages?limit=${limit}`);
+        getAllConversations: async () => {
+            return backendApiCall('/chat/conversations');
         },
 
-        sendMessage: async (conversationId: string, content: string) => {
+        getConversation: async (conversationId: string) => {
+            return backendApiCall(`/chat/conversations/${conversationId}`);
+        },
+
+        getMessages: async (conversationId: string, options?: number | { page?: number; limit?: number }) => {
+            const params = new URLSearchParams();
+            if (typeof options === 'number') {
+                params.append('limit', String(options));
+            } else if (options) {
+                if (options.page !== undefined) params.append('page', String(options.page));
+                if (options.limit !== undefined) params.append('limit', String(options.limit));
+            } else {
+                params.append('limit', '50');
+            }
+            const query = params.toString() ? `?${params.toString()}` : '';
+            return backendApiCall(`/chat/conversations/${conversationId}/messages${query}`);
+        },
+
+        sendMessage: async (
+            conversationId: string, 
+            content: string, 
+            type?: 'text' | 'image' | 'file', 
+            metadata?: any
+        ) => {
             return backendApiCall(`/chat/conversations/${conversationId}/messages`, {
                 method: 'POST',
-                body: JSON.stringify({ content }),
+                body: JSON.stringify({ content, type, metadata }),
             });
         },
 
@@ -885,14 +1017,47 @@ export const backendApi = {
                 method: 'DELETE',
             });
         },
+
+        markAsRead: async (conversationId: string) => {
+            return backendApiCall(`/chat/conversations/${conversationId}/read`, {
+                method: 'POST',
+            });
+        },
     },
 
     // Bids endpoints
     bids: {
-        create: async (propertyId: string, amount: number, message?: string) => {
+        create: async (data: { propertyId: string; amount: number; message?: string; validUntil?: string }) => {
             return backendApiCall('/bids', {
                 method: 'POST',
-                body: JSON.stringify({ propertyId, amount, message }),
+                body: JSON.stringify(data),
+            });
+        },
+
+        getBuyerBids: async (filters?: { status?: string; limit?: number }) => {
+            const params = new URLSearchParams();
+            if (filters?.status) params.append('status', filters.status);
+            if (filters?.limit) params.append('limit', String(filters.limit));
+            const query = params.toString() ? `?${params.toString()}` : '';
+            return backendApiCall(`/bids/buyer${query}`);
+        },
+
+        getSellerBids: async (filters?: { status?: string; limit?: number }) => {
+            const params = new URLSearchParams();
+            if (filters?.status) params.append('status', filters.status);
+            if (filters?.limit) params.append('limit', String(filters.limit));
+            const query = params.toString() ? `?${params.toString()}` : '';
+            return backendApiCall(`/bids/seller${query}`);
+        },
+
+        getBidById: async (bidId: string) => {
+            return backendApiCall(`/bids/${bidId}`);
+        },
+
+        updateStatus: async (bidId: string, data: any) => {
+            return backendApiCall(`/bids/${bidId}/status`, {
+                method: 'PUT',
+                body: JSON.stringify(data),
             });
         },
 
@@ -976,11 +1141,17 @@ export const backendApi = {
         getUserPlan: async () => {
             return backendApiCall('/user/plan');
         },
+        getCurrentPlan: async () => {
+            return backendApiCall('/user/plan');
+        },
         purchase: async (planId: string, paymentId: string) => {
             return backendApiCall('/user/plan/purchase', {
                 method: 'POST',
                 body: JSON.stringify({ planId, paymentId }),
             });
+        },
+        getUsage: async () => {
+            return backendApiCall('/user/plan/usage');
         },
     },
 
@@ -995,6 +1166,19 @@ export const backendApi = {
     analytics: {
         getAdminDashboard: async () => {
             return backendApiCall('/analytics/admin/dashboard');
+        },
+
+        getPlatformStats: async (filters?: any) => {
+            const params = new URLSearchParams();
+            if (filters) {
+                Object.keys(filters).forEach(key => {
+                    if (filters[key] !== undefined && filters[key] !== null) {
+                        params.append(key, String(filters[key]));
+                    }
+                });
+            }
+            const query = params.toString() ? `?${params.toString()}` : '';
+            return backendApiCall(`/analytics/platform${query}`);
         },
 
         getSellerInsights: async () => {
@@ -1020,6 +1204,49 @@ export const backendApi = {
             return backendApiCall(`/analytics/property/${propertyId}/performance`);
         },
 
+        getPropertyStats: async (propertyId: string, filters?: any) => {
+            const params = new URLSearchParams();
+            if (filters) {
+                Object.keys(filters).forEach(key => {
+                    if (filters[key] !== undefined && filters[key] !== null) {
+                        params.append(key, String(filters[key]));
+                    }
+                });
+            }
+            const query = params.toString() ? `?${params.toString()}` : '';
+            return backendApiCall(`/analytics/property/${propertyId}${query}`);
+        },
+
+        getPropertyAnalytics: async (propertyId: string) => {
+            return backendApiCall(`/analytics/property/${propertyId}`);
+        },
+
+        getUserStats: async (filters?: any) => {
+            const params = new URLSearchParams();
+            if (filters) {
+                Object.keys(filters).forEach(key => {
+                    if (filters[key] !== undefined && filters[key] !== null) {
+                        params.append(key, String(filters[key]));
+                    }
+                });
+            }
+            const query = params.toString() ? `?${params.toString()}` : '';
+            return backendApiCall(`/analytics/user${query}`);
+        },
+
+        getRevenueStats: async (filters?: any) => {
+            const params = new URLSearchParams();
+            if (filters) {
+                Object.keys(filters).forEach(key => {
+                    if (filters[key] !== undefined && filters[key] !== null) {
+                        params.append(key, String(filters[key]));
+                    }
+                });
+            }
+            const query = params.toString() ? `?${params.toString()}` : '';
+            return backendApiCall(`/analytics/revenue${query}`);
+        },
+
         getCitywiseAnalytics: async () => {
             return backendApiCall('/analytics/citywise');
         },
@@ -1027,6 +1254,19 @@ export const backendApi = {
 
     // Partner ecosystem endpoints
     partners: {
+        getStats: async (type?: string) => {
+            const query = type ? `?type=${encodeURIComponent(type)}` : '';
+            return backendApiCall(`/partners/stats${query}`);
+        },
+
+        getLeads: async (filters?: { status?: string; dateRange?: string }) => {
+            const params = new URLSearchParams();
+            if (filters?.status) params.append('status', filters.status);
+            if (filters?.dateRange) params.append('dateRange', filters.dateRange);
+            const query = params.toString() ? `?${params.toString()}` : '';
+            return backendApiCall(`/partners/leads${query}`);
+        },
+
         createCase: async (data: {
             type: string;
             title: string;
@@ -1069,6 +1309,17 @@ export const backendApi = {
             return backendApiCall('/partners/payouts', {
                 method: 'POST',
                 body: JSON.stringify(data),
+            });
+        },
+
+        getPerformance: async () => {
+            return backendApiCall('/partners/performance');
+        },
+
+        updateCaseStatus: async (caseId: string, status: string, notes?: string) => {
+            return backendApiCall(`/partners/cases/${caseId}/status`, {
+                method: 'PATCH',
+                body: JSON.stringify({ status, notes }),
             });
         },
     },
@@ -1211,6 +1462,7 @@ export const backendApi = {
             scheduledAt?: string;
             notes?: string;
             partnerId?: string;
+            feedback?: string;
         }) => {
             return backendApiCall(`/visits/${id}`, {
                 method: 'PATCH',
@@ -1271,11 +1523,31 @@ export const backendApi = {
             bidId?: string;
             buyerId?: string;
             sellerId?: string;
-            agreedPrice: number;
+            agreedPrice?: number;
+            amount?: number;
             terms?: string;
+            [key: string]: any;
         }) => {
             return backendApiCall('/contracts', {
                 method: 'POST',
+                body: JSON.stringify(data),
+            });
+        },
+        getMyContracts: async (filters?: { status?: string }) => {
+            const params = new URLSearchParams();
+            if (filters?.status) params.append('status', filters.status);
+            const query = params.toString() ? `?${params.toString()}` : '';
+            return backendApiCall(`/contracts/my${query}`);
+        },
+        getById: async (contractId: string) => {
+            return backendApiCall(`/contracts/${contractId}`);
+        },
+        getByProperty: async (propertyId: string) => {
+            return backendApiCall(`/contracts/property/${propertyId}`);
+        },
+        update: async (contractId: string, data: any) => {
+            return backendApiCall(`/contracts/${contractId}`, {
+                method: 'PATCH',
                 body: JSON.stringify(data),
             });
         },
@@ -1288,6 +1560,12 @@ export const backendApi = {
         sign: async (id: string) => {
             return backendApiCall(`/contracts/${id}/sign`, {
                 method: 'PATCH',
+            });
+        },
+        cancel: async (contractId: string, reason?: string) => {
+            return backendApiCall(`/contracts/${contractId}/cancel`, {
+                method: 'POST',
+                body: JSON.stringify({ reason }),
             });
         },
     },
@@ -1349,6 +1627,35 @@ export const backendApi = {
             return backendApiCall(`/employee/tickets?status=${status}`);
         },
 
+        getLeads: async (filters?: { status?: string }) => {
+            const params = new URLSearchParams();
+            if (filters?.status) params.append('status', filters.status);
+            const query = params.toString() ? `?${params.toString()}` : '';
+            return backendApiCall(`/employee/leads${query}`);
+        },
+
+        getAttendance: async () => {
+            return backendApiCall('/employee/attendance');
+        },
+
+        markAttendance: async (data: { type: string; notes?: string }) => {
+            return backendApiCall('/employee/attendance', {
+                method: 'POST',
+                body: JSON.stringify(data),
+            });
+        },
+
+        getMyTasks: async () => {
+            return backendApiCall('/employee/tasks');
+        },
+
+        updateTaskStatus: async (taskId: string, status: string) => {
+            return backendApiCall(`/employee/tasks/${taskId}/status`, {
+                method: 'PATCH',
+                body: JSON.stringify({ status }),
+            });
+        },
+
         getActiveConversations: async () => {
             return backendApiCall('/employee/active-conversations');
         },
@@ -1362,6 +1669,10 @@ export const backendApi = {
 
         getUserHistory: async (userId: string) => {
             return backendApiCall(`/employee/user-history/${userId}`);
+        },
+
+        getSalaryHistory: async () => {
+            return backendApiCall('/employee/salary-history');
         },
 
         getStats: async () => {
@@ -1392,6 +1703,13 @@ export const backendApi = {
         togglePropertyPause: async (id: string) => {
             return backendApiCall(`/employee/toggle-property-pause/${id}`, {
                 method: 'POST'
+            });
+        },
+
+        verifyProperty: async (propertyId: string, status: 'approved' | 'rejected', comments?: string) => {
+            return backendApiCall(`/employee/verify-property/${propertyId}`, {
+                method: 'POST',
+                body: JSON.stringify({ status, comments }),
             });
         },
     },
@@ -1549,16 +1867,31 @@ export const backendApi = {
             return backendApiCall('/kyc/status');
         },
 
+        getDocuments: async () => {
+            return backendApiCall('/kyc/documents');
+        },
+
         // Employee endpoints
         getRequests: async (status?: string) => {
             const query = status ? `?status=${status}` : '';
             return backendApiCall(`/kyc/requests${query}`);
         },
 
+        getPending: async () => {
+            return backendApiCall('/kyc/requests?status=pending');
+        },
+
         review: async (id: string, data: { status: 'approved' | 'rejected', reviewComments?: string }) => {
             return backendApiCall(`/kyc/review/${id}`, {
                 method: 'POST',
                 body: JSON.stringify(data),
+            });
+        },
+
+        verify: async (userId: string, status: 'approved' | 'rejected', comments?: string) => {
+            return backendApiCall(`/kyc/verify/${userId}`, {
+                method: 'POST',
+                body: JSON.stringify({ status, comments }),
             });
         },
     },
@@ -1623,12 +1956,30 @@ export const backendApi = {
             language?: 'en' | 'hi' | 'mr';
             currency?: string;
             timezone?: string;
-            emailFrequency?: 'instant' | 'daily' | 'weekly';
+            emailFrequency?: 'realtime' | 'daily' | 'weekly' | 'never';
             notificationPreferences?: any;
         }) => {
             return backendApiCall('/settings', {
                 method: 'PUT',
                 body: JSON.stringify(data),
+            });
+        },
+
+        reset: async () => {
+            return backendApiCall('/settings', {
+                method: 'PUT',
+                body: JSON.stringify({
+                    theme: 'system',
+                    language: 'en',
+                    currency: 'INR',
+                    timezone: 'Asia/Kolkata',
+                    emailFrequency: 'realtime',
+                    notificationPreferences: {
+                        push: true,
+                        email: true,
+                        sms: false,
+                    },
+                }),
             });
         },
     },

@@ -182,7 +182,7 @@ export function useMarkAsRead() {
 export function useUploadChatFile() {
   return useMutation({
     mutationFn: async ({ conversationId, file }: { conversationId: string; file: File }) => {
-      return await backendApi.chat.uploadFile(conversationId, file);
+      return await backendApi.chat.uploadFile(file, conversationId);
     },
   });
 }
@@ -195,7 +195,7 @@ export function useDeleteMessage() {
 
   return useMutation({
     mutationFn: async ({ conversationId, messageId }: { conversationId: string; messageId: string }) => {
-      return await backendApi.chat.deleteMessage(conversationId, messageId);
+      return await backendApi.chat.deleteMessage(messageId);
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: chatKeys.messages(variables.conversationId) });

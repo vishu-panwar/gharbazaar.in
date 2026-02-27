@@ -1,5 +1,7 @@
 # GharBazaar - Complete Website Workflow & Architecture Report
 
+[← Back to README](README.md) | [📚 Project Guide](COMPLETE_PROJECT_GUIDE.md) | [🔌 Real-time](REALTIME_ARCHITECTURE_REPORT.md)
+
 ## Table of Contents
 
 1. [Overview](#overview)

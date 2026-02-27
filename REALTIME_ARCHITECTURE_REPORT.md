@@ -1,5 +1,5 @@
 # 🏗️ GharBazaar Real-Time Architecture Report
-
+[← Back to README](README.md) | [📚 Project Guide](COMPLETE_PROJECT_GUIDE.md) | [🔄 Workflows](WORKFLOW_ARCHITECTURE_REPORT.md)
 **Generated:** February 1, 2026  
 **Backend URL:** https://strict-matty-gharbazaar1-60d0c804.koyeb.app  
 **Branch:** features/checking

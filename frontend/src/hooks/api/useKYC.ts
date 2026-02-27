@@ -52,7 +52,16 @@ export function useSubmitKYC() {
 
   return useMutation({
     mutationFn: async (data: KYCSubmitData) => {
-      return await backendApi.kyc.submit(data);
+      // Convert to FormData
+      const formData = new FormData();
+      formData.append('aadhaarNumber', data.aadhaarNumber);
+      formData.append('panNumber', data.panNumber);
+      formData.append('aadhaarDocument', data.aadhaarDocument);
+      formData.append('panDocument', data.panDocument);
+      if (data.addressProof) {
+        formData.append('addressProof', data.addressProof);
+      }
+      return await backendApi.kyc.submit(formData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: kycKeys.status() });
