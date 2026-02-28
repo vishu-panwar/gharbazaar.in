@@ -12,7 +12,7 @@ export const getAdminDashboard = async (_req: Request, res: Response) => {
             include: { plan: true }
         });
 
-        const totalRevenue = subscriptions.reduce((sum, sub) => {
+        const totalRevenue = subscriptions.reduce((sum: number, sub: any) => {
             // Check if plan exists and has a price
             if (sub.plan && sub.plan.price) {
                 return sum + Number(sub.plan.price);
@@ -97,7 +97,7 @@ export const getSearchSuggestions = async (req: Request, res: Response) => {
             take: 5
         });
 
-        res.json({ success: true, data: cities.map(c => c.city) });
+        res.json({ success: true, data: cities.map((c: any) => c.city) });
     } catch (error: any) {
         console.error('getSearchSuggestions error:', error);
         res.json({ success: true, data: [] });
@@ -154,7 +154,7 @@ export const getCitywiseAnalytics = async (_req: Request, res: Response) => {
 
         res.json({ 
             success: true, 
-            data: cityStats.map(c => ({ 
+            data: cityStats.map((c: any) => ({ 
                 city: c.city, 
                 listings: c._count.city 
             })) 
