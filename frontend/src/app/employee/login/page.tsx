@@ -235,6 +235,35 @@ export default function EmployeeLoginPage() {
               )}
             </button>
 
+            {/* Demo Bypass Button */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                setLoading(true);
+                setTimeout(() => {
+                  const employeeData = {
+                    id: 1,
+                    name: 'Demo Employee',
+                    email: formData.email || 'employee@gharbazaar.in',
+                    role: 'employee',
+                    department: 'Demo Services',
+                    staffId: 'DEMO001',
+                    onboardingCompleted: true
+                  };
+                  localStorage.setItem('token', 'demo-employee-token');
+                  localStorage.setItem('auth_token', 'demo-employee-token');
+                  localStorage.setItem('user', JSON.stringify(employeeData));
+                  toast.success('Bypass successful: Welcome Demo Employee!');
+                  window.location.href = '/employee';
+                }, 500);
+              }}
+              disabled={loading}
+              className="w-full bg-slate-600 hover:bg-slate-700 text-white font-semibold py-3.5 px-6 rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed mt-3"
+            >
+              Bypass Demo Employee
+            </button>
+
             {/* Apply Link */}
             <div className="text-center pt-4 border-t border-gray-200 dark:border-gray-800">
               <p className="text-gray-600 dark:text-gray-400 text-sm">
@@ -313,4 +342,5 @@ export default function EmployeeLoginPage() {
     </div>
   )
 }
+
 

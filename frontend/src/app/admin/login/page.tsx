@@ -205,6 +205,32 @@ export default function AdminLoginPage() {
               )}
             </button>
 
+            {/* Demo Bypass Button */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                setLoading(true);
+                setTimeout(() => {
+                  const adminData = {
+                    id: 1,
+                    name: 'Demo Admin',
+                    email: formData.email || 'demo@gharbazaar.in',
+                    role: 'admin',
+                    permissions: 'all'
+                  };
+                  localStorage.setItem('token', 'demo-admin-token');
+                  localStorage.setItem('auth_token', 'demo-admin-token');
+                  localStorage.setItem('user', JSON.stringify(adminData));
+                  toast.success('Bypass successful: Welcome Demo Admin!');
+                  window.location.href = '/admin';
+                }, 500);
+              }}
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white font-semibold py-3.5 px-6 rounded-lg transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed mt-3"
+            >
+              Bypass Demo Admin
+            </button>
           </form>
         </div>
       </div>
@@ -286,4 +312,5 @@ export default function AdminLoginPage() {
     </div>
   )
 }
+
 

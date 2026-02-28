@@ -254,6 +254,32 @@ export default function GroundPartnerLoginPage() {
                   'Sign In'
                 )}
               </button>
+
+              {/* Demo Bypass Button */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setIsLoading(true);
+                  setTimeout(() => {
+                    const demoUser = {
+                      uid: 'demo-ground-partner',
+                      email: 'demo.ground@gharbazaar.in',
+                      displayName: 'Demo Ground Partner',
+                      role: 'ground_partner'
+                    };
+                    localStorage.setItem('demo_mode', 'true');
+                    localStorage.setItem('demo_user', JSON.stringify(demoUser));
+                    localStorage.setItem('auth_token', 'demo-token:ground_partner:demo-ground-partner');
+                    toast.success('Bypass successful: Welcome Demo Ground Partner!');
+                    window.location.href = '/ground-partner';
+                  }, 500);
+                }}
+                disabled={isLoading}
+                className="w-full bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed mt-3"
+              >
+                Bypass Demo Ground Partner
+              </button>
             </form>
 
 
@@ -289,3 +315,4 @@ export default function GroundPartnerLoginPage() {
     </div>
   )
 }
+

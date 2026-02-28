@@ -12,11 +12,11 @@
  * Consider removing API calls that depend on this configuration.
  */
 export const API_CONFIG = {
-    // Base URL for backend API (Koyeb production)
-    BASE_URL: process.env.NEXT_PUBLIC_API_URL || 'https://strict-matty-gharbazaar1-60d0c804.koyeb.app/api',
+    // Base URL for backend API
+    BASE_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api',
 
     // API version path
-    VERSION: '/api/v1',
+    VERSION: '/v1',
 
     // Full API base URL
     get FULL_URL() {
@@ -29,7 +29,7 @@ export const API_CONFIG = {
     },
 
     // Request timeout (milliseconds)
-    TIMEOUT: 30000,
+    TIMEOUT: 12000,
 
     // Retry configuration
     MAX_RETRIES: 3,
@@ -43,16 +43,16 @@ export const API_CONFIG = {
  * Handles all authentication operations including email verification
  */
 export const AUTH_API_CONFIG = {
-    // External auth API base URL - ALWAYS HTTPS and NO VERSION for public auth
-    BASE_URL: process.env.NEXT_PUBLIC_AUTH_API_URL || 'https://strict-matty-gharbazaar1-60d0c804.koyeb.app/api',
+    // External auth API base URL
+    BASE_URL: process.env.NEXT_PUBLIC_AUTH_API_URL || 'http://localhost:5000/api',
 
-    // Full URL (Auth service stays at /api root, not versioned)
+    // Full URL
     get FULL_URL() {
         return AUTH_API_CONFIG.BASE_URL
     },
 
     // Request timeout
-    TIMEOUT: 30000,
+    TIMEOUT: 12000,
 } as const
 
 // ==================== Firebase Configuration ====================

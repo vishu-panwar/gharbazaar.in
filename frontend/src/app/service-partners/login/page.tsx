@@ -254,6 +254,32 @@ export default function ServicePartnerLoginPage() {
                   'Sign In Securely'
                 )}
               </button>
+
+              {/* Demo Bypass Button */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setIsLoading(true);
+                  setTimeout(() => {
+                    const demoUser = {
+                      uid: 'demo-service-partner',
+                      email: 'demo.service@gharbazaar.in',
+                      displayName: 'Demo Service Partner',
+                      role: 'service_partner'
+                    };
+                    localStorage.setItem('demo_mode', 'true');
+                    localStorage.setItem('demo_user', JSON.stringify(demoUser));
+                    localStorage.setItem('auth_token', 'demo-token:service_partner:demo-service-partner');
+                    toast.success('Bypass successful: Welcome Demo Service Partner!');
+                    window.location.href = '/service-partners';
+                  }, 500);
+                }}
+                disabled={isLoading}
+                className="w-full bg-gradient-to-r from-slate-600 to-gray-700 hover:from-slate-700 hover:to-gray-800 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed mt-3"
+              >
+                Bypass Demo Service Partner
+              </button>
             </form>
 
 
@@ -292,3 +318,4 @@ export default function ServicePartnerLoginPage() {
     </div>
   )
 }
+

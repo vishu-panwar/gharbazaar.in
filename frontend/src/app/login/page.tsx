@@ -321,6 +321,85 @@ export default function LoginPage() {
                   </>
                 )}
               </button>
+
+              {/* Demo Bypass Button */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setLoading(true);
+                  showLoader('Bypassing to Demo User...', 500);
+                  setTimeout(() => {
+                    const demoUser = {
+                      uid: 'demo-buyer',
+                      email: 'demo.user@gharbazaar.in',
+                      displayName: 'Demo User',
+                      role: 'buyer'
+                    };
+                    localStorage.setItem('demo_mode', 'true');
+                    localStorage.setItem('demo_user', JSON.stringify(demoUser));
+                    localStorage.setItem('auth_token', 'demo-token:buyer:demo-buyer');
+                    toast.success('Bypass successful: Welcome Demo User!');
+                    window.location.href = '/dashboard';
+                  }, 500);
+                }}
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-slate-600 to-gray-700 hover:from-slate-700 hover:to-gray-800 text-white py-3 lg:py-4 rounded-xl lg:rounded-2xl font-semibold text-base lg:text-lg transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 group mt-3"
+              >
+                <span>Bypass Demo User</span>
+              </button>
+
+              {/* Demo Bypass - Employee */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setLoading(true);
+                  setTimeout(() => {
+                    const demoUser = {
+                      uid: 'demo-employee',
+                      email: 'employee@gharbazaar.in',
+                      displayName: 'Demo Employee',
+                      role: 'employee'
+                    };
+                    localStorage.setItem('demo_mode', 'true');
+                    localStorage.setItem('demo_user', JSON.stringify(demoUser));
+                    localStorage.setItem('auth_token', 'demo-token:employee:demo-employee');
+                    toast.success('Bypass successful: Welcome Demo Employee!');
+                    window.location.href = '/employee';
+                  }, 500);
+                }}
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-blue-700 to-blue-800 hover:from-blue-800 hover:to-blue-900 text-white py-3 lg:py-4 rounded-xl lg:rounded-2xl font-semibold text-base lg:text-lg transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 group mt-3"
+              >
+                <span>Bypass Demo Employee</span>
+              </button>
+
+              {/* Demo Bypass - Admin */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setLoading(true);
+                  setTimeout(() => {
+                    const adminData = {
+                      uid: 'demo-admin',
+                      email: 'admin@gharbazaar.in',
+                      displayName: 'Demo Admin',
+                      role: 'admin'
+                    };
+                    localStorage.setItem('demo_mode', 'true');
+                    localStorage.setItem('demo_user', JSON.stringify(adminData));
+                    localStorage.setItem('auth_token', 'demo-token:admin:demo-admin');
+                    toast.success('Bypass successful: Welcome Demo Admin!');
+                    window.location.href = '/admin';
+                  }, 500);
+                }}
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-purple-700 to-pink-700 hover:from-purple-800 hover:to-pink-800 text-white py-3 lg:py-4 rounded-xl lg:rounded-2xl font-semibold text-base lg:text-lg transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 group mt-3"
+              >
+                <span>Bypass Demo Admin</span>
+              </button>
             </form>
 
 
@@ -345,3 +424,4 @@ export default function LoginPage() {
     </div>
   )
 }
+

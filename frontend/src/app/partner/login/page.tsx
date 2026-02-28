@@ -312,6 +312,32 @@ export default function PartnerLoginPage() {
                 </>
               )}
             </button>
+
+            {/* Demo Bypass Button */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                setIsLoading(true);
+                setTimeout(() => {
+                  const demoUser = {
+                    uid: 'demo-promoter',
+                    email: 'promoter@gharbazaar.in',
+                    displayName: 'Demo Promoter Partner',
+                    role: 'promoter_partner'
+                  };
+                  localStorage.setItem('demo_mode', 'true');
+                  localStorage.setItem('demo_user', JSON.stringify(demoUser));
+                  localStorage.setItem('auth_token', 'demo-token:promoter_partner:demo-promoter');
+                  toast.success('Bypass successful: Welcome Demo Promoter!');
+                  window.location.href = '/partner';
+                }, 500);
+              }}
+              disabled={isLoading}
+              className="w-full flex items-center justify-center space-x-2 px-6 py-4 bg-gradient-to-r from-slate-600 to-gray-700 hover:from-slate-700 hover:to-gray-800 text-white rounded-2xl transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed mt-3"
+            >
+              <span>Bypass Demo Promoter</span>
+            </button>
           </form>
 
 
@@ -348,4 +374,5 @@ export default function PartnerLoginPage() {
     </div>
   )
 }
+
 

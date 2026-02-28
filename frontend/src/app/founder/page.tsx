@@ -164,7 +164,7 @@ export default function FounderPage() {
       icon: Gavel
     },
     {
-      name: "Aditya & Mayank",
+      name: "Aditya & Arpit",
       role: "Developers (Tech Team)",
       department: "Technology",
       goal: "To build a stable, secure, and scalable website.",
@@ -179,7 +179,7 @@ export default function FounderPage() {
         "Code reviews and testing"
       ],
       authority: "Technical",
-      avatar: "AM",
+      avatar: "AA",
       color: "from-green-600 to-blue-600",
       icon: Laptop
     },
