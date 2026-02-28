@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { prisma } from '../utils/prisma';
+import { prisma } from '../utils/database';
 
 export const getAdminDashboard = async (_req: Request, res: Response) => {
     try {

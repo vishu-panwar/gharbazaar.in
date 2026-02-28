@@ -1,4 +1,4 @@
-import express from 'express';
+﻿import express from 'express';
 import * as adminController from '../controllers/admin.controller';
 import { authenticateRequest } from '../middleware/auth.middleware';
 
@@ -42,6 +42,8 @@ router.get('/salary', adminController.getSalaryRecords);
 router.post('/salary/process', adminController.processSalary);
 router.post('/payouts/:id/approve', adminController.approvePayout);
 router.post('/announcements', adminController.broadcastAnnouncement);
+router.get('/payouts', adminController.getAllPayouts);
+router.get('/partners', adminController.getPartners);
 
 // Database Administration
 router.get('/database/export', adminController.exportDatabase);
@@ -51,3 +53,4 @@ router.post('/database/backup', adminController.createBackup);
 router.post('/database/restore', adminController.restoreBackup);
 
 export default router;
+

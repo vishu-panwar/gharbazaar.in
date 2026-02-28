@@ -40,6 +40,8 @@ import {
   List
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { backendApi } from '@/lib/backendApi'
+import { format } from 'date-fns'
 
 interface Document {
   id: string
@@ -88,12 +90,14 @@ export default function DocumentsPage() {
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
+  const [cases, setCases] = useState<any[]>([])
+  const [targetCaseId, setTargetCaseId] = useState<string>('')
+  const [dragOver, setDragOver] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [showPreviewModal, setShowPreviewModal] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
+  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
   const [uploadProgress, setUploadProgress] = useState(0)
-  const [dragOver, setDragOver] = useState(false)
 
   const categories: DocumentCategory[] = [
     {
@@ -162,174 +166,45 @@ export default function DocumentsPage() {
     }
   ]
 
-  // Mock data
+  // Fetch documents and cases
   useEffect(() => {
-    const mockDocuments: Document[] = [
-      {
-        id: 'DOC001',
-        name: 'Property_Title_Deed_Worli.pdf',
-        type: 'pdf',
-        category: 'title-documents',
-        size: 2048576, // 2MB
-        uploadedDate: '2024-12-30T10:00:00Z',
-        lastModified: '2024-12-30T10:00:00Z',
-        uploadedBy: 'Advocate Rajesh Kumar',
-        caseId: 'LC001',
-        propertyId: 'PROP001',
-        status: 'active',
-        tags: ['title', 'worli', 'residential'],
-        version: 1,
-        versions: [
-          {
-            version: 1,
-            uploadedDate: '2024-12-30T10:00:00Z',
-            uploadedBy: 'Advocate Rajesh Kumar',
-            changes: 'Initial upload',
-            size: 2048576
+    async function fetchData() {
+      try {
+        setIsLoading(true)
+        const casesResponse = await backendApi.partners.getCases()
+        
+        if (casesResponse?.success) {
+          const fetchedCases = casesResponse.data || []
+          setCases(fetchedCases)
+          
+          if (fetchedCases.length > 0) {
+            setTargetCaseId(fetchedCases[0].id)
           }
-        ],
-        watermarked: true,
-        encrypted: true,
-        accessLevel: 'confidential',
-        downloadCount: 5,
-        lastAccessed: '2024-12-31T14:30:00Z',
-        description: 'Original title deed for luxury apartment in Worli',
-        isStarred: true
-      },
-      {
-        id: 'DOC002',
-        name: 'Sale_Agreement_Draft_v2.docx',
-        type: 'docx',
-        category: 'agreements',
-        size: 1024000, // 1MB
-        uploadedDate: '2024-12-29T15:30:00Z',
-        lastModified: '2024-12-30T09:15:00Z',
-        uploadedBy: 'Legal Team',
-        caseId: 'LC001',
-        status: 'under-review',
-        tags: ['agreement', 'draft', 'sale'],
-        version: 2,
-        versions: [
-          {
-            version: 1,
-            uploadedDate: '2024-12-29T15:30:00Z',
-            uploadedBy: 'Legal Team',
-            changes: 'Initial draft',
-            size: 980000
-          },
-          {
-            version: 2,
-            uploadedDate: '2024-12-30T09:15:00Z',
-            uploadedBy: 'Advocate Rajesh Kumar',
-            changes: 'Updated terms and conditions',
-            size: 1024000
-          }
-        ],
-        watermarked: true,
-        encrypted: true,
-        accessLevel: 'restricted',
-        downloadCount: 12,
-        lastAccessed: '2024-12-31T11:20:00Z',
-        description: 'Sale agreement draft with updated terms',
-        isStarred: false
-      },
-      {
-        id: 'DOC003',
-        name: 'RERA_Certificate_MahaRERA.pdf',
-        type: 'pdf',
-        category: 'compliance',
-        size: 512000, // 512KB
-        uploadedDate: '2024-12-28T11:45:00Z',
-        lastModified: '2024-12-28T11:45:00Z',
-        uploadedBy: 'Developer',
-        caseId: 'LC002',
-        status: 'active',
-        tags: ['rera', 'compliance', 'maharera'],
-        version: 1,
-        versions: [
-          {
-            version: 1,
-            uploadedDate: '2024-12-28T11:45:00Z',
-            uploadedBy: 'Developer',
-            changes: 'Initial upload',
-            size: 512000
-          }
-        ],
-        watermarked: true,
-        encrypted: true,
-        accessLevel: 'public',
-        downloadCount: 8,
-        lastAccessed: '2024-12-30T16:45:00Z',
-        description: 'RERA registration certificate from MahaRERA',
-        isStarred: false
-      },
-      {
-        id: 'DOC004',
-        name: 'Legal_Opinion_Property_Verification.pdf',
-        type: 'pdf',
-        category: 'legal-opinions',
-        size: 3072000, // 3MB
-        uploadedDate: '2024-12-31T14:00:00Z',
-        lastModified: '2024-12-31T14:00:00Z',
-        uploadedBy: 'Advocate Rajesh Kumar',
-        caseId: 'LC001',
-        status: 'confidential',
-        tags: ['legal-opinion', 'verification', 'due-diligence'],
-        version: 1,
-        versions: [
-          {
-            version: 1,
-            uploadedDate: '2024-12-31T14:00:00Z',
-            uploadedBy: 'Advocate Rajesh Kumar',
-            changes: 'Initial legal opinion',
-            size: 3072000
-          }
-        ],
-        watermarked: true,
-        encrypted: true,
-        accessLevel: 'top-secret',
-        downloadCount: 2,
-        lastAccessed: '2024-12-31T14:30:00Z',
-        description: 'Comprehensive legal opinion on property verification',
-        isStarred: true
-      },
-      {
-        id: 'DOC005',
-        name: 'Building_Approval_Plan.jpg',
-        type: 'jpg',
-        category: 'approvals',
-        size: 4096000, // 4MB
-        uploadedDate: '2024-12-27T09:20:00Z',
-        lastModified: '2024-12-27T09:20:00Z',
-        uploadedBy: 'Municipal Authority',
-        caseId: 'LC002',
-        status: 'active',
-        tags: ['building', 'approval', 'plan'],
-        version: 1,
-        versions: [
-          {
-            version: 1,
-            uploadedDate: '2024-12-27T09:20:00Z',
-            uploadedBy: 'Municipal Authority',
-            changes: 'Initial upload',
-            size: 4096000
-          }
-        ],
-        watermarked: true,
-        encrypted: false,
-        accessLevel: 'restricted',
-        downloadCount: 15,
-        lastAccessed: '2024-12-30T12:10:00Z',
-        description: 'Approved building plan from municipal authority',
-        isStarred: false
-      }
-    ]
 
-    setTimeout(() => {
-      setDocuments(mockDocuments)
-      setFilteredDocuments(mockDocuments)
-      setIsLoading(false)
-    }, 1000)
+          // Aggregate documents from all cases
+          const allDocs: Document[] = []
+          fetchedCases.forEach((c: any) => {
+            if (c.metadata?.documents) {
+              const caseDocs = c.metadata.documents.map((d: any) => ({
+                ...d,
+                caseId: c.id,
+                caseTitle: c.title
+              }))
+              allDocs.push(...caseDocs)
+            }
+          })
+          
+          setDocuments(allDocs)
+          setFilteredDocuments(allDocs)
+        }
+        setIsLoading(false)
+      } catch (error) {
+        console.error('Error fetching data:', error)
+        toast.error('Failed to load documents')
+        setIsLoading(false)
+      }
+    }
+    fetchData()
   }, [])
 
   // Update category counts
@@ -408,23 +283,44 @@ export default function DocumentsPage() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
-  const handleFileUpload = (files: FileList | null) => {
-    if (!files) return
+  const handleFileUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
 
-    Array.from(files).forEach(file => {
-      // Simulate upload progress
+    const file = files[0]
+    setUploadProgress(10)
+    
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      if (targetCaseId) {
+        formData.append('caseId', targetCaseId)
+      }
+      
+      const response = await backendApi.partners.uploadDocument(formData)
+      
+      if (response?.success) {
+        setUploadProgress(100)
+        toast.success(`${file.name} uploaded successfully!`)
+        
+        // Add to local state
+        const newDoc = response.data
+        const docWithCase = {
+          ...newDoc,
+          caseId: targetCaseId,
+          caseTitle: cases.find(c => c.id === targetCaseId)?.title || 'General'
+        }
+        
+        setDocuments(prev => [docWithCase, ...prev])
+        setShowUploadModal(false)
+        setUploadProgress(0)
+      } else {
+        throw new Error(response?.message || 'Upload failed')
+      }
+    } catch (error: any) {
+      console.error('Upload Error:', error)
+      toast.error(error.message || 'Failed to upload document')
       setUploadProgress(0)
-      const interval = setInterval(() => {
-        setUploadProgress(prev => {
-          if (prev >= 100) {
-            clearInterval(interval)
-            toast.success(`${file.name} uploaded successfully!`)
-            return 100
-          }
-          return prev + 10
-        })
-      }, 200)
-    })
+    }
   }
 
   const toggleStar = (docId: string) => {
@@ -819,6 +715,24 @@ export default function DocumentsPage() {
                   <Plus size={20} />
                   <span>Select Files</span>
                 </label>
+              </div>
+
+              <div className="mt-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Associate with Case
+                  </label>
+                  <select
+                    value={targetCaseId}
+                    onChange={(e) => setTargetCaseId(e.target.value)}
+                    className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">No Case (General)</option>
+                    {cases.map(c => (
+                      <option key={c.id} value={c.id}>{c.title} ({c.id.slice(0, 8)})</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               {uploadProgress > 0 && uploadProgress < 100 && (

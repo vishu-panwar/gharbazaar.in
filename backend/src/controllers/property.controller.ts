@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { prisma } from '../utils/prisma';
+import { prisma } from '../utils/database';
 import { uploadFile } from '../utils/fileStorage';
 
 const UUID_REGEX =
@@ -109,8 +109,9 @@ export const createProperty = async (req: Request, res: Response) => {
                 images: normalizedImages,
                 sellerId: user.uid,
                 sellerClientId: user.sellerClientId,
-                // Paid seller flow: listing becomes visible immediately unless caller overrides.
-                status: typeof status === 'string' && status.trim() ? status : 'active',
+                // Seller-submitted listings must pass employee moderation before going live.
+                status: 'pending',
+                verified: false,
             },
         });
 

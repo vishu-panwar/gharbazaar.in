@@ -313,6 +313,66 @@ export const closeTicket = async (req: Request, res: Response) => {
     }
 };
 
+export const submitTicketFeedback = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { rating, remarks } = req.body;
+        const userId = (req as any).user?.userId;
+        const numericRating = Number(rating);
+
+        if (!Number.isFinite(numericRating) || numericRating < 1 || numericRating > 5) {
+            return res.status(400).json({ success: false, error: 'Rating must be a number between 1 and 5' });
+        }
+
+        let ticket = isMongoDBAvailable()
+            ? await Ticket.findById(id)
+            : memoryTickets.get(id);
+
+        if (!ticket) {
+            return res.status(404).json({ success: false, error: 'Ticket not found' });
+        }
+
+        if (ticket.userId !== userId) {
+            return res.status(403).json({ success: false, error: 'Only the ticket owner can submit feedback' });
+        }
+
+        if (ticket.status !== 'closed') {
+            return res.status(400).json({ success: false, error: 'Feedback can only be submitted after the ticket is closed' });
+        }
+
+        if (!ticket.assignedTo) {
+            return res.status(400).json({ success: false, error: 'This ticket is not assigned to an employee yet' });
+        }
+
+        const feedback = {
+            rating: numericRating,
+            remarks: typeof remarks === 'string' ? remarks.trim().slice(0, 1000) : undefined,
+            employeeId: ticket.assignedTo,
+            employeeName: ticket.assignedToName,
+            submittedAt: new Date(),
+        };
+
+        if (isMongoDBAvailable()) {
+            ticket = await Ticket.findByIdAndUpdate(
+                id,
+                { feedback },
+                { new: true }
+            );
+        } else {
+            ticket.feedback = feedback;
+            memoryTickets.set(id, ticket);
+        }
+
+        res.json({
+            success: true,
+            message: 'Ticket feedback submitted successfully',
+            data: { ticket },
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: 'Failed to submit feedback' });
+    }
+};
+
 export const uploadTicketFile = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;

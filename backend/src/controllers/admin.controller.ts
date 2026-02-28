@@ -4,9 +4,11 @@ import { getNextEmployeeId } from '../utils/idGenerator';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import mongoose from 'mongoose';
 import { Decimal } from '@prisma/client/runtime/library';
 import { Prisma } from '@prisma/client';
 import PaymentTransaction from '../models/paymentTransaction.model';
+import Ticket from '../models/ticket.model';
 
 const UUID_REGEX =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -47,7 +49,56 @@ export const listEmployees = async (req: Request, res: Response) => {
             }
         });
 
-        res.json({ success: true, data: { employees } });
+        const feedbackMap = new Map<string, { averageRating: number | null; totalFeedback: number; recentRemarks: string[] }>();
+
+        if (mongoose.connection.readyState === 1 && employees.length > 0) {
+            const employeeUids = employees.map((employee: any) => employee.uid).filter(Boolean);
+            const feedbackTickets = await Ticket.find({
+                assignedTo: { $in: employeeUids },
+                'feedback.rating': { $exists: true },
+            })
+                .select('assignedTo feedback')
+                .sort({ updatedAt: -1 })
+                .lean();
+
+            const groupedFeedback = new Map<string, { ratings: number[]; remarks: string[] }>();
+            for (const ticket of feedbackTickets) {
+                const employeeUid = String((ticket as any).assignedTo || '');
+                const rating = Number((ticket as any).feedback?.rating || 0);
+                const remarks = String((ticket as any).feedback?.remarks || '').trim();
+                if (!employeeUid || !Number.isFinite(rating) || rating <= 0) continue;
+
+                const entry = groupedFeedback.get(employeeUid) || { ratings: [], remarks: [] };
+                entry.ratings.push(rating);
+                if (remarks && entry.remarks.length < 5) {
+                    entry.remarks.push(remarks);
+                }
+                groupedFeedback.set(employeeUid, entry);
+            }
+
+            for (const [employeeUid, entry] of groupedFeedback.entries()) {
+                const averageRating =
+                    entry.ratings.length > 0
+                        ? Math.round((entry.ratings.reduce((sum, value) => sum + value, 0) / entry.ratings.length) * 10) / 10
+                        : null;
+                feedbackMap.set(employeeUid, {
+                    averageRating,
+                    totalFeedback: entry.ratings.length,
+                    recentRemarks: entry.remarks,
+                });
+            }
+        }
+
+        const enrichedEmployees = employees.map((employee: any) => ({
+            ...employee,
+            supportMetrics: feedbackMap.get(employee.uid) || {
+                averageRating: null,
+                totalFeedback: 0,
+                recentRemarks: [],
+            },
+        }));
+
+        res.json({ success: true, data: { employees: enrichedEmployees } });
     } catch (error) {
         console.error('Error listing employees:', error);
         res.status(500).json({ success: false, error: 'Failed to fetch employees' });
@@ -680,14 +731,17 @@ export const updatePropertyStatus = async (req: Request, res: Response) => {
         const { id } = req.params;
         const { status, reason } = req.body;
 
-        const allowedStatuses = ['active', 'pending', 'rejected', 'paused', 'cancelled', 'deleted'];
+        const allowedStatuses = ['active', 'pending', 'rejected', 'paused', 'cancelled', 'deleted', 'blacklisted'];
         if (!allowedStatuses.includes(status)) {
             return res.status(400).json({ success: false, error: 'Invalid status' });
         }
 
         const property = await prisma.property.update({
             where: { id },
-            data: { status }
+            data: {
+                status,
+                ...(status === 'blacklisted' ? { verified: false } : {}),
+            }
         });
 
         const sellerUserId = await resolveInternalUserId(property.sellerId);
@@ -831,5 +885,47 @@ export const updateSubscriptionStatus = async (req: Request, res: Response) => {
     } catch (error) {
         console.error('Error updating subscription status:', error);
         res.status(500).json({ success: false, error: 'Failed to update subscription status' });
+    }
+};
+
+/** Admin: list all partner payouts across all partners */
+export const getAllPayouts = async (req: Request, res: Response) => {
+    try {
+        const { status, partnerId } = req.query;
+        const where: any = {};
+        if (status) where.status = String(status);
+        if (partnerId) where.partnerId = String(partnerId);
+
+        const payouts = await prisma.payout.findMany({
+            where,
+            orderBy: { createdAt: 'desc' },
+            include: {
+                partner: {
+                    select: { id: true, uid: true, name: true, email: true, role: true }
+                }
+            }
+        });
+
+        res.json({ success: true, data: payouts });
+    } catch (error) {
+        console.error('getAllPayouts error:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch payouts' });
+    }
+};
+
+/** Admin: list all partner-type users */
+export const getPartners = async (req: Request, res: Response) => {
+    try {
+        const partners = await prisma.user.findMany({
+            where: {
+                role: { in: ['ground_partner', 'promoter_partner', 'service_partner', 'legal_partner'] }
+            },
+            select: { id: true, uid: true, name: true, email: true, role: true },
+            orderBy: { name: 'asc' }
+        });
+        res.json({ success: true, data: partners });
+    } catch (error) {
+        console.error('getPartners error:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch partners' });
     }
 };

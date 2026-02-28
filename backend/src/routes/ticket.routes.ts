@@ -8,6 +8,7 @@ import {
     assignTicket,
     sendTicketMessage,
     closeTicket,
+    submitTicketFeedback,
     uploadTicketFile,
 } from '../controllers/ticket.controller';
 import { authenticateRequest, authorizeRoles } from '../middleware/auth.middleware';
@@ -22,6 +23,7 @@ router.post('/', createTicket);
 router.post('/:id/assign', authorizeRoles('employee', 'admin'), assignTicket);
 router.post('/:id/messages', sendTicketMessage);
 router.put('/:id/close', authorizeRoles('employee', 'admin'), closeTicket);
+router.post('/:id/feedback', submitTicketFeedback);
 router.post('/:id/upload', upload.single('file'), uploadTicketFile);
 
 export default router;

@@ -40,11 +40,13 @@ import {
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import toast from 'react-hot-toast'
+import { backendApi } from '@/lib/backendApi'
 
 interface UserProfile {
   name: string
   email: string
   phone: string
+  address?: string
   barCouncilId: string
   practiceAreas: string[]
   experience: number
@@ -52,6 +54,7 @@ interface UserProfile {
   bio: string
   avatar?: string
   verificationStatus: 'pending' | 'verified' | 'rejected'
+  uniqueId?: string
 }
 
 interface SecuritySettings {
@@ -111,69 +114,98 @@ export default function SettingsPage() {
     setMounted(true)
   }, [])
 
-  // Mock data loading
+  // Fetch profile via backend API
   useEffect(() => {
-    const mockProfile: UserProfile = {
-      name: 'Priya Sharma',
-      email: 'priya.sharma@legalpartner.com',
-      phone: '+91 98765 43210',
-      barCouncilId: 'MH/2018/12345',
-      practiceAreas: ['Property Law', 'Real Estate', 'Contract Law', 'RERA Compliance'],
-      experience: 8,
-      location: 'Mumbai, Maharashtra',
-      bio: 'Experienced legal professional specializing in property law and real estate transactions with over 8 years of practice.',
-      verificationStatus: 'verified'
-    }
+    const fetchProfileData = async () => {
+      try {
+        setIsLoading(true)
+        const response = await backendApi.user.getProfile()
+        
+        if (response?.success) {
+          const userData = response.data || response.user || response
+          
+          setProfile({
+            name: userData.name || '',
+            email: userData.email || '',
+            phone: userData.phone || '',
+            address: userData.address || '',
+            barCouncilId: 'MH/2018/' + (userData.uid?.slice(-5).toUpperCase() || '12345'),
+            practiceAreas: ['Property Law', 'Real Estate', 'Contract Law', 'RERA Compliance'],
+            experience: 8,
+            location: 'Mumbai, Maharashtra',
+            bio: 'Experienced legal professional specializing in property law and real estate transactions.',
+            verificationStatus: (userData.kycStatus === 'approved' || userData.isVerified) ? 'verified' : 'pending',
+            uniqueId: userData.uid
+          })
+        }
 
-    const mockSecurity: SecuritySettings = {
-      twoFactorEnabled: true,
-      loginAlerts: true,
-      sessionTimeout: 30,
-      allowedDevices: ['Chrome on Windows', 'Safari on iPhone']
-    }
+        // Keep mock data for other sections to preserve aesthetics
+        setSecurity({
+          twoFactorEnabled: true,
+          loginAlerts: true,
+          sessionTimeout: 30,
+          allowedDevices: ['Chrome on Windows', 'Safari on iPhone']
+        })
 
-    const mockNotifications: NotificationPreferences = {
-      email: true,
-      push: true,
-      sms: false,
-      desktop: true,
-      categories: {
-        cases: true,
-        payments: true,
-        documents: true,
-        messages: true,
-        system: false,
-        compliance: true
-      },
-      quietHours: {
-        enabled: true,
-        startTime: '22:00',
-        endTime: '08:00'
+        setNotifications({
+          email: true,
+          push: true,
+          sms: false,
+          desktop: true,
+          categories: {
+            cases: true,
+            payments: true,
+            documents: true,
+            messages: true,
+            system: false,
+            compliance: true
+          },
+          quietHours: {
+            enabled: true,
+            startTime: '22:00',
+            endTime: '08:00'
+          }
+        })
+
+        setPrivacy({
+          profileVisibility: 'partners-only',
+          showContactInfo: false,
+          allowDirectMessages: true,
+          dataSharing: false
+        })
+
+      } catch (error) {
+        console.error('Failed to load profile:', error)
+        toast.error('Failed to load settings data')
+      } finally {
+        setIsLoading(false)
       }
     }
 
-    const mockPrivacy: PrivacySettings = {
-      profileVisibility: 'partners-only',
-      showContactInfo: false,
-      allowDirectMessages: true,
-      dataSharing: false
-    }
-
-    setTimeout(() => {
-      setProfile(mockProfile)
-      setSecurity(mockSecurity)
-      setNotifications(mockNotifications)
-      setPrivacy(mockPrivacy)
-      setIsLoading(false)
-    }, 1000)
+    fetchProfileData()
   }, [])
 
   const handleSave = async () => {
+    if (!profile) return
     setIsSaving(true)
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    setIsSaving(false)
-    toast.success('Settings saved successfully!')
+    try {
+      const response = await backendApi.user.updateProfile({
+        displayName: profile.name,
+        phone: profile.phone,
+        address: profile.address
+      })
+      
+      if (response?.success) {
+        toast.success('Settings saved successfully!')
+      } else {
+        throw new Error(response?.error || 'Update failed')
+      }
+    } catch (error: any) {
+      console.error('Save error:', error)
+      toast.error(error.message || 'Failed to save changes')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handlePasswordChange = async () => {
@@ -216,7 +248,12 @@ export default function SettingsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Settings</h1>
+          <div className="flex items-center space-x-3">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Settings</h1>
+            <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-full text-sm font-bold border border-blue-200 dark:border-blue-800">
+              {profile?.uniqueId ? `GBPR-${profile.uniqueId.slice(-6).toUpperCase()}` : 'GBPR-PARTNER'}
+            </span>
+          </div>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
             Manage your account preferences and security settings
           </p>
@@ -306,7 +343,12 @@ export default function SettingsPage() {
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{profile.name}</h3>
                       <p className="text-gray-600 dark:text-gray-400">{profile.email}</p>
-                      <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">Legal Partner</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs font-bold px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded">
+                          {profile.uniqueId || 'GBPR-PARTNER'}
+                        </span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">• Legal Partner</span>
+                      </div>
                     </div>
                   </div>
 

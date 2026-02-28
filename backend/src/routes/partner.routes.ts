@@ -1,9 +1,17 @@
 import express from 'express';
+import multer from 'multer';
 import { authenticate } from '../middleware/auth.middleware';
 import { requireRole } from '../middleware/roleGuard.middleware';
 import * as partnerController from '../controllers/partner.controller';
+import { MAX_FILE_SIZE } from '../utils/fileStorage';
 
 const router = express.Router();
+
+const storage = multer.memoryStorage();
+const upload = multer({
+    storage,
+    limits: { fileSize: MAX_FILE_SIZE },
+});
 
 router.post(
     '/cases',
@@ -48,6 +56,14 @@ router.post(
     authenticate,
     requireRole(['admin']),
     partnerController.createPayout
+);
+
+router.post(
+    '/upload-document',
+    authenticate,
+    requireRole(['legal_partner', 'ground_partner', 'promoter_partner', 'service_partner', 'admin']),
+    upload.single('file'),
+    partnerController.uploadPartnerDocument
 );
 
 export default router;

@@ -18,7 +18,8 @@ import {
   Search,
   Megaphone,
   Shield,
-  MapPin
+  MapPin,
+  Wallet
 } from 'lucide-react'
 import NotificationDropdown from '@/components/NotificationDropdown'
 import { AuthUtils } from '@/lib/firebase'
@@ -68,6 +69,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: 'Listings', href: '/admin/listings', icon: Home },
     { name: 'Employees', href: '/admin/employees', icon: UserCog },
     { name: 'Salary', href: '/admin/salary', icon: DollarSign },
+    { name: 'Partner Payouts', href: '/admin/payouts', icon: Wallet },
     { name: 'Payments', href: '/admin/payments', icon: CreditCard },
     { name: 'Subscriptions', href: '/admin/subscriptions', icon: CreditCard },
     { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },

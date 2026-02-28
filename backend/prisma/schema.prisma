@@ -87,6 +87,7 @@ model User {
   // Contract relations
   buyerContracts  Contract[] @relation("BuyerContracts")
   sellerContracts Contract[] @relation("SellerContracts")
+  payouts         Payout[]
 
   @@index([email])
   @@index([role])
@@ -655,6 +656,7 @@ model Salary {
 model Payout {
   id          String    @id @default(uuid())
   partnerId   String
+  partner     User      @relation(fields: [partnerId], references: [id])
   amount      Decimal   @db.Decimal(12, 2)
   method      String    @default("bank-transfer") // bank-transfer, upi, wallet
   status      String    @default("pending") // pending, processing, paid, failed

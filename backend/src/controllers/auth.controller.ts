@@ -3,7 +3,7 @@ import { OAuth2Client } from 'google-auth-library';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { generateToken, verifyToken as jwtVerifyToken } from '../utils/jwt';
-import { prisma } from '../utils/prisma';
+import { prisma } from '../utils/database';
 import { getNextEmployeeId } from '../utils/idGenerator';
 import config from '../config';
 import { sendPasswordResetEmail } from '../utils/email.service';
@@ -14,21 +14,35 @@ const client = new OAuth2Client({
     clientSecret: config.google.clientSecret,
 });
 
-const generateRandomHex = (): string => {
-    return crypto.randomBytes(4).toString('hex').slice(0, 7);
+const generateRandomNum = (digits: number): string => {
+    const min = Math.pow(10, digits - 1);
+    const max = Math.pow(10, digits) - 1;
+    return Math.floor(Math.random() * (max - min + 1) + min).toString();
 };
 
+/**
+ * Generates role-specific unique IDs:
+ * Buyer    → GBBR2313xxx
+ * Seller   → GBSR2313xxx
+ * Employee → GBEMP23103xxx
+ * Partners → GBPR23130xxx
+ */
 const generateCustomId = (role: string): string => {
-    const randomHex = generateRandomHex();
-    let prefix = 'gbclient';
+    const now = new Date();
+    const yy = now.getFullYear().toString().slice(-2);
+    const mm = (now.getMonth() + 1).toString().padStart(2, '0');
+    const rand = generateRandomNum(3);
 
-    if (role === 'employee') prefix = 'gbemployee';
-    else if (role === 'legal_partner') prefix = 'gblegal';
-    else if (role === 'service_partner') prefix = 'gbservice';
-    else if (role === 'ground_partner') prefix = 'gbground';
-    else if (role === 'promoter_partner') prefix = 'gbpromoter';
+    if (role === 'employee') return `GBEMP${yy}${mm}${rand}`;
+    if (['legal_partner', 'service_partner', 'ground_partner', 'promoter_partner'].includes(role))
+        return `GBPR${yy}${mm}${rand}`;
+    if (role === 'seller') return `GBSR${yy}${mm}${rand}`;
+    // default buyer
+    return `GBBR${yy}${mm}${rand}`;
+};
 
-    return `${prefix}${randomHex}`;
+const generateRandomHex = (): string => {
+    return crypto.randomBytes(4).toString('hex').slice(0, 7);
 };
 
 // Helper function to check if email is admin
@@ -140,8 +154,9 @@ export const signup = async (req: Request, res: Response) => {
 
         const finalRole = isAdminEmail(email) ? 'admin' : role;
         const uid = generateCustomId(finalRole);
-        const buyerClientId = `gbclient${generateRandomHex()}`;
-        const sellerClientId = `gbclient${generateRandomHex()}`;
+        // Generate explicit buyer/seller client IDs using plan format
+        const buyerClientId = generateCustomId('buyer');
+        const sellerClientId = generateCustomId('seller');
 
         // Hash password
         const salt = await bcrypt.genSalt(10);
@@ -322,8 +337,8 @@ export const googleAuth = async (req: Request, res: Response) => {
 
         // Upsert user
         const uid = generateCustomId(finalRole);
-        const buyerClientId = `gbclient${generateRandomHex()}`;
-        const sellerClientId = `gbclient${generateRandomHex()}`;
+        const buyerClientId = generateCustomId('buyer');
+        const sellerClientId = generateCustomId('seller');
 
         // Check if user has a service provider profile to auto-set role
         const existingUserWithProfile = await prisma.user.findUnique({

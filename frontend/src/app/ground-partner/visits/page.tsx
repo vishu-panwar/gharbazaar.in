@@ -20,6 +20,7 @@ type Visit = {
     price?: number | string | null
     photos?: string[]
   }
+  displayId?: string
 }
 
 const normalize = (value?: string) => (value || '').toLowerCase()
@@ -52,7 +53,12 @@ export default function GroundPartnerVisitsPage() {
       if (!response?.success) {
         throw new Error(response?.message || response?.error || 'Failed to load partner visits')
       }
-      setVisits(Array.isArray(response?.data) ? response.data : [])
+      setVisits(
+        (Array.isArray(response?.data) ? response.data : []).map((v: any) => ({
+          ...v,
+          displayId: `VIS-${v.id?.slice(-6).toUpperCase()}`
+        }))
+      )
     } catch (error: any) {
       toast.error(error?.message || 'Failed to load partner visits')
     } finally {
@@ -209,7 +215,14 @@ export default function GroundPartnerVisitsPage() {
                   const isBusy = updatingId === row.id
                   return (
                     <tr key={row.id} className="border-t border-gray-100 dark:border-gray-800">
-                      <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{row.property?.title || 'Site visit'}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-500 rounded">
+                            {row.displayId || row.id}
+                          </span>
+                          <span className="font-medium text-gray-900 dark:text-gray-100">{row.property?.title || 'Site visit'}</span>
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
                         <div className="flex items-center gap-1">
                           <MapPin size={14} />

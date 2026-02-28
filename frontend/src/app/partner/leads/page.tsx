@@ -38,6 +38,24 @@ export default function PartnerLeadsPage() {
   const [referrals, setReferrals] = useState<Referral[]>([])
   const [statusFilter, setStatusFilter] = useState('all')
   const [query, setQuery] = useState('')
+  const [profile, setProfile] = useState<{ uniqueId?: string } | null>(null)
+
+  // Fetch profile for UID
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const response = await backendApi.user.getProfile()
+        if (response?.success) {
+          setProfile({
+            uniqueId: response.data.uid
+          })
+        }
+      } catch (error) {
+        console.error('Failed to load profile:', error)
+      }
+    }
+    loadProfile()
+  }, [])
 
   const loadReferrals = async () => {
     try {
@@ -109,7 +127,12 @@ export default function PartnerLeadsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Lead Tracking</h1>
+          <div className="flex items-center space-x-3">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Lead Tracking</h1>
+            <span className="px-3 py-0.5 bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-full text-xs font-bold border border-blue-200 dark:border-blue-800">
+              {profile?.uniqueId ? `GBPR-${profile.uniqueId.slice(-6).toUpperCase()}` : 'GBPR-PARTNER'}
+            </span>
+          </div>
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Live referral leads from promotional partner workflow
           </p>

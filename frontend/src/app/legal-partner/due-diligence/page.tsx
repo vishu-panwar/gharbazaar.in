@@ -48,6 +48,7 @@ interface DueDiligenceCase {
   recommendations: string[]
   complianceScore: number
   lastUpdated: string
+  clientUniqueId?: string
 }
 
 interface ChecklistItem {
@@ -199,46 +200,38 @@ export default function DueDiligencePage() {
 
     const loadCases = async () => {
       try {
+        setIsLoading(true)
         const response = await backendApi.partners.getCases({ type: 'legal' })
-        if (response?.success && Array.isArray(response?.data) && response.data.length > 0) {
+        if (response?.success && Array.isArray(response?.data)) {
           const mapped = response.data.map((c: any) => ({
-            id: c._id,
-            caseId: c._id?.slice(-6) || c._id,
-            propertyTitle: c.title || 'Legal Case',
-            propertyType: c.metadata?.propertyType || 'Property',
-            clientName: c.metadata?.clientName || 'Client',
+            id: c.id,
+            caseId: c.id?.slice(-6).toUpperCase() || c.id,
+            propertyTitle: c.property?.title || c.title || 'Legal Case',
+            propertyType: c.property?.type || c.metadata?.propertyType || 'Property',
+            clientName: c.buyer?.name || c.metadata?.clientName || 'Client',
             assignedDate: c.createdAt || new Date().toISOString(),
             dueDate: c.dueDate || new Date().toISOString(),
-            status: c.status === 'completed' ? 'completed' : c.status === 'in_progress' ? 'in-progress' : 'pending',
-            priority: 'medium',
-            checklist: [],
-            legalOpinion: c.description || '',
-            riskGrade: null,
-            recommendations: [],
-            complianceScore: 0,
-            lastUpdated: c.updatedAt || c.createdAt || new Date().toISOString()
+            status: (c.status === 'completed' ? 'completed' : c.status === 'in_progress' ? 'in-progress' : c.status === 'rejected' ? 'requires-clarification' : 'pending') as any,
+            priority: (c.metadata?.priority || 'medium') as any,
+            checklist: c.metadata?.checklist || [],
+            legalOpinion: c.metadata?.legalOpinion || c.description || '',
+            riskGrade: c.metadata?.riskGrade || null,
+            recommendations: c.metadata?.recommendations || [],
+            complianceScore: c.metadata?.complianceScore || 0,
+            lastUpdated: c.updatedAt || c.createdAt || new Date().toISOString(),
+            clientUniqueId: c.buyer?.uid || c.seller?.uid || c.metadata?.clientUniqueId
           }))
           setCases(mapped)
           setFilteredCases(mapped)
           setIsLoading(false)
-          return
         }
       } catch (error) {
         console.error('Failed to load cases:', error)
+        setIsLoading(false)
       }
-
-      setCases(mockCases)
-      setFilteredCases(mockCases)
-      setIsLoading(false)
     }
 
     loadCases()
-
-    setTimeout(() => {
-      setCases(mockCases)
-      setFilteredCases(mockCases)
-      setIsLoading(false)
-    }, 1000)
   }, [])
 
   // Filter cases
@@ -314,31 +307,64 @@ export default function DueDiligencePage() {
     }
   }
 
-  const updateChecklistItem = (caseId: string, itemId: string, updates: Partial<ChecklistItem>) => {
-    setCases(prev => prev.map(case_ => 
-      case_.id === caseId 
-        ? {
-            ...case_,
-            checklist: case_.checklist.map(item => 
-              item.id === itemId ? { ...item, ...updates } : item
-            ),
-            lastUpdated: new Date().toISOString()
-          }
-        : case_
-    ))
-    toast.success('Checklist item updated!')
+  const updateChecklistItem = async (caseId: string, itemId: string, updates: Partial<ChecklistItem>) => {
+    try {
+      const caseToUpdate = cases.find(c => c.id === caseId)
+      if (!caseToUpdate) return
+
+      const updatedChecklist = caseToUpdate.checklist.map(item => 
+        item.id === itemId ? { ...item, ...updates, verifiedDate: updates.status === 'verified' ? new Date().toISOString() : item.verifiedDate } : item
+      )
+
+      // Calculate compliance score
+      const verifiedCount = updatedChecklist.filter(item => item.status === 'verified').length
+      const complianceScore = updatedChecklist.length > 0 ? Math.round((verifiedCount / updatedChecklist.length) * 100) : 0
+
+      const metadata = {
+        ...caseToUpdate,
+        checklist: updatedChecklist,
+        complianceScore
+      }
+
+      const response = await backendApi.partners.updateCase(caseId, { metadata })
+      if (response?.success) {
+        setCases(prev => prev.map(case_ => 
+          case_.id === caseId 
+            ? { ...case_, checklist: updatedChecklist, complianceScore, lastUpdated: new Date().toISOString() }
+            : case_
+        ))
+        toast.success('Checklist item updated!')
+      } else {
+        throw new Error(response?.message || 'Failed to update')
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update checklist item')
+    }
   }
 
-  const saveLegalOpinion = () => {
+  const saveLegalOpinion = async () => {
     if (selectedCase) {
-      setCases(prev => prev.map(case_ => 
-        case_.id === selectedCase.id 
-          ? { ...case_, legalOpinion: tempOpinion, lastUpdated: new Date().toISOString() }
-          : case_
-      ))
-      setSelectedCase({ ...selectedCase, legalOpinion: tempOpinion })
-      setEditingOpinion(false)
-      toast.success('Legal opinion saved!')
+      try {
+        const metadata = {
+          ...selectedCase,
+          legalOpinion: tempOpinion
+        }
+        const response = await backendApi.partners.updateCase(selectedCase.id, { metadata })
+        if (response?.success) {
+          setCases(prev => prev.map(case_ => 
+            case_.id === selectedCase.id 
+              ? { ...case_, legalOpinion: tempOpinion, lastUpdated: new Date().toISOString() }
+              : case_
+          ))
+          setSelectedCase({ ...selectedCase, legalOpinion: tempOpinion })
+          setEditingOpinion(false)
+          toast.success('Legal opinion saved!')
+        } else {
+          throw new Error(response?.message || 'Failed to save')
+        }
+      } catch (error: any) {
+        toast.error(error.message || 'Failed to save legal opinion')
+      }
     }
   }
 
@@ -517,7 +543,7 @@ export default function DueDiligencePage() {
                         )}
                       </div>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Case ID: {case_.caseId} • Client: {case_.clientName}
+                        Case ID: {case_.caseId} • Client: {case_.clientName} {case_.clientUniqueId ? `(${case_.clientUniqueId})` : ''}
                       </p>
                     </div>
                   </div>

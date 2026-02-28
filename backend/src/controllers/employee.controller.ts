@@ -27,6 +27,61 @@ const resolveInternalUserId = async (uidOrId?: string | null): Promise<string | 
     return byId?.id || null;
 };
 
+const resolveUserReference = async (uidOrId?: string | null) => {
+    const value = (uidOrId || '').trim();
+    if (!value) return null;
+
+    return prisma.user.findFirst({
+        where: {
+            OR: [{ uid: value }, { id: value }],
+        },
+        select: {
+            id: true,
+            uid: true,
+            name: true,
+            role: true,
+        },
+    });
+};
+
+const refundSellerListingUsage = async (sellerUid?: string | null) => {
+    const sellerUserId = await resolveInternalUserId(sellerUid);
+    if (!sellerUserId) return;
+
+    const subscription = await prisma.subscription.findFirst({
+        where: {
+            userId: sellerUserId,
+            status: 'active',
+            endDate: { gt: new Date() },
+            plan: {
+                OR: [{ type: 'seller' }, { type: 'combined' }],
+            },
+        },
+        include: {
+            plan: {
+                select: { listingLimit: true },
+            },
+        },
+        orderBy: { updatedAt: 'desc' },
+    });
+
+    if (!subscription) return;
+
+    const usageStats = (subscription.usageStats as Record<string, any> | null) || {};
+    const listingsUsed = Math.max(0, Number(usageStats.listingsUsed || 0));
+    if (listingsUsed === 0) return;
+
+    await prisma.subscription.update({
+        where: { id: subscription.id },
+        data: {
+            usageStats: {
+                ...usageStats,
+                listingsUsed: listingsUsed - 1,
+            },
+        },
+    }).catch(() => null);
+};
+
 export const getPendingProperties = async (req: Request, res: Response) => {
     try {
         const properties = await prisma.property.findMany({
@@ -55,18 +110,21 @@ export const approveProperty = async (req: Request, res: Response) => {
         const { id } = req.params;
         const existing = await prisma.property.findUnique({
             where: { id },
-            select: { id: true, sellerId: true, title: true },
+            select: { id: true, sellerId: true, title: true, status: true },
         });
 
         if (!existing) {
             return res.status(404).json({ success: false, error: 'Property not found' });
+        }
+        if (existing.status !== 'pending') {
+            return res.status(400).json({ success: false, error: 'Only pending listings can be approved' });
         }
 
         const property = await prisma.property.update({
             where: { id },
             data: {
                 status: 'active',
-                verified: true,
+                verified: false,
             },
         });
 
@@ -85,7 +143,7 @@ export const approveProperty = async (req: Request, res: Response) => {
                     userId: seller.id,
                     type: 'listing_update',
                     title: 'Property Approved',
-                    message: `Your property "${existing.title}" has been approved and is now live.`,
+                    message: `Your property "${existing.title}" has been approved and is now live. Physical verification is still pending.`,
                     link: `/dashboard/listings/${existing.id}`,
                     priority: 'medium',
                 },
@@ -106,32 +164,40 @@ export const rejectProperty = async (req: Request, res: Response) => {
 
         const existing = await prisma.property.findUnique({
             where: { id },
-            select: { id: true, title: true, sellerId: true },
+            select: { id: true, title: true, sellerId: true, status: true },
         });
         if (!existing) {
             return res.status(404).json({ success: false, error: 'Property not found' });
         }
+        if (existing.status !== 'pending') {
+            return res.status(400).json({ success: false, error: 'Only pending listings can be rejected here' });
+        }
 
-        const property = await prisma.property.update({
+        await prisma.property.delete({
             where: { id },
-            data: { status: 'rejected' },
         });
 
-        const sellerUserId = await resolveInternalUserId(property.sellerId);
+        await refundSellerListingUsage(existing.sellerId);
+
+        const sellerUserId = await resolveInternalUserId(existing.sellerId);
         if (sellerUserId) {
             await prisma.notification.create({
                 data: {
                     userId: sellerUserId,
                     type: 'listing_update',
                     title: 'Property Rejected',
-                    message: `Your property "${property.title}" was rejected.${reason ? ` Reason: ${reason}` : ''}`,
-                    link: `/dashboard/listings/${property.id}`,
+                    message: `Your property "${existing.title}" was rejected and removed.${reason ? ` Reason: ${reason}` : ''} Your listing slot has been restored.`,
+                    link: `/dashboard/listings`,
                     priority: 'high',
                 },
             });
         }
 
-        res.json({ success: true, data: { property } });
+        res.json({
+            success: true,
+            message: 'Pending property rejected, removed, and listing slot restored',
+            data: { id: existing.id },
+        });
     } catch (error) {
         console.error('Error rejecting property:', error);
         res.status(500).json({ success: false, error: 'Failed to reject property' });
@@ -417,6 +483,172 @@ export const getReferralLeads = async (req: Request, res: Response) => {
     } catch (error) {
         console.error('Error fetching referral leads:', error);
         res.status(500).json({ success: false, error: 'Failed to fetch referral leads' });
+    }
+};
+
+/** Schedule a site visit on behalf of GharBazaar (employee-initiated) */
+export const scheduleVisit = async (req: Request, res: Response) => {
+    try {
+        const employeeIdentifier = (req as any).user?.userId || (req as any).user?.id;
+        const { propertyId, scheduledAt, notes, partnerId, groundPartnerId } = req.body;
+
+        if (!propertyId || !scheduledAt) {
+            return res.status(400).json({ success: false, error: 'propertyId and scheduledAt are required' });
+        }
+
+        const property = await prisma.property.findUnique({
+            where: { id: propertyId },
+            select: { id: true, title: true, sellerId: true, status: true },
+        });
+        if (!property) {
+            return res.status(404).json({ success: false, error: 'Property not found' });
+        }
+
+        const employee = await prisma.user.findUnique({
+            where: { uid: employeeIdentifier },
+            select: { id: true, uid: true, name: true },
+        });
+        if (!employee) {
+            return res.status(401).json({ success: false, error: 'Employee not found' });
+        }
+
+        const seller = await prisma.user.findUnique({
+            where: { uid: property.sellerId },
+            select: { id: true, uid: true, name: true },
+        });
+
+        const assignedPartner = await resolveUserReference(groundPartnerId || partnerId);
+        if (assignedPartner && assignedPartner.role !== 'ground_partner') {
+            return res.status(400).json({ success: false, error: 'Assigned partner must be a ground partner' });
+        }
+
+        const visit = await prisma.visit.create({
+            data: {
+                propertyId,
+                buyerId: employee.id, // employee acts as visit coordinator
+                sellerId: seller?.id || employee.id,
+                partnerId: assignedPartner?.id || null,
+                scheduledAt: new Date(scheduledAt),
+                status: 'scheduled',
+                notes: notes || `Site visit scheduled by GharBazaar employee`,
+            },
+        });
+
+        if (seller) {
+            await prisma.notification.create({
+                data: {
+                    userId: seller.id,
+                    type: 'visit',
+                    title: 'Site Visit Scheduled',
+                    message: `GharBazaar has scheduled a site visit for "${property.title}" on ${new Date(scheduledAt).toLocaleDateString()}.`,
+                    link: `/seller/dashboard`,
+                    priority: 'high',
+                },
+            });
+        }
+
+        if (assignedPartner) {
+            await prisma.notification.create({
+                data: {
+                    userId: assignedPartner.id,
+                    type: 'visit',
+                    title: 'New Ground Visit Assigned',
+                    message: `A site visit has been assigned to you for "${property.title}".`,
+                    link: `/ground-partner/visits`,
+                    priority: 'high',
+                    metadata: JSON.stringify({ visitId: visit.id, propertyId: property.id }),
+                },
+            });
+        }
+
+        res.json({ success: true, data: { visit }, message: 'Site visit scheduled successfully' });
+    } catch (error: any) {
+        console.error('Error scheduling visit:', error);
+        res.status(500).json({ success: false, error: 'Failed to schedule visit' });
+    }
+};
+
+/** Mark a property as physically verified by an employee */
+export const verifyProperty = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { notes } = req.body;
+
+        const property = await prisma.property.findUnique({
+            where: { id },
+            select: { id: true, title: true, sellerId: true },
+        });
+        if (!property) {
+            return res.status(404).json({ success: false, error: 'Property not found' });
+        }
+
+        const updated = await prisma.property.update({
+            where: { id },
+            data: {
+                verified: true,
+                status: 'active',
+            },
+        });
+
+        const sellerUserId = await resolveInternalUserId(property.sellerId);
+        if (sellerUserId) {
+            await prisma.notification.create({
+                data: {
+                    userId: sellerUserId,
+                    type: 'listing_update',
+                    title: '✅ Property Physically Verified',
+                    message: `Your property "${property.title}" has been physically verified by our team and now shows the verified badge.`,
+                    link: `/seller/dashboard`,
+                    priority: 'medium',
+                },
+            });
+        }
+
+        res.json({ success: true, data: { property: updated }, message: 'Property verified successfully' });
+    } catch (error: any) {
+        console.error('Error verifying property:', error);
+        res.status(500).json({ success: false, error: 'Failed to verify property' });
+    }
+};
+
+export const unverifyProperty = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+
+        const property = await prisma.property.findUnique({
+            where: { id },
+            select: { id: true, title: true, sellerId: true, verified: true },
+        });
+        if (!property) {
+            return res.status(404).json({ success: false, error: 'Property not found' });
+        }
+        if (!property.verified) {
+            return res.status(400).json({ success: false, error: 'Property is not verified' });
+        }
+
+        const updated = await prisma.property.update({
+            where: { id },
+            data: { verified: false },
+        });
+
+        const sellerUserId = await resolveInternalUserId(property.sellerId);
+        if (sellerUserId) {
+            await prisma.notification.create({
+                data: {
+                    userId: sellerUserId,
+                    type: 'listing_update',
+                    title: 'Property Verification Removed',
+                    message: `The verified badge for "${property.title}" has been removed by our team.`,
+                    link: `/seller/dashboard`,
+                    priority: 'high',
+                },
+            });
+        }
+
+        res.json({ success: true, data: { property: updated }, message: 'Property unverified successfully' });
+    } catch (error: any) {
+        console.error('Error unverifying property:', error);
+        res.status(500).json({ success: false, error: 'Failed to unverify property' });
     }
 };
 

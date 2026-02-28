@@ -39,6 +39,24 @@ export default function ServicePartnerEarningsPage() {
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [profile, setProfile] = useState<{ uniqueId?: string } | null>(null)
+
+  // Fetch profile for UID
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const response = await backendApi.serviceProvider.getMyProfile()
+        if (response?.success) {
+          setProfile({
+            uniqueId: response.data.uid
+          })
+        }
+      } catch (error) {
+        console.error('Failed to load profile:', error)
+      }
+    }
+    loadProfile()
+  }, [])
 
   const loadPayouts = async () => {
     try {
@@ -114,7 +132,12 @@ export default function ServicePartnerEarningsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Earnings & Payouts</h1>
+          <div className="flex items-center space-x-3">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Earnings & Payouts</h1>
+            <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-full text-sm font-bold border border-blue-200 dark:border-blue-800">
+              {profile?.uniqueId ? `GBPR-${profile.uniqueId.slice(-6).toUpperCase()}` : 'GBPR-PARTNER'}
+            </span>
+          </div>
           <p className="text-gray-600 dark:text-gray-400 mt-1">Live payout history from partner finance workflow.</p>
         </div>
 

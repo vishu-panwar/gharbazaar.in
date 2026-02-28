@@ -17,6 +17,9 @@ router.get('/approved-properties', employeeController.getApprovedProperties);
 router.post('/approve-property/:id', employeeController.approveProperty);
 router.post('/reject-property/:id', employeeController.rejectProperty);
 router.post('/toggle-property-pause/:id', employeeController.togglePropertyPause);
+router.post('/schedule-visit', employeeController.scheduleVisit);
+router.post('/verify-property/:id', employeeController.verifyProperty);
+router.post('/unverify-property/:id', employeeController.unverifyProperty);
 router.get('/leads', employeeController.getReferralLeads);
 router.post('/onboarding', employeeController.completeOnboarding);
 

@@ -1,6 +1,7 @@
 
 import { Request, Response } from 'express';
 import { prisma } from '../utils/database';
+import { uploadFile } from '../utils/fileStorage';
 
 const ALLOWED_CASE_STATUSES = new Set([
     'open',
@@ -263,3 +264,70 @@ export const createPayout = async (req: Request, res: Response) => {
     }
 };
 
+
+export const uploadPartnerDocument = async (req: Request, res: Response) => {
+    try {
+        const userId = (req as any).user?.userId; // Firebase uid
+        const user = await prisma.user.findUnique({ where: { uid: userId } });
+        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+        const { caseId, category, name, description, tags, status, accessLevel } = req.body;
+        const file = req.file;
+
+        if (!file) {
+            return res.status(400).json({ success: false, error: 'No file uploaded' });
+        }
+
+        // Upload file to storage
+        const uploadResult = await uploadFile(file.buffer, file.originalname, file.mimetype);
+
+        const newDocument = {
+            id: `DOC-${Date.now()}`,
+            name: name || file.originalname,
+            url: uploadResult.url,
+            type: file.mimetype.split('/')[1] || 'other',
+            category: category || 'misc',
+            size: file.size,
+            uploadedBy: user.name || 'Partner',
+            uploadedDate: new Date().toISOString(),
+            status: status || 'active',
+            accessLevel: accessLevel || 'restricted',
+            description: description || '',
+            tags: tags ? (Array.isArray(tags) ? tags : String(tags).split(',').map((t: string) => t.trim())) : [],
+            version: 1
+        };
+
+        if (caseId) {
+            // Add to PartnerCase metadata
+            const partnerCase = await prisma.partnerCase.findUnique({
+                where: { id: caseId }
+            });
+
+            if (!partnerCase) {
+                return res.status(404).json({ success: false, error: 'Case not found' });
+            }
+
+            const metadata = (partnerCase.metadata as any) || {};
+            const documents = metadata.documents || [];
+            documents.push(newDocument);
+
+            await prisma.partnerCase.update({
+                where: { id: caseId },
+                data: {
+                    metadata: {
+                        ...metadata,
+                        documents
+                    }
+                }
+            });
+        } else {
+            // Optional: Store in User metadata if caseId is missing
+            // For now, let's just return the uploaded doc info
+        }
+
+        res.status(200).json({ success: true, data: newDocument });
+    } catch (error: any) {
+        console.error('uploadPartnerDocument error:', error);
+        res.status(500).json({ success: false, message: 'Failed to upload document', error: error.message });
+    }
+};

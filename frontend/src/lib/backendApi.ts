@@ -137,9 +137,13 @@ async function backendApiCall(endpoint: string, options: RequestInit = {}) {
     const token = await getAuthToken();
 
     const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
         ...(options.headers as Record<string, string>),
     };
+
+    // Only set Content-Type if not FormData (browser handles FormData boundary)
+    if (!(options.body instanceof FormData) && !headers['Content-Type']) {
+        headers['Content-Type'] = 'application/json';
+    }
 
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;
@@ -1189,6 +1193,12 @@ export const backendApi = {
                 body: JSON.stringify(data),
             });
         },
+        uploadDocument: async (formData: FormData) => {
+            return backendApiCall('/partners/upload-document', {
+                method: 'POST',
+                body: formData, // backendApiCall should handle FormData correctly (not JSON.stringify)
+            });
+        },
     },
 
     // Payments endpoints
@@ -1461,6 +1471,20 @@ export const backendApi = {
                 method: 'POST'
             });
         },
+
+        scheduleVisit: async (data: { propertyId: string; scheduledAt: string; notes?: string }) => {
+            return backendApiCall('/employee/schedule-visit', {
+                method: 'POST',
+                body: JSON.stringify(data),
+            });
+        },
+
+        verifyProperty: async (id: string, notes?: string) => {
+            return backendApiCall(`/employee/verify-property/${id}`, {
+                method: 'POST',
+                body: JSON.stringify({ notes }),
+            });
+        },
     },
 
     // Tickets endpoints
@@ -1695,6 +1719,36 @@ export const backendApi = {
 
         book: async (id: string, data: { formData?: any; message?: string }) => {
             return backendApiCall(`/service-providers/${id}/book`, {
+                method: 'POST',
+                body: JSON.stringify(data),
+            });
+        },
+    },
+
+    // Admin Payout & Partner management
+    adminPayouts: {
+        getAll: async (params?: { status?: string; partnerId?: string }) => {
+            const query = params ? new URLSearchParams(params as any).toString() : '';
+            return backendApiCall(`/admin/payouts${query ? `?${query}` : ''}`);
+        },
+        approve: async (id: string, data: { reference?: string; status?: string }) => {
+            return backendApiCall(`/admin/payouts/${id}/approve`, {
+                method: 'POST',
+                body: JSON.stringify(data),
+            });
+        },
+        getPartners: async () => backendApiCall('/admin/partners'),
+        create: async (data: {
+            partnerId: string;
+            amount: number;
+            method?: string;
+            status?: string;
+            reference?: string;
+            notes?: string;
+            periodStart?: string;
+            periodEnd?: string;
+        }) => {
+            return backendApiCall('/partner/payouts', {
                 method: 'POST',
                 body: JSON.stringify(data),
             });

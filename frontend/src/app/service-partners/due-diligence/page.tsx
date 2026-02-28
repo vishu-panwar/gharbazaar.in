@@ -30,6 +30,7 @@ import {
   ExternalLink
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { backendApi } from '@/lib/backendApi'
 
 interface DueDiligenceCase {
   id: string
@@ -79,12 +80,29 @@ export default function DueDiligencePage() {
     async function fetchCases() {
       try {
         setIsLoading(true)
-        // If there's a due diligence API, we can use it here
-        // For now, we'll keep it as an empty state
-        
-        setCases([])
-        setFilteredCases([])
-        setIsLoading(false)
+        const response = await backendApi.partners.getCases()
+        if (response?.success && Array.isArray(response?.data)) {
+          const mapped = response.data.map((c: any) => ({
+            id: c.id,
+            caseId: c.id?.slice(-6).toUpperCase() || c.id,
+            propertyTitle: c.property?.title || c.title || 'Case',
+            propertyType: c.property?.type || c.metadata?.propertyType || 'Property',
+            clientName: c.buyer?.name || c.metadata?.clientName || 'Client',
+            assignedDate: c.createdAt || new Date().toISOString(),
+            dueDate: c.dueDate || new Date().toISOString(),
+            status: (c.status === 'completed' ? 'completed' : c.status === 'in_progress' ? 'in-progress' : c.status === 'rejected' ? 'requires-clarification' : 'pending') as any,
+            priority: (c.metadata?.priority || 'medium') as any,
+            checklist: c.metadata?.checklist || [],
+            legalOpinion: c.metadata?.legalOpinion || c.description || '',
+            riskGrade: c.metadata?.riskGrade || null,
+            recommendations: c.metadata?.recommendations || [],
+            complianceScore: c.metadata?.complianceScore || 0,
+            lastUpdated: c.updatedAt || c.createdAt || new Date().toISOString()
+          }))
+          setCases(mapped)
+          setFilteredCases(mapped)
+          setIsLoading(false)
+        }
       } catch (error) {
         console.error('Error fetching due diligence cases:', error)
         setIsLoading(false)
@@ -166,31 +184,64 @@ export default function DueDiligencePage() {
     }
   }
 
-  const updateChecklistItem = (caseId: string, itemId: string, updates: Partial<ChecklistItem>) => {
-    setCases(prev => prev.map(case_ => 
-      case_.id === caseId 
-        ? {
-            ...case_,
-            checklist: case_.checklist.map(item => 
-              item.id === itemId ? { ...item, ...updates } : item
-            ),
-            lastUpdated: new Date().toISOString()
-          }
-        : case_
-    ))
-    toast.success('Checklist item updated!')
+  const updateChecklistItem = async (caseId: string, itemId: string, updates: Partial<ChecklistItem>) => {
+    try {
+      const caseToUpdate = cases.find(c => c.id === caseId)
+      if (!caseToUpdate) return
+
+      const updatedChecklist = caseToUpdate.checklist.map(item => 
+        item.id === itemId ? { ...item, ...updates, verifiedDate: updates.status === 'verified' ? new Date().toISOString() : item.verifiedDate } : item
+      )
+
+      // Calculate compliance score
+      const verifiedCount = updatedChecklist.filter(item => item.status === 'verified').length
+      const complianceScore = updatedChecklist.length > 0 ? Math.round((verifiedCount / updatedChecklist.length) * 100) : 0
+
+      const metadata = {
+        ...caseToUpdate,
+        checklist: updatedChecklist,
+        complianceScore
+      }
+
+      const response = await backendApi.partners.updateCase(caseId, { metadata })
+      if (response?.success) {
+        setCases(prev => prev.map(case_ => 
+          case_.id === caseId 
+            ? { ...case_, checklist: updatedChecklist, complianceScore, lastUpdated: new Date().toISOString() }
+            : case_
+        ))
+        toast.success('Checklist item updated!')
+      } else {
+        throw new Error(response?.message || 'Failed to update')
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update checklist item')
+    }
   }
 
-  const saveLegalOpinion = () => {
+  const saveLegalOpinion = async () => {
     if (selectedCase) {
-      setCases(prev => prev.map(case_ => 
-        case_.id === selectedCase.id 
-          ? { ...case_, legalOpinion: tempOpinion, lastUpdated: new Date().toISOString() }
-          : case_
-      ))
-      setSelectedCase({ ...selectedCase, legalOpinion: tempOpinion })
-      setEditingOpinion(false)
-      toast.success('Legal opinion saved!')
+      try {
+        const metadata = {
+          ...selectedCase,
+          legalOpinion: tempOpinion
+        }
+        const response = await backendApi.partners.updateCase(selectedCase.id, { metadata })
+        if (response?.success) {
+          setCases(prev => prev.map(case_ => 
+            case_.id === selectedCase.id 
+              ? { ...case_, legalOpinion: tempOpinion, lastUpdated: new Date().toISOString() }
+              : case_
+          ))
+          setSelectedCase({ ...selectedCase, legalOpinion: tempOpinion })
+          setEditingOpinion(false)
+          toast.success('Opinion saved!')
+        } else {
+          throw new Error(response?.message || 'Failed to save')
+        }
+      } catch (error: any) {
+        toast.error(error.message || 'Failed to save opinion')
+      }
     }
   }
 

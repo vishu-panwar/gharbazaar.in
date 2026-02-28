@@ -39,6 +39,8 @@ type PartnerCase = {
     conversationId?: string
     [key: string]: any
   }
+  displayId?: string
+  clientUniqueId?: string
 }
 
 const statusLabel = (status?: string) => {
@@ -84,7 +86,11 @@ export default function ServicePartnerCasesPage() {
         throw new Error(response?.error || 'Failed to fetch partner cases')
       }
 
-      const records = Array.isArray(response.data) ? response.data : []
+      const records = (Array.isArray(response.data) ? response.data : []).map((c: any) => ({
+        ...c,
+        displayId: `SVC-${c.id?.slice(-6).toUpperCase()}`,
+        clientUniqueId: c.buyer?.uid || c.seller?.uid || c.metadata?.clientUniqueId
+      }))
       setCases(records)
       if (records.length > 0) {
         setSelectedCase((prev) => prev && records.find((item: PartnerCase) => item.id === prev.id) ? prev : records[0])
@@ -246,12 +252,23 @@ export default function ServicePartnerCasesPage() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="font-semibold text-gray-900 dark:text-white">{caseItem.title || 'Service Task'}</p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-500 rounded">
+                          {caseItem.displayId || caseItem.id}
+                        </span>
+                        <p className="font-semibold text-gray-900 dark:text-white">{caseItem.title || 'Service Task'}</p>
+                      </div>
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
                         {caseItem.description || 'No description available.'}
                       </p>
-                      <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                        {caseItem.property?.title || 'Property not linked'}
+                      <div className="mt-2 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                        <span>{caseItem.property?.title || 'Property not linked'}</span>
+                        {caseItem.clientUniqueId && (
+                          <>
+                            <span>•</span>
+                            <span className="font-medium text-blue-600 dark:text-blue-400">{caseItem.clientUniqueId}</span>
+                          </>
+                        )}
                       </div>
                     </div>
 
@@ -273,8 +290,13 @@ export default function ServicePartnerCasesPage() {
           ) : (
             <div className="space-y-4">
               <div>
-                <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedCase.title || 'Service Task'}</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{selectedCase.description || 'No description available.'}</p>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs font-bold px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded">
+                    {selectedCase.displayId || selectedCase.id}
+                  </span>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedCase.title || 'Service Task'}</p>
+                </div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{selectedCase.description || 'No description available.'}</p>
               </div>
 
               <div className="space-y-2 text-sm">
@@ -307,8 +329,15 @@ export default function ServicePartnerCasesPage() {
               </div>
 
               <div className="pt-2 border-t border-gray-200 dark:border-gray-800 text-sm space-y-2">
-                <p className="text-gray-500 dark:text-gray-400">Buyer</p>
-                <p className="text-gray-900 dark:text-white">{selectedCase.buyer?.name || 'N/A'}</p>
+                <p className="text-gray-500 dark:text-gray-400">Buyer / Client</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-gray-900 dark:text-white font-medium">{selectedCase.buyer?.name || 'N/A'}</p>
+                  {selectedCase.clientUniqueId && (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-500 rounded">
+                      {selectedCase.clientUniqueId}
+                    </span>
+                  )}
+                </div>
                 <p className="text-gray-600 dark:text-gray-400">{selectedCase.buyer?.phone || selectedCase.buyer?.email || 'No contact available'}</p>
               </div>
 

@@ -41,6 +41,7 @@ import {
   Unlock
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { backendApi } from '@/lib/backendApi'
 
 interface Message {
   id: string
@@ -103,8 +104,26 @@ export default function CommunicationsPage() {
   const [activeFilter, setActiveFilter] = useState('all')
   const [isLoading, setIsLoading] = useState(true)
   const [showNewChatModal, setShowNewChatModal] = useState(false)
+  const [profile, setProfile] = useState<{ uniqueId?: string } | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Fetch profile for UID
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const response = await backendApi.user.getProfile()
+        if (response?.success) {
+          setProfile({
+            uniqueId: response.data.uid
+          })
+        }
+      } catch (error) {
+        console.error('Failed to load profile:', error)
+      }
+    }
+    loadProfile()
+  }, [])
 
   // Mock data
   useEffect(() => {
@@ -394,7 +413,12 @@ export default function CommunicationsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Communications</h1>
+          <div className="flex items-center space-x-3">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Communications</h1>
+            <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-full text-sm font-bold border border-blue-200 dark:border-blue-800">
+              {profile?.uniqueId ? `GBPR-${profile.uniqueId.slice(-6).toUpperCase()}` : 'GBPR-PARTNER'}
+            </span>
+          </div>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
             Secure messaging with case teams and compliance
           </p>

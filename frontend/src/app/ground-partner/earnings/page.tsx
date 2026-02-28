@@ -43,6 +43,24 @@ export default function GroundPartnerEarningsPage() {
   const [loading, setLoading] = useState(true)
   const [payouts, setPayouts] = useState<Payout[]>([])
   const [cases, setCases] = useState<PartnerCase[]>([])
+  const [profile, setProfile] = useState<{ uniqueId?: string } | null>(null)
+
+  // Fetch profile for UID
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const response = await backendApi.user.getProfile()
+        if (response?.success) {
+          setProfile({
+            uniqueId: response.data.uid
+          })
+        }
+      } catch (error) {
+        console.error('Failed to load profile:', error)
+      }
+    }
+    loadProfile()
+  }, [])
 
   const loadData = async () => {
     try {
@@ -119,7 +137,12 @@ export default function GroundPartnerEarningsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Earnings</h1>
+          <div className="flex items-center space-x-3">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Earnings</h1>
+            <span className="px-3 py-0.5 bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-full text-xs font-bold border border-blue-200 dark:border-blue-800">
+              {profile?.uniqueId ? `GBPR-${profile.uniqueId.slice(-6).toUpperCase()}` : 'GBPR-PARTNER'}
+            </span>
+          </div>
           <p className="text-sm text-gray-600 dark:text-gray-400">Live payout records and completed task values</p>
         </div>
         <button

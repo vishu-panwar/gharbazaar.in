@@ -27,6 +27,8 @@ import {
   Target
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { backendApi } from '@/lib/backendApi'
+import { format } from 'date-fns'
 
 interface LegalCase {
   id: string
@@ -66,6 +68,8 @@ interface LegalCase {
   }
   rating?: number
   feedback?: string
+  displayId?: string
+  clientUniqueId?: string
 }
 
 export default function LegalCasesPage() {
@@ -79,201 +83,66 @@ export default function LegalCasesPage() {
   const [filterPriority, setFilterPriority] = useState('all')
   const [filterPropertyType, setFilterPropertyType] = useState('all')
   const [isLoading, setIsLoading] = useState(true)
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null)
 
-  // Mock data
-  useEffect(() => {
-    const mockCases: LegalCase[] = [
-      {
-        id: 'LC001',
-        title: 'Property Title Verification - Luxury Apartment',
-        description: 'Complete legal due diligence for a 3BHK luxury apartment purchase including title verification, encumbrance check, and RERA compliance.',
-        propertyType: 'residential',
-        propertyDetails: {
-          address: 'Tower A, Lodha Park, Worli, Mumbai',
-          area: '1,250 sq ft',
-          value: 45000000,
-          registrationNumber: 'MH/RERA/2019/P52100012345'
-        },
-        clientType: 'individual-buyer',
-        clientName: 'Mr. Arjun Mehta',
-        clientContact: '+91 98765 43210',
-        scopeOfWork: [
-          'Title verification and chain of ownership',
-          'Encumbrance certificate review',
-          'RERA compliance check',
-          'Government approvals verification',
-          'Legal opinion and risk assessment'
-        ],
-        priority: 'high',
-        status: 'assigned',
-        assignedDate: '2024-12-30T10:00:00Z',
-        dueDate: '2025-01-05T18:00:00Z',
-        fee: 25000,
-        documents: [
-          'Sale Deed',
-          'Agreement to Sell',
-          'Encumbrance Certificate',
-          'RERA Certificate',
-          'Approved Building Plan'
-        ],
-        complianceStatus: {
-          titleVerification: false,
-          encumbranceCheck: false,
-          reraCompliance: false,
-          governmentApprovals: false
-        },
-        timeline: {
-          assigned: '2024-12-30T10:00:00Z'
-        }
-      },
-      {
-        id: 'LC002',
-        title: 'RERA Compliance Audit - Commercial Complex',
-        description: 'Comprehensive RERA compliance audit for a commercial complex development project.',
-        propertyType: 'commercial',
-        propertyDetails: {
-          address: 'Andheri Kurla Road, Andheri East, Mumbai',
-          area: '50,000 sq ft',
-          value: 150000000,
-          registrationNumber: 'MH/RERA/2020/P52100067890'
-        },
-        clientType: 'developer',
-        clientName: 'Prestige Constructions Pvt Ltd',
-        clientContact: '+91 87654 32109',
-        scopeOfWork: [
-          'RERA registration verification',
-          'Project approval status check',
-          'Compliance with RERA guidelines',
-          'Escrow account verification',
-          'Marketing material compliance'
-        ],
-        priority: 'urgent',
-        status: 'under-review',
-        assignedDate: '2024-12-28T14:30:00Z',
-        dueDate: '2025-01-02T18:00:00Z',
-        fee: 45000,
-        documents: [
-          'RERA Registration Certificate',
-          'Project Approval Letter',
-          'Sanctioned Building Plan',
-          'Environmental Clearance',
-          'Marketing Brochures'
-        ],
-        legalOpinion: 'Initial review shows compliance with major RERA requirements. Minor documentation gaps identified.',
-        riskGrade: 'medium',
-        complianceStatus: {
-          titleVerification: true,
-          encumbranceCheck: true,
-          reraCompliance: false,
-          governmentApprovals: true
-        },
-        timeline: {
-          assigned: '2024-12-28T14:30:00Z',
-          started: '2024-12-28T16:00:00Z',
-          reviewed: '2024-12-29T11:30:00Z'
-        }
-      },
-      {
-        id: 'LC003',
-        title: 'Legal Due Diligence - Villa Purchase',
-        description: 'Complete legal verification for an independent villa purchase in Juhu.',
-        propertyType: 'residential',
-        propertyDetails: {
-          address: 'Juhu Tara Road, Juhu, Mumbai',
-          area: '3,500 sq ft',
-          value: 85000000
-        },
-        clientType: 'individual-buyer',
-        clientName: 'Mrs. Kavita Sharma',
-        clientContact: '+91 76543 21098',
-        scopeOfWork: [
-          'Title verification',
-          'Encumbrance check (30 years)',
-          'Municipal approvals verification',
-          'Coastal regulation zone clearance',
-          'Property tax verification'
-        ],
-        priority: 'medium',
-        status: 'clarification-needed',
-        assignedDate: '2024-12-25T09:15:00Z',
-        dueDate: '2025-01-08T18:00:00Z',
-        fee: 35000,
-        documents: [
-          'Original Sale Deed',
-          'Property Card',
-          'Mutation Documents',
-          'Property Tax Receipts',
-          'CRZ Clearance'
-        ],
-        legalOpinion: 'Property has clear title. Clarification needed on CRZ compliance for recent renovations.',
-        riskGrade: 'low',
-        complianceStatus: {
-          titleVerification: true,
-          encumbranceCheck: true,
-          reraCompliance: true,
-          governmentApprovals: false
-        },
-        timeline: {
-          assigned: '2024-12-25T09:15:00Z',
-          started: '2024-12-25T14:00:00Z',
-          reviewed: '2024-12-27T16:30:00Z'
-        }
-      },
-      {
-        id: 'LC004',
-        title: 'Property Documentation Review - Completed',
-        description: 'Legal review of property documents for a residential flat purchase.',
-        propertyType: 'residential',
-        propertyDetails: {
-          address: 'Hiranandani Gardens, Powai, Mumbai',
-          area: '1,100 sq ft',
-          value: 32000000
-        },
-        clientType: 'individual-buyer',
-        clientName: 'Mr. Rohit Patel',
-        clientContact: '+91 65432 10987',
-        scopeOfWork: [
-          'Document verification',
-          'Title clearance',
-          'Society NOC verification',
-          'Legal opinion'
-        ],
-        priority: 'medium',
-        status: 'completed',
-        assignedDate: '2024-12-20T11:00:00Z',
-        dueDate: '2024-12-28T18:00:00Z',
-        completedDate: '2024-12-27T15:30:00Z',
-        fee: 18000,
-        documents: [
-          'Sale Agreement',
-          'Society Share Certificate',
-          'NOC from Society',
-          'Property Tax Receipts'
-        ],
-        legalOpinion: 'All documents are in order. Property has clear and marketable title. Recommended for purchase.',
-        riskGrade: 'low',
-        complianceStatus: {
-          titleVerification: true,
-          encumbranceCheck: true,
-          reraCompliance: true,
-          governmentApprovals: true
-        },
-        timeline: {
-          assigned: '2024-12-20T11:00:00Z',
-          started: '2024-12-20T14:00:00Z',
-          reviewed: '2024-12-25T10:00:00Z',
-          completed: '2024-12-27T15:30:00Z'
-        },
-        rating: 5,
-        feedback: 'Excellent work. Very thorough analysis and clear recommendations.'
+  // Fetch cases
+  const loadCases = async () => {
+    try {
+      setIsLoading(true)
+      const response = await backendApi.partners.getCases()
+      
+      if (response?.success) {
+        const fetchedCases = (response.data || []).map((c: any) => ({
+          id: c.id,
+          displayId: `LGC-${c.id?.slice(-6).toUpperCase()}`,
+          title: c.title || 'Legal Assignment',
+          description: c.description || '',
+          status: c.status || 'assigned',
+          propertyType: c.property?.type || 'residential',
+          propertyDetails: {
+            address: c.property?.location || (c.property?.address || 'Location not set'),
+            area: c.property?.area || 'N/A',
+            value: c.property?.price || c.amount || 0,
+            registrationNumber: c.property?.registrationNumber || ''
+          },
+          clientType: c.buyer ? 'individual-buyer' : 'individual-seller',
+          clientName: c.buyer?.name || c.seller?.name || 'GharBazaar Client',
+          clientContact: c.buyer?.phone || c.buyer?.email || '',
+          scopeOfWork: c.metadata?.scopeOfWork || ['Title Verification', 'Due Diligence'],
+          priority: c.metadata?.priority || 'medium',
+          assignedDate: c.createdAt,
+          dueDate: c.dueDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          fee: c.amount || 0,
+          documents: c.metadata?.documents?.map((d: any) => d.name) || [],
+          legalOpinion: c.metadata?.legalOpinion,
+          riskGrade: c.metadata?.riskGrade,
+          complianceStatus: c.metadata?.complianceStatus || {
+            titleVerification: false,
+            encumbranceCheck: false,
+            reraCompliance: false,
+            governmentApprovals: false
+          },
+          timeline: {
+            assigned: c.createdAt,
+            started: c.metadata?.timeline?.started,
+            reviewed: c.metadata?.timeline?.reviewed,
+            completed: c.metadata?.timeline?.completed
+          },
+          clientUniqueId: c.buyer?.uid || c.seller?.uid || c.metadata?.clientUniqueId
+        }))
+        setCases(fetchedCases)
+        setFilteredCases(fetchedCases)
       }
-    ]
-
-    setTimeout(() => {
-      setCases(mockCases)
-      setFilteredCases(mockCases)
       setIsLoading(false)
-    }, 1000)
+    } catch (error) {
+      console.error('Error fetching cases:', error)
+      toast.error('Failed to load cases')
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadCases()
   }, [])
 
   // Filter cases
@@ -353,21 +222,58 @@ export default function LegalCasesPage() {
     }
   }
 
-  const acceptCase = (caseId: string) => {
-    setCases(prev => prev.map(case_ => 
-      case_.id === caseId 
-        ? { 
-            ...case_, 
-            status: 'under-review' as const,
-            timeline: { ...case_.timeline, started: new Date().toISOString() }
+  const acceptCase = async (caseId: string) => {
+    try {
+      setActionLoadingId(caseId)
+      const response = await backendApi.partners.updateCase(caseId, { 
+        status: 'under-review',
+        metadata: {
+          ...(cases.find(c => c.id === caseId)?.metadata || {}),
+          timeline: {
+            assigned: cases.find(c => c.id === caseId)?.assignedDate,
+            started: new Date().toISOString()
           }
-        : case_
-    ))
-    toast.success('Case accepted and started!')
+        }
+      })
+      
+      if (response?.success) {
+        toast.success('Case accepted and started!')
+        await loadCases()
+      } else {
+        throw new Error(response?.message || 'Update failed')
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to accept case')
+    } finally {
+      setActionLoadingId(null)
+    }
   }
 
-  const submitOpinion = (caseId: string) => {
-    toast.success('Legal opinion submitted for review!')
+  const submitOpinion = async (caseId: string) => {
+    try {
+      setActionLoadingId(caseId)
+      const response = await backendApi.partners.updateCase(caseId, { 
+        status: 'completed',
+        metadata: {
+          ...(cases.find(c => c.id === caseId)?.metadata || {}),
+          timeline: {
+            ...(cases.find(c => c.id === caseId)?.timeline || {}),
+            completed: new Date().toISOString()
+          }
+        }
+      })
+      
+      if (response?.success) {
+        toast.success('Legal opinion submitted and case completed!')
+        await loadCases()
+      } else {
+        throw new Error(response?.message || 'Update failed')
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to submit opinion')
+    } finally {
+      setActionLoadingId(null)
+    }
   }
 
   const tabs = [
@@ -575,7 +481,7 @@ export default function LegalCasesPage() {
                         )}
                       </div>
                       <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                        Case ID: {case_.id}
+                        Case ID: {case_.displayId || case_.id}
                       </p>
                     </div>
                   </div>
@@ -587,7 +493,10 @@ export default function LegalCasesPage() {
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-900 dark:text-white">{case_.clientName}</p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400 capitalize">{case_.clientType.replace('-', ' ')}</p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 capitalize">
+                          {case_.clientUniqueId ? `${case_.clientUniqueId} • ` : ''}
+                          {case_.clientType.replace('-', ' ')}
+                        </p>
                       </div>
                     </div>
 

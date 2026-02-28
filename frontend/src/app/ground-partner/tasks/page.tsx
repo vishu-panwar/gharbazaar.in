@@ -24,6 +24,8 @@ type PartnerCase = {
     email?: string
     phone?: string
   }
+  displayId?: string
+  clientUniqueId?: string
 }
 
 const normalize = (value?: string) => (value || '').toLowerCase()
@@ -56,7 +58,13 @@ export default function GroundPartnerTasksPage() {
       if (!response?.success) {
         throw new Error(response?.message || response?.error || 'Failed to load task queue')
       }
-      setCases(Array.isArray(response?.data) ? response.data : [])
+      setCases(
+        (Array.isArray(response?.data) ? response.data : []).map((c: any) => ({
+          ...c,
+          displayId: `GRN-${c.id?.slice(-6).toUpperCase()}`,
+          clientUniqueId: c.buyer?.uid || c.seller?.uid || c.metadata?.clientUniqueId
+        }))
+      )
     } catch (error: any) {
       toast.error(error?.message || 'Failed to load task queue')
     } finally {
@@ -218,7 +226,12 @@ export default function GroundPartnerTasksPage() {
                   return (
                     <tr key={row.id} className="border-t border-gray-100 dark:border-gray-800">
                       <td className="px-4 py-3">
-                        <p className="font-medium text-gray-900 dark:text-gray-100">{row.title || 'Ground task'}</p>
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-500 rounded">
+                            {row.displayId || row.id}
+                          </span>
+                          <p className="font-medium text-gray-900 dark:text-gray-100">{row.title || 'Ground task'}</p>
+                        </div>
                         <p className="line-clamp-1 text-xs text-gray-500">{row.description || '-'}</p>
                       </td>
                       <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
@@ -226,7 +239,14 @@ export default function GroundPartnerTasksPage() {
                         <p className="text-xs text-gray-500">{row.property?.location || '-'}</p>
                       </td>
                       <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
-                        <p>{row.buyer?.name || '-'}</p>
+                        <div className="flex items-center gap-2">
+                          <p>{row.buyer?.name || '-'}</p>
+                          {row.clientUniqueId && (
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-500 rounded">
+                              {row.clientUniqueId}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-gray-500">{row.buyer?.phone || row.buyer?.email || '-'}</p>
                       </td>
                       <td className="px-4 py-3">
