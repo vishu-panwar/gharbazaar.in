@@ -636,7 +636,7 @@ export default function EarningsPage() {
                     {selectedPayment.invoiceNumber}
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400">
-                    Invoice Date: {formatDate(selectedPayment.invoiceDate)}
+                    Invoice Date: {formatDate(selectedPayment.invoiceDate || selectedPayment.createdAt)}
                   </p>
                 </div>
                 <div className="text-right">
@@ -681,14 +681,14 @@ export default function EarningsPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600 dark:text-gray-400">Tax Deducted:</span>
                     <span className="font-medium text-red-600 dark:text-red-400">
-                      -{formatCurrency(selectedPayment.taxAmount)}
+                      -{formatCurrency(selectedPayment.taxAmount || 0)}
                     </span>
                   </div>
                   <div className="border-t border-gray-200 dark:border-gray-800 pt-3">
                     <div className="flex items-center justify-between">
                       <span className="font-semibold text-gray-900 dark:text-white">Net Amount:</span>
                       <span className="font-bold text-green-600 dark:text-green-400 text-lg">
-                        {formatCurrency(selectedPayment.netAmount)}
+                        {formatCurrency(selectedPayment.netAmount || 0)}
                       </span>
                     </div>
                   </div>

@@ -191,8 +191,8 @@ export default function SettingsPage() {
     try {
       const response = await backendApi.user.updateProfile({
         displayName: profile.name,
-        phone: profile.phone,
-        address: profile.address
+        phoneNumber: profile.phone,
+        location: profile.location
       })
       
       if (response?.success) {

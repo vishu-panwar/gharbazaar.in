@@ -41,6 +41,7 @@ import {
   Brain
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { backendApi } from '@/lib/backendApi'
 
 interface PerformanceMetric {
   id: string

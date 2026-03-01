@@ -70,6 +70,7 @@ interface LegalCase {
   feedback?: string
   displayId?: string
   clientUniqueId?: string
+  metadata?: any
 }
 
 export default function LegalCasesPage() {
